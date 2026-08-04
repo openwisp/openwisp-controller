@@ -193,6 +193,46 @@ class TestTemplate(CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase):
         self.assertNotEqual(c.pk, t.pk)
         self.assertFalse(c.default)
 
+    def test_clone_cert_template_across_organizations_rejected(self):
+        org1 = self._get_org()
+        org2 = self._create_org(name="Org2", slug="org2")
+        ca = self._create_ca(name="ca", common_name="ca", organization=org1)
+        blueprint = self._create_cert(ca=ca, name="blueprint", organization=org1)
+        t = self._create_template(
+            name="Cert Template",
+            type="cert",
+            ca=ca,
+            blueprint_cert=blueprint,
+            organization=org1,
+            config={},
+        )
+        user = User.objects.create_superuser(
+            username="admin", password="tester", email="admin@admin.com"
+        )
+        with self.assertRaises(ValidationError):
+            t.clone(user, organization=org2)
+
+    def test_clone_cert_template_across_shared_orgs(self):
+        org1 = self._get_org()
+        org2 = self._create_org(name="Org2", slug="org2")
+        ca = self._create_ca(name="shared-ca", common_name="shared-ca")
+        blueprint = self._create_cert(ca=ca, name="shared-blueprint")
+        t = self._create_template(
+            name="Cert Template",
+            type="cert",
+            ca=ca,
+            blueprint_cert=blueprint,
+            organization=org1,
+            config={},
+        )
+        user = User.objects.create_superuser(
+            username="admin", password="tester", email="admin@admin.com"
+        )
+        clone = t.clone(user, organization=org2)
+        self.assertEqual(clone.organization, org2)
+        self.assertEqual(clone.ca, ca)
+        self.assertEqual(clone.blueprint_cert, blueprint)
+
     def test_duplicate_files_in_template(self):
         try:
             self._create_template(

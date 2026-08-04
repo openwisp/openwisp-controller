@@ -1355,6 +1355,21 @@ class TestConfigApi(
         r = self.client.post(path, data, content_type="application/json")
         self.assertEqual(r.status_code, 201)
         self.assertEqual(r.data["ca"], ca.pk)
+        self.assertTrue(Template.objects.get(pk=r.data["id"]).auto_cert)
+
+        with self.subTest("DEFAULT_AUTO_CERT=False"):
+            with patch(
+                "openwisp_controller.config.base.template.DEFAULT_AUTO_CERT", False
+            ):
+                data.update(
+                    {
+                        "name": "API Cert Template Auto False",
+                        "organization": str(org.pk),
+                    }
+                )
+                r = self.client.post(path, data, content_type="application/json")
+                self.assertEqual(r.status_code, 201)
+                self.assertTrue(Template.objects.get(pk=r.data["id"]).auto_cert)
 
     def test_template_create_cert_rejects_without_ca(self):
         """Rejects cert template if CA is missing"""

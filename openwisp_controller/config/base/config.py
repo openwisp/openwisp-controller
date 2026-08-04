@@ -600,23 +600,6 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
                 )
 
     @classmethod
-    def certificate_updated(cls, instance, created, **kwargs):
-        DeviceCertificate = load_model("config", "DeviceCertificate")
-        if created or instance.revoked:
-            return
-        configs_to_update = set()
-        try:
-            configs_to_update.add(instance.vpnclient.config)
-        except ObjectDoesNotExist:
-            pass
-        for dc in DeviceCertificate.objects.filter(cert=instance).select_related(
-            "config"
-        ):
-            configs_to_update.add(dc.config)
-        for config in configs_to_update:
-            transaction.on_commit(config.update_status_if_checksum_changed)
-
-    @classmethod
     def register_context_function(cls, func):
         """
         Adds "func" to "_config_context_functions".
@@ -1110,9 +1093,7 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
         cert_template_ids = [t.id for t in self.templates.all() if t.type == "cert"]
         if not cert_template_ids:
             return cert_context
-        for dc in self.devicecertificate_set.select_related(
-            "template", "cert"
-        ).order_by("created"):
+        for dc in self.devicecertificate_set.all():
             if dc.cert and dc.template_id in cert_template_ids:
                 template_hex = dc.template_id.hex
                 prefix = f"cert_{template_hex}"

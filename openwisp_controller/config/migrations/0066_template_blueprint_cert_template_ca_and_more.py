@@ -135,6 +135,7 @@ class Migration(migrations.Migration):
                 "abstract": False,
                 "swappable": "CONFIG_DEVICECERTIFICATE_MODEL",
                 "unique_together": {("config", "template")},
+                "ordering": ("created",),
             },
         ),
         migrations.AddField(

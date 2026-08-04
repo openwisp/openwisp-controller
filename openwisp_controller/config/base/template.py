@@ -158,16 +158,25 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
     def _is_deferred(self, field):
         return field in self.get_deferred_fields()
 
-    def _set_initial_values_for_changed_checked_fields(self):
-        for field in self._changed_checked_fields:
+    def _set_initial_values_for_changed_checked_fields(self, update_fields=None):
+        fields = self._changed_checked_fields
+        if update_fields:
+            fields = [f for f in fields if f in update_fields]
+        for field in fields:
             if self._is_deferred(field):
                 setattr(self, f"_initial_{field}", models.DEFERRED)
             else:
                 setattr(self, f"_initial_{field}", getattr(self, field))
 
     def save(self, *args, **kwargs):
+        update_fields = kwargs.get("update_fields")
+        if self.type == "cert":
+            self.auto_cert = True
+            if update_fields is not None and "auto_cert" not in update_fields:
+                update_fields = {*update_fields, "auto_cert"}
+                kwargs["update_fields"] = update_fields
         super().save(*args, **kwargs)
-        self._set_initial_values_for_changed_checked_fields()
+        self._set_initial_values_for_changed_checked_fields(update_fields=update_fields)
 
     def refresh_from_db(self, *args, **kwargs):
         super().refresh_from_db(*args, **kwargs)
@@ -432,15 +441,8 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
             self.vpn = None
             if self.type != "cert":
                 self.auto_cert = False
-        if self.type == "cert" and not self.auto_cert:
-            raise ValidationError(
-                {
-                    "auto_cert": _(
-                        "Certificate templates must have automatic "
-                        "certificate provisioning enabled."
-                    )
-                }
-            )
+        if self.type == "cert":
+            self.auto_cert = True
         if self.type == "vpn" and not self.config:
             self.config = self.vpn.auto_client(
                 auto_cert=self.auto_cert, template_backend_class=self.backend_class
@@ -469,8 +471,10 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
         except (ObjectDoesNotExist, AttributeError):
             return {}
 
-    def clone(self, user):
+    def clone(self, user, organization=None):
         clone = copy(self)
+        if organization is not None:
+            clone.organization = organization
         clone.name = self.__get_clone_name()
         clone._state.adding = True
         clone.pk = None

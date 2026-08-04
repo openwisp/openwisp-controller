@@ -1154,14 +1154,10 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin, SystemDefinedVariabl
             errors = False
             for template in queryset:
                 try:
-                    clone = template.clone(user)
-                    # user has access to multiple orgs
                     if organization is not None:
-                        clone.organization = validated_org
-                    # user has access only to one org
+                        clone = template.clone(user, organization=validated_org)
                     else:
-                        clone.organization = template.organization
-                    clone.save()
+                        clone = template.clone(user)
                     create_log_entry(user, clone)
                 except ValidationError as e:
                     # show 1 error message for each template failing

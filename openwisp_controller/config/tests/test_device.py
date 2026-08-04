@@ -1,3 +1,4 @@
+import json
 import uuid
 from hashlib import md5
 from unittest import mock
@@ -990,7 +991,12 @@ class TestDeviceCertificateRegenerationTask(
         self.assertFalse(device_cert.cert.revoked)
         old_cert = Cert.objects.get(id=original_cert_id)
         self.assertTrue(old_cert.revoked)
-        regenerate_device_certificates_task(str(device.id), expected_cert_ids)
+        serialized_expected_cert_ids = json.loads(
+            json.dumps(expected_cert_ids, default=str)
+        )
+        regenerate_device_certificates_task(
+            str(device.id), serialized_expected_cert_ids
+        )
         device_cert.refresh_from_db()
         self.assertEqual(
             first_new_cert_id,
@@ -1091,6 +1097,9 @@ class TestDeviceCertificateModel(
         dc = DeviceCertificate.objects.get(config=config, template=template)
         self.assertIsNotNone(dc.cert)
         self.assertNotIn("Pending Generation", str(dc))
+        DeviceCertificate.objects.filter(pk=dc.pk).update(cert=None)
+        dc.refresh_from_db()
+        self.assertIn("Pending Generation", str(dc))
 
     def test_cert_used_as_blueprint_blocked(self):
         org = self._get_org()

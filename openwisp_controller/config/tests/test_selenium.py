@@ -527,7 +527,7 @@ class TestDeviceAdmin(
         self.assertFalse(device_cert.cert.revoked)
         self.assertEqual(device_cert.cert.name, "e2e-router")
 
-    def test_device_property_change_notification(self):
+    def test_device_identity_change_notification(self):
         org = self._get_org()
         ca = self._create_ca(
             name="device-change-ca",

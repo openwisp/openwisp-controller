@@ -40,6 +40,7 @@ class AbstractDeviceCertificate(TimeStampedEditableModel):
         unique_together = ("config", "template")
         verbose_name = _("Device certificate")
         verbose_name_plural = _("Device certificates")
+        ordering = ("created",)
 
     def __str__(self):
         cert_name = self.cert.name if self.cert else str(_("Pending Generation"))
@@ -244,13 +245,17 @@ class AbstractDeviceCertificate(TimeStampedEditableModel):
             if expected_cert_ids:
                 valid_cert_ids = [cert_id for _dc_id, cert_id in expected_cert_ids]
                 qs = qs.filter(cert_id__in=valid_cert_ids)
-            active_device_certs = qs.select_related("cert", "config", "template")
-            if not active_device_certs.exists():
+            active_device_certs = list(qs.select_related("cert", "config", "template"))
+            if not active_device_certs:
                 return
-            expected_map = dict(expected_cert_ids) if expected_cert_ids else {}
+            expected_map = (
+                {str(dc_id): str(cert_id) for dc_id, cert_id in expected_cert_ids}
+                if expected_cert_ids
+                else {}
+            )
             for dc in active_device_certs:
-                expected_cert_id = expected_map.get(dc.id)
-                if expected_cert_id is not None and dc.cert_id != expected_cert_id:
+                expected_cert_id = expected_map.get(str(dc.id))
+                if expected_cert_id is not None and str(dc.cert_id) != expected_cert_id:
                     continue
                 old_cert = dc.cert
                 old_cert.revoke()

@@ -133,6 +133,7 @@ class Migration(migrations.Migration):
                 "verbose_name_plural": "Device certificates",
                 "abstract": False,
                 "unique_together": {("config", "template")},
+                "ordering": ("created",),
             },
         ),
         migrations.AddField(

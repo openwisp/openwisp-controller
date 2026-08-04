@@ -342,8 +342,10 @@ configuration object).
 
 When a device's name or MAC address changes, OpenWISP automatically
 revokes the existing X.509 client certificates and provisions new ones
-with the updated identity attributes. Set this to ``False`` to disable
-this automatic regeneration.
+with the updated identity attributes. This applies only to active,
+automatically managed certificates (that is, those generated for templates
+with ``auto_cert`` enabled); manually assigned certificates are left
+untouched. Set this to ``False`` to disable this automatic regeneration.
 
 ``OPENWISP_CONTROLLER_CERT_PATH``
 ---------------------------------
