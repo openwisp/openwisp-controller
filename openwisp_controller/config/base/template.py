@@ -158,11 +158,29 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
     def _is_deferred(self, field):
         return field in self.get_deferred_fields()
 
+    def _expand_update_field_attnames(self, update_fields):
+        """
+        Expands ``update_fields`` so both the relation name (e.g. ``ca``) and
+        the column attname (e.g. ``ca_id``) are recognized.
+        """
+        from django.core.exceptions import FieldDoesNotExist
+
+        expanded = set(update_fields)
+        for name in update_fields:
+            try:
+                model_field = self._meta.get_field(name)
+            except FieldDoesNotExist:
+                continue
+            expanded.add(model_field.name)
+            expanded.add(model_field.attname)
+        return expanded
+
     def _set_initial_values_for_changed_checked_fields(self, update_fields=None):
-        fields = self._changed_checked_fields
-        if update_fields:
-            fields = [f for f in fields if f in update_fields]
-        for field in fields:
+        if update_fields is not None:
+            update_fields = self._expand_update_field_attnames(update_fields)
+        for field in self._changed_checked_fields:
+            if update_fields is not None and field not in update_fields:
+                continue
             if self._is_deferred(field):
                 setattr(self, f"_initial_{field}", models.DEFERRED)
             else:
@@ -170,11 +188,20 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
 
     def save(self, *args, **kwargs):
         update_fields = kwargs.get("update_fields")
+        is_positional = False
+        if update_fields is None and len(args) > 3:
+            update_fields = args[3]
+            is_positional = True
         if self.type == "cert":
             self.auto_cert = True
             if update_fields is not None and "auto_cert" not in update_fields:
                 update_fields = {*update_fields, "auto_cert"}
-                kwargs["update_fields"] = update_fields
+                if is_positional:
+                    args = list(args)
+                    args[3] = update_fields
+                    args = tuple(args)
+                else:
+                    kwargs["update_fields"] = update_fields
         super().save(*args, **kwargs)
         self._set_initial_values_for_changed_checked_fields(update_fields=update_fields)
 
