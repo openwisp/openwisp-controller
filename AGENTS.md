@@ -57,6 +57,8 @@ If instructions conflict (please let us know!), repository config and CI workflo
 ## Django Notes
 
 - Preserve multi-tenant isolation and object-level permissions for organizations, devices, templates, VPNs, credentials, commands, maps, and IP/subnet data.
+- A model permission does not permit access to another organization's data. Begin organization-owned, parent, and related-object lookups with objects managed by the requester; filters may only narrow that queryset, and writes must reject cross-organization relations.
+- Cached lookups must check permission and organization scope on every request. Changed endpoints need cross-organization regression tests.
 - Be careful with authentication, authorization, queryset filtering, serializers, admin behavior, cache invalidation, signals, Celery tasks, and websocket updates.
 - When changing APIs, include tests for permissions, validation, filtering, pagination, and organization boundaries.
 - Changes to swappable models, tenant isolation, authentication flows, or admin/REST authorization must be covered by both the default package suite and the `SAMPLE_APP=1` integration suite. Add a `tests/openwisp2` regression test when the affected feature has no existing sample-app analogue.
