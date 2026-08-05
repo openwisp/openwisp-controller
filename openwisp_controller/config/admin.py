@@ -1006,15 +1006,18 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, CopyableFieldsAdmin):
     def get_extra_context(self, pk=None):
         ctx = super().get_extra_context(pk)
         if pk:
-            device = self.model.objects.select_related("config").get(id=pk)
+            device = self.model.objects.select_related("config", "organization").get(
+                id=pk
+            )
             ctx.update(
                 {
                     "show_deactivate": not device.is_deactivated(),
-                    "show_activate": device.is_deactivated(),
+                    "show_activate": device.is_deactivated()
+                    and device.organization.is_active,
                     "action_checkbox_name": helpers.ACTION_CHECKBOX_NAME,
                 }
             )
-            if device.is_deactivated():
+            if ctx["show_activate"]:
                 ctx["additional_buttons"].append(
                     {
                         "raw_html": mark_safe(
@@ -1023,7 +1026,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, CopyableFieldsAdmin):
                         )
                     }
                 )
-            else:
+            elif not device.is_deactivated():
                 ctx["additional_buttons"].append(
                     {
                         "raw_html": mark_safe(

@@ -1,5 +1,6 @@
 from unittest import mock
 
+from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
 from django.test import TestCase
@@ -12,6 +13,7 @@ from openwisp_users.tests.utils import TestOrganizationMixin
 from ...config import settings as config_app_settings
 from ...config.tests.test_admin import TestImportExportMixin
 from ...tests.utils import TestAdminMixin
+from ..admin import DeviceLocationInline
 from .utils import TestGeoMixin
 
 Device = load_model("config", "Device")
@@ -129,6 +131,51 @@ class TestAdmin(TestAdminMixin, TestGeoMixin, BaseTestAdmin, TestCase):
             ],
         )
 
+    def test_location_disabled_org_admin_crud(self):
+        org = self._create_organization(name="loc-disabled-org")
+        location = self._create_location(
+            name="loc-disabled", type="indoor", organization=org
+        )
+        org.is_active = False
+        org.save()
+        self._test_disabled_org_admin_crud(
+            location, change_data={"name": "renamed-location"}
+        )
+
+    def test_floorplan_disabled_org_admin_crud(self):
+        org = self._create_organization(name="fl-disabled-org")
+        location = self._create_location(
+            name="fl-disabled-location", type="indoor", organization=org
+        )
+        floorplan = self._create_floorplan(location=location, organization=org)
+        org.is_active = False
+        org.save()
+        self._test_disabled_org_admin_crud(
+            floorplan, change_data={"floor": 2}, unchanged_field="floor"
+        )
+
+    def test_location_disabled_org_admin_org_field_excludes_disabled(self):
+        self._create_admin()
+        active_org = self._get_org()
+        disabled_org = self._create_organization(
+            name="loc-disabled-org", is_active=False
+        )
+        add_url = reverse(f"admin:{self.app_label}_location_add")
+        self._test_disabled_org_admin_org_field_excludes_disabled(
+            add_url, disabled_org, organization=active_org
+        )
+
+    def test_floorplan_disabled_org_admin_org_field_excludes_disabled(self):
+        self._create_admin()
+        active_org = self._get_org()
+        disabled_org = self._create_organization(
+            name="fl-disabled-org", is_active=False
+        )
+        add_url = reverse(f"admin:{self.app_label}_floorplan_add")
+        self._test_disabled_org_admin_org_field_excludes_disabled(
+            add_url, disabled_org, organization=active_org
+        )
+
     def test_admin_menu_groups(self):
         # Test menu group (openwisp-utils menu group) for Location , FloorPlan
 
@@ -238,6 +285,41 @@ class TestDeviceAdmin(
             "estimated flag.",
         )
 
+    def test_device_disabled_org_admin_inline_readonly(self):
+        active_org = self._get_org(org_name="default")
+        active_location = self._create_location(
+            name="active-location", type="indoor", organization=active_org
+        )
+        active_device = self._create_object(
+            name="active-device",
+            organization=active_org,
+            mac_address="00:11:22:33:44:70",
+        )
+        self._create_object_location(
+            location=active_location, content_object=active_device
+        )
+        disabled_org = self._create_organization(
+            name="device-disabled-org", is_active=False
+        )
+        disabled_location = self._create_location(
+            name="disabled-location", type="indoor", organization=disabled_org
+        )
+        disabled_device = self._create_object(
+            name="disabled-device",
+            organization=disabled_org,
+            mac_address="00:11:22:33:44:71",
+        )
+        self._create_object_location(
+            location=disabled_location, content_object=disabled_device
+        )
+        model_admin = admin.site._registry[Device]
+        self._test_disabled_org_admin_inline_readonly(
+            model_admin,
+            disabled_device,
+            active_obj=active_device,
+            inline_models=(DeviceLocationInline,),
+        )
+
     def test_device_export_geo(self):
         org = self._get_org(org_name="default")
         location = self._create_location(
@@ -274,6 +356,48 @@ class TestDeviceAdmin(
             f"{device.id},{device.key},{org.id},,{location.id},{floorplan.id}",
             contents,
         )
+
+    def test_device_export_geo_disabled_org(self):
+        org = self._get_org(org_name="default")
+        location = self._create_location(
+            name="disabled-org-location", type="indoor", organization=org
+        )
+        floorplan = self._create_floorplan(location=location, organization=org)
+        device = self._create_object(
+            name="disabled-org-device",
+            organization=org,
+            mac_address="00:11:22:33:44:67",
+        )
+        self._create_object_location(
+            location=location, floorplan=floorplan, content_object=device
+        )
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        response = self.client.post(
+            reverse(f"admin:{self.app_label}_device_export"), {"format": "0"}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("disabled-org-device", response.content.decode("utf-8"))
+
+    def test_device_import_geo_disabled_org_rejected(self):
+        org = self._get_org(org_name="default")
+        location = self._create_location(
+            name="disabled-org-location", type="indoor", organization=org
+        )
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        contents = (
+            "name,mac_address,organization_id,location_id\n"
+            f"disabled-import,00:11:22:33:44:68,{org.pk},{location.pk}"
+        )
+        csv = ContentFile(contents)
+        response = self.client.post(
+            reverse(f"admin:{self.app_label}_device_import"),
+            {"format": "0", "import_file": csv, "file_name": "test.csv"},
+        )
+        self.assertNotIn("confirm_form", response.context)
+        self.assertContains(response, "Cannot import rows for disabled organizations.")
+        self.assertEqual(Device.objects.filter(name="disabled-import").exists(), False)
 
     def test_device_import_geo(self):
         org = self._get_org(org_name="default")

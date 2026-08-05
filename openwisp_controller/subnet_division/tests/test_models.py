@@ -679,7 +679,7 @@ class TestSubnetDivisionRule(
         ).values_list("subnet__subnet", flat=True)
         self.assertNotIn(config1_subnets.first(), config2_subnets)
         self.assertNotIn(config1_subnets.last(), config2_subnets)
-    
+
     def test_provision_subnet_ip_skips_disabled_org(self):
         org = self._create_org(name="disabled-org", slug="disabled-org")
         rule = self._get_vpn_subdivision_rule(

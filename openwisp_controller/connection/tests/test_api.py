@@ -12,7 +12,7 @@ from rest_framework.exceptions import ErrorDetail
 from swapper import load_model
 
 from openwisp_controller.tests.utils import TestAdminMixin
-from openwisp_users.tests.test_api import AuthenticationMixin
+from openwisp_users.tests.test_api import AuthenticationMixin, TestDisabledOrgApiMixin
 
 from .. import settings as app_settings
 from ..api.views import CommandListCreateView
@@ -26,7 +26,9 @@ OrganizationUser = load_model("openwisp_users", "OrganizationUser")
 Group = load_model("openwisp_users", "Group")
 
 
-class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
+class TestCommandsAPI(
+    CreateCommandMixin, TestDisabledOrgApiMixin, AuthenticationMixin, TestCase
+):
     url_namespace = "connection_api"
 
     def setUp(self):
@@ -182,6 +184,35 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
             )
             self.assertEqual(response.status_code, 201)
             test_command_attributes(self, payload)
+
+    def test_command_create_api_disabled_org(self):
+        self.device_conn.device.organization.is_active = False
+        self.device_conn.device.organization.save(update_fields=["is_active"])
+        url = self._get_path("device_command_list", self.device_id)
+        payload = {"type": "custom", "input": {"command": "echo test"}}
+        response = self.client.post(
+            url,
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 201)
+
+    def test_command_disabled_org_api_crud(self):
+        org = self.device_conn.device.organization
+        command = self._create_command(device_conn=self.device_conn)
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        list_url = self._get_path("device_command_list", self.device_id)
+        detail_url = self._get_path(
+            "device_command_details", self.device_id, command.id
+        )
+        self._test_disabled_org_api_crud(
+            command,
+            detail_url=detail_url,
+            list_url=list_url,
+            operations=("list", "retrieve"),
+            organization=org,
+        )
 
     # for ensuring that only related connections are shown
     def test_available_connections(self):
@@ -425,11 +456,34 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
 
 
 class TestConnectionApi(
-    TestAdminMixin, AuthenticationMixin, TestCase, CreateConnectionsMixin
+    TestAdminMixin,
+    CreateConnectionsMixin,
+    TestDisabledOrgApiMixin,
+    AuthenticationMixin,
+    TestCase,
 ):
     def setUp(self):
         super().setUp()
         self._login()
+
+    def test_credential_disabled_org_api_crud(self):
+        org = self._get_org()
+        cred = self._create_credentials(organization=org)
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        self._test_disabled_org_api_crud(
+            cred,
+            detail_url=reverse("connection_api:credential_detail", args=[cred.pk]),
+            list_url=reverse("connection_api:credential_list"),
+            create_payload={
+                "connector": "openwisp_controller.connection.connectors.ssh.Ssh",
+                "name": "new-credentials",
+                "organization": str(org.pk),
+                "auto_add": False,
+                "params": {"username": "root", "password": "password", "port": 22},
+            },
+            update_payload={"name": "renamed-credentials"},
+        )
 
     def test_get_credentials_list(self):
         self._create_credentials()
@@ -564,6 +618,40 @@ class TestConnectionApi(
         with self.assertNumQueries(12):
             response = self.client.post(path, data, content_type="application/json")
         self.assertEqual(response.status_code, 201)
+
+    def test_post_deviceconnection_list_disabled_org(self):
+        d1 = self._create_device()
+        self._create_config(device=d1)
+        d1.organization.is_active = False
+        d1.organization.save(update_fields=["is_active"])
+        path = reverse("connection_api:deviceconnection_list", args=(d1.pk,))
+        data = {
+            "credentials": self._get_credentials().pk,
+            "update_strategy": app_settings.UPDATE_STRATEGIES[0][0],
+            "enabled": True,
+            "failure_reason": "",
+        }
+        response = self.client.post(path, data, content_type="application/json")
+        self.assertEqual(response.status_code, 400)
+
+    def test_deviceconnection_disabled_org_api_crud(self):
+        dc = self._create_device_connection()
+        org = dc.device.organization
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        list_url = reverse("connection_api:deviceconnection_list", args=(dc.device.pk,))
+        detail_url = reverse(
+            "connection_api:deviceconnection_detail", args=(dc.device.pk, dc.pk)
+        )
+        self._test_disabled_org_api_crud(
+            dc,
+            detail_url=detail_url,
+            list_url=list_url,
+            update_payload={"enabled": False},
+            unchanged_field="enabled",
+            operations=("list", "retrieve", "update", "delete"),
+            organization=org,
+        )
 
     def test_post_deviceconenction_with_no_config_device(self):
         d1 = self._create_device()
