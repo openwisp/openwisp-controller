@@ -1,3 +1,4 @@
+from celery import chain
 from django.db import transaction
 from django.dispatch import receiver
 from django.utils.translation import gettext_lazy as _
@@ -206,7 +207,9 @@ def organization_disabled_handler(instance, **kwargs):
     organization_id = str(instance.id)
 
     def _on_commit():
-        tasks.deactivate_organization_devices.delay(organization_id)
-        tasks.invalidate_controller_views_cache.delay(organization_id)
+        chain(
+            tasks.deactivate_organization_devices.s(organization_id),
+            tasks.invalidate_controller_views_cache.si(organization_id),
+        ).delay()
 
     transaction.on_commit(_on_commit)
