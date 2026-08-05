@@ -137,7 +137,7 @@ class TestPkiApi(
         data = {
             "name": "change-ca1",
         }
-        with self.assertNumQueries(6):
+        with self.assertNumQueries(5):
             r = self.client.patch(path, data, content_type="application/json")
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data["name"], "change-ca1")

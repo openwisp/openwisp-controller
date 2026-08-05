@@ -14,6 +14,7 @@ class TestUsersIntegration(GetEditFormInlineMixin, TestUsersAdmin):
     def _get_disabled_org_test_excluded_inline(self):
         inlines = super()._get_disabled_org_test_excluded_inline()
         inlines += [OrganizationLimitsInline]
+        return inlines
 
 
 del TestUsersAdmin
