@@ -3,7 +3,7 @@ from unittest import mock
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
-from django.test import TestCase
+from django.test import RequestFactory, TestCase
 from django.urls import reverse
 from django_loci.tests.base.test_admin import BaseTestAdmin
 from swapper import load_model
@@ -13,7 +13,7 @@ from openwisp_users.tests.utils import TestOrganizationMixin
 from ...config import settings as config_app_settings
 from ...config.tests.test_admin import TestImportExportMixin
 from ...tests.utils import TestAdminMixin
-from ..admin import DeviceLocationInline
+from ..admin import DeviceLocationInline, FloorPlanAdmin
 from .utils import TestGeoMixin
 
 Device = load_model("config", "Device")
@@ -202,6 +202,39 @@ class TestAdmin(TestAdminMixin, TestGeoMixin, BaseTestAdmin, TestCase):
         url = reverse(f"admin:{self.app_label}_location_change", args=[location.pk])
         response = self.client.get(url)
         self.assertNotContains(response, '<input type="checkbox" name="is_estimated"')
+
+    def _get_floorplan_admin_request(self):
+        location = self._create_location(
+            name="floorplan-admin-location", type="indoor", organization=self._get_org()
+        )
+        floorplan = self._create_floorplan(location=location)
+        admin_user = self._create_admin()
+        request = RequestFactory().get("/")
+        request.user = admin_user
+        return FloorPlanAdmin(FloorPlan, admin.site), request, floorplan
+
+    def test_floorplan_admin_get_form(self):
+        floorplan_admin, request, floorplan = self._get_floorplan_admin_request()
+        form = floorplan_admin.get_form(request, floorplan)
+        self.assertEqual(form._user, request.user)
+
+    def test_floorplan_admin_get_form_read_only_fallback(self):
+        floorplan_admin, request, floorplan = self._get_floorplan_admin_request()
+        with mock.patch(
+            "django_loci.base.admin.AbstractFloorPlanAdmin.get_form",
+            side_effect=KeyError("location"),
+        ):
+            form = floorplan_admin.get_form(request, floorplan)
+        self.assertEqual(form._user, request.user)
+
+    def test_floorplan_admin_get_form_reraises_unrelated_keyerror(self):
+        floorplan_admin, request, floorplan = self._get_floorplan_admin_request()
+        with mock.patch(
+            "django_loci.base.admin.AbstractFloorPlanAdmin.get_form",
+            side_effect=KeyError("unrelated"),
+        ):
+            with self.assertRaises(KeyError):
+                floorplan_admin.get_form(request, floorplan)
 
 
 class TestDeviceAdmin(

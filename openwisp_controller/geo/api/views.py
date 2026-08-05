@@ -166,6 +166,7 @@ class DeviceLocationView(
     organization_field = "content_object__organization"
     organization_lookup = "organization__in"
     _device_field = "content_object"
+    select_related_organization = False
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -294,7 +295,9 @@ class LocationDeviceList(
 
     def get_queryset(self):
         super().get_queryset()
-        qs = Device.objects.filter(devicelocation__location_id=self.kwargs["pk"])
+        qs = Device.objects.filter(
+            devicelocation__location_id=self.kwargs["pk"]
+        ).select_related("organization")
         return qs
 
     def get_has_floorplan(self, qs):
@@ -315,6 +318,7 @@ class FloorPlanListCreateView(ProtectedAPIMixin, generics.ListCreateAPIView):
     pagination_class = OpenWispPagination
     filter_backends = [filters.DjangoFilterBackend]
     filterset_class = FloorPlanOrganizationFilter
+    select_related_organization = False
 
 
 class FloorPlanDetailView(
@@ -323,6 +327,7 @@ class FloorPlanDetailView(
 ):
     serializer_class = FloorPlanSerializer
     queryset = FloorPlan.objects.select_related()
+    select_related_organization = False
 
 
 class LocationListCreateView(ProtectedAPIMixin, generics.ListCreateAPIView):

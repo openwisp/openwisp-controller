@@ -555,7 +555,7 @@ class TestConnectionApi(
             },
         }
         expected_queries = (
-            8 if parse_version(REST_FRAMEWORK_VERSION) >= parse_version("3.15") else 7
+            7 if parse_version(REST_FRAMEWORK_VERSION) >= parse_version("3.15") else 6
         )
         with self.assertNumQueries(expected_queries):
             response = self.client.put(path, data, content_type="application/json")
@@ -573,7 +573,7 @@ class TestConnectionApi(
         cred = self._create_credentials()
         path = reverse("connection_api:credential_detail", args=(cred.pk,))
         data = {"name": "Change Test credentials"}
-        with self.assertNumQueries(7):
+        with self.assertNumQueries(6):
             response = self.client.patch(path, data, content_type="application/json")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["name"], "Change Test credentials")

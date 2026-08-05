@@ -124,7 +124,7 @@ class TestPkiApi(
         path = reverse("pki_api:ca_detail", args=[ca1.pk])
         org2 = self._create_org()
         data = {"name": "change-ca1", "organization": org2.pk, "notes": "change-notes"}
-        with self.assertNumQueries(7):
+        with self.assertNumQueries(6):
             r = self.client.put(path, data, content_type="application/json")
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data["name"], "change-ca1")
@@ -161,7 +161,7 @@ class TestPkiApi(
         ca1 = self._create_ca(name="ca1", organization=self._get_org())
         old_serial_num = ca1.serial_number
         path = reverse("pki_api:ca_renew", args=[ca1.pk])
-        with self.assertNumQueries(6):
+        with self.assertNumQueries(5):
             r = self.client.post(path)
         ca1.refresh_from_db()
         self.assertEqual(r.status_code, 200)

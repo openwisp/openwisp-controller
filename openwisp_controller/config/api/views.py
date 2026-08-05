@@ -98,7 +98,7 @@ class DeviceDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
     """
 
     serializer_class = DeviceDetailSerializer
-    queryset = Device.objects.select_related("config", "group", "organization")
+    queryset = Device.objects.select_related("config", "group")
     permission_classes = ProtectedAPIMixin.permission_classes + (DevicePermission,)
 
     def perform_destroy(self, instance):
@@ -154,7 +154,7 @@ class DeviceGroupListCreateView(ProtectedAPIMixin, ListCreateAPIView):
 
 class DeviceGroupDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
     serializer_class = DeviceGroupSerializer
-    queryset = DeviceGroup.objects.select_related("organization").order_by("-created")
+    queryset = DeviceGroup.objects.order_by("-created")
 
 
 def get_cached_devicegroup_args_rewrite(cls, org_slugs, common_name):
@@ -168,7 +168,7 @@ def get_cached_devicegroup_args_rewrite(cls, org_slugs, common_name):
 
 class DeviceGroupCommonName(ProtectedAPIMixin, RetrieveAPIView):
     serializer_class = DeviceGroupSerializer
-    queryset = DeviceGroup.objects.select_related("organization").order_by("-created")
+    queryset = DeviceGroup.objects.order_by("-created")
     # Not setting lookup_field makes DRF raise error. but it is not used
     lookup_field = "pk"
 
@@ -190,7 +190,7 @@ class DeviceGroupCommonName(ProtectedAPIMixin, RetrieveAPIView):
             )
             vpnclient = VpnClient.objects.only("config_id").get(cert_id=cert.id)
             group = (
-                Device.objects.select_related("group")
+                Device.objects.select_related("group", "group__organization")
                 .only("group")
                 .get(config=vpnclient.config_id)
                 .group

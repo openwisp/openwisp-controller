@@ -34,6 +34,7 @@ class BaseCommandView(RelatedDeviceProtectedAPIMixin):
     model = Command
     queryset = Command.objects.prefetch_related("device")
     serializer_class = CommandSerializer
+    select_related_organization = False
 
     def get_permissions(self):
         return super().get_permissions() + [RelatedDeviceModelPermission()]
@@ -112,6 +113,7 @@ class BaseDeviceConnection(
     model = DeviceConnection
     serializer_class = DeviceConnectionSerializer
     queryset = DeviceConnection.objects.prefetch_related("device")
+    select_related_organization = False
 
     def get_queryset(self):
         return (
