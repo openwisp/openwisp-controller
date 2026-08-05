@@ -9,7 +9,7 @@ Core code lives in `openwisp_controller/`:
 - `config/` handles device configuration, templates, VPNs, commands, and related APIs.
 - `connection/` handles device credentials, connectors, SSH operations, and command execution.
 - `pki/`, `geo/`, and `subnet_division/` integrate x509, geographic data, and subnet/IPAM behavior.
-- Tests live in `openwisp_controller/tests/` and `tests/`.
+- Tests live alongside their owning packages under `openwisp_controller/**/tests/`; `tests/` is the Django test project used by local development and CI, including sample-app integration coverage.
 
 ## Source of Truth
 
