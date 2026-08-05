@@ -26,7 +26,7 @@ def manage_estimated_locations(device_pk, ip_address):
             # (PostgreSQL cannot lock nullable joined rows).
             device = (
                 Device.objects.select_for_update(of=("self",))
-                .select_related("devicelocation__location")
+                .select_related("organization", "devicelocation__location")
                 .get(pk=device_pk)
             )
             if (

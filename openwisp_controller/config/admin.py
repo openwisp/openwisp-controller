@@ -886,10 +886,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, CopyableFieldsAdmin):
             self.message_user(
                 request,
                 mark_safe(
-                    _(
-                        "Cannot activate devices of a disabled organization:"
-                        " %(devices)s"
-                    )
+                    _("Cannot activate devices of a disabled organization: %(devices)s")
                     % {"devices": devices_html}
                 ),
                 messages.ERROR,
