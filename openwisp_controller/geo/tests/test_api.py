@@ -769,6 +769,8 @@ class TestGeoApi(
                 reverse("geo_api:location_device_list", args=[location.id])
             )
             self.assertEqual(response.status_code, 200)
+            self.assertContains(response, str(device.id))
+            self.assertContains(response, device.name)
 
     def test_create_location_outdoor_with_floorplan(self):
         path = reverse("geo_api:list_location")
@@ -976,12 +978,6 @@ class TestGeoApi(
         self.assertEqual(self.floorplan_model.objects.count(), 1)
 
     def test_create_devicelocation_disabled_org(self):
-        # a PUT-as-create at this parent-device-scoped endpoint is checked
-        # via clone_request(..., "POST") -> has_permission, not
-        # has_object_permission: RelatedDeviceModelPermission only checks
-        # device.is_deactivated(), and DisabledOrgReadOnly has no
-        # has_permission, so a disabled organization does not currently
-        # block creating a DeviceLocation this way
         device = self._create_object()
         floorplan = self._create_floorplan()
         location = floorplan.location

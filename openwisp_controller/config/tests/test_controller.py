@@ -1448,7 +1448,6 @@ class TestControllerTransaction(
         self.assertEqual(response.status_code, 200)
         org.is_active = False
         org.save()
-        # Device can fetch checksum untill the device is deactivated
         response = self.client.get(
             reverse("controller:device_checksum", args=[device.pk]),
             {"key": device.key},

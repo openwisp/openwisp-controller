@@ -2,6 +2,7 @@ import json
 import uuid
 
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from django.utils.translation import gettext_lazy as _
 from import_export import resources, widgets
 from import_export.fields import Field
 from swapper import load_model
@@ -129,7 +130,7 @@ class DeviceResource(resources.ModelResource):
             ).exists()
         ):
             raise ValidationError(
-                {"organization_id": "Cannot import rows for disabled organizations."}
+                {"organization_id": _("Cannot import rows for disabled organizations.")}
             )
         if not instance._has_config():
             return

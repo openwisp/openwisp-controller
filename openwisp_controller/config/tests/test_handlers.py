@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import DEFAULT, patch
 
 from django.test import TransactionTestCase
 
@@ -72,7 +72,13 @@ class TestHandlers(CreateConfigMixin, TransactionTestCase):
             org.is_active = False
             org.save()
         with patch.object(tasks, "logger") as mocked_logger:
-            with patch.object(Device, "deactivate", side_effect=[Exception, None]):
+            with patch.object(
+                Device,
+                "deactivate",
+                autospec=True,
+                wraps=Device.deactivate,
+                side_effect=[Exception, DEFAULT],
+            ):
                 tasks.deactivate_organization_devices(org.id)
         mocked_logger.exception.assert_called_once_with(
             "Failed to deactivate device %s while disabling organization %s",

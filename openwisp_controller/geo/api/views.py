@@ -108,7 +108,7 @@ class DeviceCoordinatesView(ProtectedAPIMixin, generics.RetrieveUpdateAPIView):
     serializer_class = DeviceCoordinatesSerializer
     permission_classes = (DevicePermission,)
     queryset = Device.objects.select_related(
-        "devicelocation", "devicelocation__location"
+        "organization", "devicelocation", "devicelocation__location"
     )
 
     def get_queryset(self):
@@ -212,6 +212,9 @@ class DeviceLocationView(
                 # will either raise a PermissionDenied exception, or simply
                 # return None.
                 self.check_permissions(clone_request(self.request, "POST"))
+                device = self.get_parent_queryset().first()
+                if device and not device.organization.is_active:
+                    raise PermissionDenied()
             else:
                 # PATCH requests where the object does not exist should still
                 # return a 404 response.

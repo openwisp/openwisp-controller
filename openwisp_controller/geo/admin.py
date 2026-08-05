@@ -50,7 +50,9 @@ class FloorPlanAdmin(MultitenantAdminMixin, AbstractFloorPlanAdmin):
     def get_form(self, request, obj=None, **kwargs):
         try:
             return super().get_form(request, obj, **kwargs)
-        except KeyError:
+        except KeyError as error:
+            if error.args != ("location",):
+                raise
             form = DjangoModelAdmin.get_form(self, request, obj, **kwargs)
             form._user = request.user
             return form

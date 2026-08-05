@@ -251,14 +251,21 @@ class TestPkiApi(
         org = self._get_org()
         ca = self._create_ca(organization=org)
         cert = self._create_cert(ca=ca, organization=org)
+        serial_number = str(cert.serial_number)
         org.is_active = False
         org.save(update_fields=["is_active"])
         revoke_path = reverse("pki_api:cert_revoke", args=[cert.pk])
         renew_path = reverse("pki_api:cert_renew", args=[cert.pk])
         revoke_response = self.client.post(revoke_path)
-        renew_response = self.client.post(renew_path)
         self.assertEqual(revoke_response.status_code, 403)
+        cert.refresh_from_db()
+        self.assertEqual(cert.revoked, False)
+        self.assertEqual(cert.serial_number, serial_number)
+        renew_response = self.client.post(renew_path)
         self.assertEqual(renew_response.status_code, 403)
+        cert.refresh_from_db()
+        self.assertEqual(cert.revoked, False)
+        self.assertEqual(cert.serial_number, serial_number)
         self.assertEqual(Cert.objects.count(), 1)
 
     def test_cert_disabled_org_api_crud(self):
