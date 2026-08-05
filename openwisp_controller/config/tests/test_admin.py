@@ -119,6 +119,25 @@ class TestImportExportMixin:
         self.assertNotContains(response, "Errors")
         self.assertContains(response, "Confirm import")
 
+    def test_device_import_disabled_organization_rejected(self):
+        org = self._get_org()
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        contents = (
+            "organization_id,name,mac_address\n"
+            f"{org.pk},TestImportDisabled,00:11:22:09:44:55"
+        )
+        csv = ContentFile(contents)
+        response = self.client.post(
+            reverse(f"admin:{self.app_label}_device_import"),
+            {"format": "0", "import_file": csv},
+        )
+        self.assertNotIn("confirm_form", response.context)
+        self.assertContains(response, "Cannot import rows for disabled organizations.")
+        self.assertEqual(
+            Device.objects.filter(name="TestImportDisabled").exists(), False
+        )
+
     def test_device_import_empty_config(self):
         org = self._get_org(org_name="default")
         contents = (
@@ -666,6 +685,45 @@ class TestAdmin(
         device.refresh_from_db()
         self.assertIsNone(device.group)
 
+    def test_change_group_action_disabled_org(self):
+        path = reverse(f"admin:{self.app_label}_device_changelist")
+        org = self._get_org(org_name="default")
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        group = self._create_device_group(name="test-group", organization=org)
+        device = self._create_device(organization=org)
+        post_data = {
+            "_selected_action": [device.pk],
+            "action": "change_group",
+            "csrfmiddlewaretoken": "test",
+            "apply": True,
+            "device_group": group.pk,
+        }
+        response = self.client.post(path, post_data, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Selected organization is disabled.")
+        device.refresh_from_db()
+        self.assertIsNone(device.group)
+
+    def test_activate_device_action_disabled_org(self):
+        org = self._get_org()
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        device = self._create_device(organization=org, _is_deactivated=True)
+        path = reverse(f"admin:{self.app_label}_device_changelist")
+        data = {
+            "_selected_action": [device.pk],
+            "action": "activate_device",
+            "csrfmiddlewaretoken": "test",
+        }
+        response = self.client.post(path, data, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response, "Cannot activate devices of a disabled organization"
+        )
+        device.refresh_from_db()
+        self.assertEqual(device.is_deactivated(), True)
+
     def test_device_import_with_group_apply_templates(self):
         org = self._get_org(org_name="default")
         template = self._create_template(name="template")
@@ -944,6 +1002,102 @@ class TestAdmin(
         self.assertContains(response, "Successfully cloned selected templates")
         self.assertNotContains(response, "<h1>Clone templates</h1>", html=True)
         self.assertEqual(Template.objects.count(), count + 1)
+
+    def test_clone_templates_disabled_target_org(self):
+        path = reverse(f"admin:{self.app_label}_template_changelist")
+        template = self._create_template(organization=self._get_org())
+        disabled_org = self._create_org(name="disabled-org", is_active=False)
+        self._get_org("org_2")
+        post_data = self._get_clone_template_post_data(template)
+        post_data["organization"] = str(disabled_org.id)
+        count = Template.objects.count()
+        response = self.client.post(path, post_data, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Successfully cloned selected templates")
+        self.assertContains(
+            response,
+            "Cannot clone templates: the selected organization does not exist"
+            " or is disabled.",
+        )
+        self.assertEqual(Template.objects.count(), count)
+
+    def test_device_disabled_org_admin_crud(self):
+        org = self._create_org(name="disabled-org", slug="disabled-org")
+        device = self._create_device(organization=org, name="disabled-device")
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        self._test_disabled_org_admin_crud(
+            device,
+            change_data={"name": "renamed-device"},
+            operations=("view", "change"),
+        )
+        with self.subTest("superuser delete, once deactivated"):
+            # DeviceAdmin.has_delete_permission additionally requires the
+            # device to be deactivated first, a precondition unrelated to
+            # the disabled-org policy; satisfy it here to isolate and
+            # confirm that a disabled organization's device stays deletable.
+            device._is_deactivated = True
+            device.save(update_fields=["_is_deactivated"])
+            urls = self._get_disabled_org_admin_urls(device)
+            self.client.force_login(self._get_admin())
+            self._test_disabled_org_admin_delete(urls["delete"], Device, device.pk)
+            self.client.logout()
+
+    def test_devicegroup_disabled_org_admin_crud(self):
+        org = self._create_org(name="disabled-org", slug="disabled-org")
+        device_group = self._create_device_group(
+            name="disabled-group", organization=org
+        )
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        self._test_disabled_org_admin_crud(
+            device_group, change_data={"name": "renamed-group"}
+        )
+
+    def test_template_disabled_org_admin_crud(self):
+        org = self._create_org(name="disabled-org", slug="disabled-org")
+        template = self._create_template(name="disabled-template", organization=org)
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        self._test_disabled_org_admin_crud(
+            template, change_data={"name": "renamed-template"}
+        )
+
+    def test_vpn_disabled_org_admin_crud(self):
+        org = self._create_org(name="disabled-org", slug="disabled-org")
+        vpn = self._create_vpn(name="disabled-vpn", organization=org)
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        self._test_disabled_org_admin_crud(vpn, change_data={"name": "renamed-vpn"})
+
+    def test_device_disabled_org_admin_inline_readonly(self):
+        org = self._create_org(name="disabled-org", slug="disabled-org")
+        device = self._create_device(organization=org, name="disabled-device")
+        active_device = self._create_device(
+            name="active-device", mac_address="00:11:22:09:44:71"
+        )
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        model_admin = admin.site._registry[Device]
+        self._test_disabled_org_admin_inline_readonly(
+            model_admin, device, active_obj=active_device
+        )
+
+    def test_device_disabled_org_admin_org_field_excludes_disabled(self):
+        active_org = self._get_org(org_name="default")
+        disabled_org = self._create_org(name="disabled-org", is_active=False)
+        add_url = reverse(f"admin:{self.app_label}_device_add")
+        self._test_disabled_org_admin_org_field_excludes_disabled(
+            add_url, disabled_org, organization=active_org
+        )
+
+    def test_template_disabled_org_admin_org_field_excludes_disabled(self):
+        active_org = self._get_org(org_name="default")
+        disabled_org = self._create_org(name="disabled-org", is_active=False)
+        add_url = reverse(f"admin:{self.app_label}_template_add")
+        self._test_disabled_org_admin_org_field_excludes_disabled(
+            add_url, disabled_org, organization=active_org
+        )
 
     def test_clone_templates_validation_error(self):
         path = reverse(f"admin:{self.app_label}_template_changelist")
@@ -2289,7 +2443,7 @@ class TestAdmin(
         path = reverse(f"admin:{self.app_label}_device_change", args=[config.device.pk])
         for i in range(count):
             self._create_template(name=f"template-{i}")
-        expected_count = 22
+        expected_count = 23
         if django.VERSION < (5, 2):
             # In django version < 5.2, there is an extra SAVEPOINT query
             # leading to extra RELEASE SAVEPOINT query, thus 2 extra queries

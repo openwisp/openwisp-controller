@@ -679,6 +679,23 @@ class TestSubnetDivisionRule(
         ).values_list("subnet__subnet", flat=True)
         self.assertNotIn(config1_subnets.first(), config2_subnets)
         self.assertNotIn(config1_subnets.last(), config2_subnets)
+    
+    def test_provision_subnet_ip_skips_disabled_org(self):
+        org = self._create_org(name="disabled-org", slug="disabled-org")
+        rule = self._get_vpn_subdivision_rule(
+            organization=org,
+            master_subnet=self._get_master_subnet(
+                subnet="10.200.0.0/16", organization=org
+            ),
+        )
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        with patch("openwisp_controller.subnet_division.tasks.logger.info") as mocked:
+            tasks.provision_subnet_ip_for_existing_devices.run(rule.id)
+        mocked.assert_called_once_with(
+            "Skipping subnet provisioning for rule %s of disabled organization",
+            rule.id,
+        )
 
     def test_device_deleted(self):
         rule = self._get_vpn_subdivision_rule()

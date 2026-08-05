@@ -124,7 +124,9 @@ class DeviceCoordinatesView(ProtectedAPIMixin, generics.RetrieveUpdateAPIView):
 
     def get_object(self, *args, **kwargs):
         device = super().get_object()
-        if self.request.method not in ("GET", "HEAD") and device.is_deactivated():
+        if self.request.method not in ("GET", "HEAD") and (
+            device.is_deactivated() or not device.organization.is_active
+        ):
             raise PermissionDenied
         location = self.get_location(device)
         if location:
@@ -173,7 +175,9 @@ class DeviceLocationView(
             return qs.none()
 
     def get_parent_queryset(self):
-        return Device.objects.filter(pk=self.kwargs["pk"])
+        return Device.objects.filter(pk=self.kwargs["pk"]).select_related(
+            "organization"
+        )
 
     def get_serializer_context(self):
         context = super().get_serializer_context()

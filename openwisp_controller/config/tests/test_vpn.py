@@ -817,6 +817,19 @@ class TestWireguard(BaseTestVpn, TestWireguardVpnMixin, TestCase):
                 f"VPN Server UUID: {vpn_id} does not exist."
             )
 
+    @mock.patch("openwisp_controller.config.tasks.requests.post")
+    def test_trigger_vpn_server_endpoint_disabled_org(self, mocked_post):
+        org = self._get_org()
+        vpn = self._create_vpn(organization=org)
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        trigger_vpn_server_endpoint(
+            endpoint="https://vpn_updater",
+            auth_token="secret",
+            vpn_id=str(vpn.id),
+        )
+        mocked_post.assert_not_called()
+
 
 class TestWireguardTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTestCase):
     mock_response = mock.Mock(spec=requests.Response)

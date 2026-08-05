@@ -74,6 +74,7 @@ def fetch_whois_details(self, device_pk, initial_ip_address):
     ip_address = normalize_ip(initial_ip_address)
     if (
         device.is_deactivated()
+        or not device.organization.is_active
         or normalize_ip(device.last_ip) != ip_address
         or not whois_service.is_valid_public_ip_address(ip_address)
         or not whois_service.is_whois_enabled
@@ -92,6 +93,7 @@ def fetch_whois_details(self, device_pk, initial_ip_address):
         if (
             not device
             or device.is_deactivated()
+            or not device.organization.is_active
             or normalize_ip(device.last_ip) != ip_address
             or not device.whois_service.is_whois_enabled
         ):

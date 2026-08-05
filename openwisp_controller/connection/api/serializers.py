@@ -21,7 +21,7 @@ class ValidatedDeviceFieldSerializer(ValidatedModelSerializer):
         return super().validate(data)
 
 
-class CommandSerializer(ValidatedDeviceFieldSerializer):
+class CommandSerializer(ValidatedDeviceFieldSerializer, FilterSerializerByOrgManaged):
     input = serializers.JSONField(
         allow_null=True,
         help_text=mark_safe(

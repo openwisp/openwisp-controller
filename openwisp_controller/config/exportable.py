@@ -1,7 +1,7 @@
 import json
 import uuid
 
-from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from import_export import resources, widgets
 from import_export.fields import Field
 from swapper import load_model
@@ -11,6 +11,7 @@ from . import settings as app_settings
 Device = load_model("config", "Device")
 Config = load_model("config", "Config")
 Template = load_model("config", "Template")
+Organization = load_model("openwisp_users", "Organization")
 
 
 class ManyToManyWidget(widgets.ManyToManyWidget):
@@ -120,6 +121,16 @@ class DeviceResource(resources.ModelResource):
         super().validate_instance(
             instance, import_validation_errors=None, validate_unique=True
         )
+        if (
+            instance.organization_id
+            and not Organization.objects.filter(
+                pk=instance.organization_id,
+                is_active=True,
+            ).exists()
+        ):
+            raise ValidationError(
+                {"organization_id": "Cannot import rows for disabled organizations."}
+            )
         if not instance._has_config():
             return
         config = instance.config
