@@ -126,9 +126,15 @@ def invalidate_devicegroup_cache_delete(instance_id, model_name, **kwargs):
 def trigger_vpn_server_endpoint(endpoint, auth_token, vpn_id):
     Vpn = load_model("config", "Vpn")
     try:
-        vpn = Vpn.objects.get(pk=vpn_id)
+        vpn = Vpn.objects.select_related("organization").get(pk=vpn_id)
     except Vpn.DoesNotExist:
         logger.error(f"VPN Server UUID: {vpn_id} does not exist.")
+        return
+    if vpn.organization_id and not vpn.organization.is_active:
+        logger.info(
+            "Skipping update webhook for VPN Server UUID: %s of disabled organization",
+            vpn_id,
+        )
         return
 
     # Cache the configuration here makes downloading the configuration faster.
@@ -218,3 +224,26 @@ def invalidate_controller_views_cache(organization_id):
         Vpn.objects.filter(organization_id=organization_id).only("id").iterator()
     ):
         GetVpnView.invalidate_get_vpn_cache(vpn)
+
+
+@shared_task(base=OpenwispCeleryTask)
+def deactivate_organization_devices(organization_id):
+    """
+    Deactivate all active devices of an organization.
+
+    Re-enabling an organization does not reactivate its devices.
+    """
+    Device = load_model("config", "Device")
+    devices = Device.objects.filter(
+        organization_id=organization_id,
+        _is_deactivated=False,
+    ).select_related("config")
+    for device in devices.iterator():
+        try:
+            device.deactivate()
+        except Exception:
+            logger.exception(
+                "Failed to deactivate device %s while disabling organization %s",
+                device.pk,
+                organization_id,
+            )

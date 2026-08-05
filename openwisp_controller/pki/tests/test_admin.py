@@ -144,3 +144,88 @@ class TestAdmin(TestPkiMixin, TestAdminMixin, TestOrganizationMixin, TestCase):
                 '<div class="mg-dropdown-label">Cas & Certificates </div>',
                 html=True,
             )
+
+    def test_ca_disabled_org_admin_crud(self):
+        org = self._create_org(name="disabled-org", slug="disabled-org")
+        ca = self._create_ca(name="disabled-ca", organization=org)
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        self._test_disabled_org_admin_crud(ca, change_data={"name": "renamed-ca"})
+
+    def test_ca_disabled_org_admin_org_field_excludes_disabled(self):
+        active_org = self._get_org()
+        disabled_org = self._create_org(name="disabled-org", is_active=False)
+        add_url = reverse(f"admin:{self.app_label}_ca_add")
+        self._test_disabled_org_admin_org_field_excludes_disabled(
+            add_url, disabled_org, organization=active_org
+        )
+
+    def test_cert_disabled_org_admin_crud(self):
+        org = self._create_org(name="disabled-org", slug="disabled-org")
+        ca = self._create_ca(name="disabled-ca", organization=org)
+        cert = self._create_cert(name="disabled-cert", ca=ca, organization=org)
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        self._test_disabled_org_admin_crud(cert, change_data={"name": "renamed-cert"})
+
+    def test_cert_disabled_org_admin_org_field_excludes_disabled(self):
+        active_org = self._get_org()
+        disabled_org = self._create_org(name="disabled-org", is_active=False)
+        add_url = reverse(f"admin:{self.app_label}_cert_add")
+        self._test_disabled_org_admin_org_field_excludes_disabled(
+            add_url, disabled_org, organization=active_org
+        )
+
+    def test_ca_renew_action_skips_disabled_org(self):
+        self.client.force_login(self._get_admin())
+        org = self._get_org()
+        ca = self._create_ca(name="ca-disabled", organization=org)
+        cert = self._create_cert(name="cert-disabled", ca=ca, organization=org)
+        old_serial = ca.serial_number
+        old_cert_serial = cert.serial_number
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        path = reverse(f"admin:{self.app_label}_ca_changelist")
+        payload = {
+            "action": "renew_ca",
+            "_selected_action": [ca.pk],
+            "post": "yes",
+        }
+        response = self.client.post(path, payload, follow=True)
+        ca.refresh_from_db()
+        cert.refresh_from_db()
+        self.assertEqual(str(ca.serial_number), str(old_serial))
+        # renew_ca cascades to child certs when it runs: a skipped CA
+        # renewal must also leave its certs untouched
+        self.assertEqual(str(cert.serial_number), str(old_cert_serial))
+        self.assertContains(
+            response, "1 item(s) belonging to a disabled organization were skipped."
+        )
+
+    def test_cert_actions_skip_disabled_org(self):
+        self.client.force_login(self._get_admin())
+        org = self._get_org()
+        ca = self._create_ca(name="ca-disabled", organization=org)
+        cert = self._create_cert(name="cert-disabled", ca=ca, organization=org)
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        changelist = reverse(f"admin:{self.app_label}_cert_changelist")
+        revoke_payload = {"action": "revoke_action", "_selected_action": [cert.pk]}
+        response = self.client.post(changelist, revoke_payload, follow=True)
+        cert.refresh_from_db()
+        self.assertEqual(cert.revoked, False)
+        self.assertContains(
+            response, "1 item(s) belonging to a disabled organization were skipped."
+        )
+        old_serial = cert.serial_number
+        renew_payload = {
+            "action": "renew_cert",
+            "_selected_action": [cert.pk],
+            "post": "yes",
+        }
+        response = self.client.post(changelist, renew_payload, follow=True)
+        cert.refresh_from_db()
+        self.assertEqual(str(cert.serial_number), str(old_serial))
+        self.assertContains(
+            response, "1 item(s) belonging to a disabled organization were skipped."
+        )

@@ -1,6 +1,7 @@
 import json
 from unittest.mock import patch
 
+from django.contrib import admin
 from django.contrib.auth.models import Permission
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -11,6 +12,7 @@ from openwisp_controller.connection.commands import ORGANIZATION_ENABLED_COMMAND
 from ... import settings as module_settings
 from ...tests import _get_updated_templates_settings
 from ...tests.utils import TestAdminMixin
+from ..admin import CommandWritableInline, DeviceConnectionInline
 from ..connectors.ssh import Ssh
 from ..widgets import CredentialsSchemaWidget
 from .utils import CreateConnectionsMixin
@@ -95,6 +97,25 @@ class TestConnectionAdmin(TestAdminMixin, CreateConnectionsMixin, TestCase):
             visible=[str(data["cred1"].name) + str(" (SSH)")],
             hidden=[str(data["cred2"].name) + str(" (SSH)"), data["cred3_inactive"]],
             select_widget=True,
+        )
+
+    def test_credentials_disabled_org_admin_crud(self):
+        org = self._create_org(name="disabled-org", slug="disabled-org")
+        credentials = self._create_credentials(
+            organization=org, name="disabled-credentials"
+        )
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        self._test_disabled_org_admin_crud(
+            credentials, change_data={"name": "renamed-credentials"}
+        )
+
+    def test_credentials_disabled_org_admin_org_field_excludes_disabled(self):
+        active_org = self._get_org()
+        disabled_org = self._create_org(name="disabled-org", is_active=False)
+        add_url = reverse(f"admin:{self.app_label}_credentials_add")
+        self._test_disabled_org_admin_org_field_excludes_disabled(
+            add_url, disabled_org, organization=active_org
         )
 
     def test_credentials_jsonschema_widget_media(self):
@@ -235,6 +256,24 @@ class TestCommandInlines(TestAdminMixin, CreateConnectionsMixin, TestCase):
         )
         response = self.client.get(path)
         self.assertNotContains(response, "id_command_set")
+
+    def test_device_disabled_org_admin_inline_readonly(self):
+        active_device = self.device
+        disabled_org = self._create_org(name="disabled-org", is_active=False)
+        disabled_credentials = self._create_credentials(
+            organization=disabled_org, name="disabled-credentials"
+        )
+        disabled_device_connection = self._create_device_connection(
+            credentials=disabled_credentials
+        )
+        disabled_device = disabled_device_connection.device
+        model_admin = admin.site._registry[Device]
+        self._test_disabled_org_admin_inline_readonly(
+            model_admin,
+            disabled_device,
+            active_obj=active_device,
+            inline_models=(DeviceConnectionInline, CommandWritableInline),
+        )
 
     def test_commands_schema_view(self):
         url = reverse(

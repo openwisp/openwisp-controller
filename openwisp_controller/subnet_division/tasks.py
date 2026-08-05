@@ -134,12 +134,17 @@ def provision_extra_ips(rule_id, old_number_of_ips):
 @shared_task
 def provision_subnet_ip_for_existing_devices(rule_id):
     try:
-        rule = SubnetDivisionRule.objects.get(id=rule_id)
+        rule = SubnetDivisionRule.objects.select_related("organization").get(id=rule_id)
     except SubnetDivisionRule.DoesNotExist as error:
         logger.warning(
             "Failed to provision IPs on existing devices for Subnet "
             f'Division Rule with id: "{rule_id}", reason: {error}'
         )
         return
-    else:
-        rule.rule_class.provision_for_existing_objects(rule)
+    if rule.organization_id and not rule.organization.is_active:
+        logger.info(
+            "Skipping subnet provisioning for rule %s of disabled organization",
+            rule_id,
+        )
+        return
+    rule.rule_class.provision_for_existing_objects(rule)

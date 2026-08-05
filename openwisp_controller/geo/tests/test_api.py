@@ -20,6 +20,7 @@ from openwisp_controller.config.tests.utils import (
     CreateDeviceMixin,
 )
 from openwisp_controller.tests.utils import TestAdminMixin
+from openwisp_users.tests.test_api import AuthenticationMixin, TestDisabledOrgApiMixin
 from openwisp_utils.tests import AssertNumQueriesSubTestMixin, capture_any_output
 
 from .utils import TestGeoMixin
@@ -184,6 +185,26 @@ class TestApi(TestGeoMixin, TestCase):
         device = self._create_object_location().device
         url = "{0}?key={1}".format(reverse(self.url_name, args=[device.pk]), device.key)
         device.deactivate()
+
+        with self.subTest("Test retrieving device coordinates"):
+            response = self.client.get(
+                url,
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 200)
+
+        with self.subTest("Test updating device coordinates"):
+            response = self.client.put(
+                url,
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 403)
+
+    def test_disabled_org_device(self):
+        device = self._create_object_location().device
+        url = "{0}?key={1}".format(reverse(self.url_name, args=[device.pk]), device.key)
+        device.organization.is_active = False
+        device.organization.save(update_fields=["is_active"])
 
         with self.subTest("Test retrieving device coordinates"):
             response = self.client.get(
@@ -394,6 +415,8 @@ class TestGeoApi(
     TestGeoMixin,
     TestAdminMixin,
     CreateDeviceMixin,
+    TestDisabledOrgApiMixin,
+    AuthenticationMixin,
     TestCase,
 ):
     object_model = Device
@@ -521,6 +544,42 @@ class TestGeoApi(
         with self.assertNumQueries(4):
             response = self.client.delete(path)
         self.assertEqual(response.status_code, 204)
+
+    def test_floorplan_disabled_org_api_crud(self):
+        org = self._create_org(name="disabled-org", slug="disabled-org")
+        location = self._create_location(
+            name="disabled-location", type="indoor", organization=org
+        )
+        floorplan = self._create_floorplan(location=location, organization=org)
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        self._test_disabled_org_api_crud(
+            floorplan,
+            detail_url=reverse("geo_api:detail_floorplan", args=[floorplan.pk]),
+            list_url=reverse("geo_api:list_floorplan"),
+            update_payload={"floor": 2},
+            unchanged_field="floor",
+            operations=("list", "retrieve", "update", "delete"),
+        )
+
+    def test_post_floorplan_list_disabled_org(self):
+        org = self._create_org(name="disabled-org", slug="disabled-org")
+        location = self._create_location(
+            name="disabled-location", type="indoor", organization=org
+        )
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        path = reverse("geo_api:list_floorplan")
+        data = {
+            "floor": 1,
+            "image": self._get_simpleuploadedfile(),
+            "location": location.pk,
+        }
+        response = self.client.post(path, data, format="multipart")
+        # blocked incidentally: FilterSerializerByOrgManaged excludes the
+        # disabled organization's location from the "location" field
+        # queryset, not by an explicit disabled-org check on this endpoint
+        self.assertEqual(response.status_code, 400)
 
     def test_get_location_list(self):
         path = reverse("geo_api:list_location")
@@ -650,6 +709,69 @@ class TestGeoApi(
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["name"], "change-test-location")
 
+    def test_location_disabled_org_api_crud(self):
+        org = self._create_org(name="disabled-org", slug="disabled-org")
+        location = self._create_location(
+            name="disabled-location", type="indoor", organization=org
+        )
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        coords = json.loads(Point(2, 23).geojson)
+        create_payload = {
+            "organization": str(org.pk),
+            "name": "new-location",
+            "type": "outdoor",
+            "is_mobile": False,
+            "address": "Via del Corso, Roma, Italia",
+            "geometry": coords,
+        }
+        self._test_disabled_org_api_crud(
+            location,
+            detail_url=reverse("geo_api:detail_location", args=[location.pk]),
+            list_url=reverse("geo_api:list_location"),
+            create_payload=create_payload,
+            update_payload={"name": "renamed-location"},
+        )
+
+    def test_organization_geo_settings_disabled_org(self):
+        org = self._create_org(name="disabled-org", slug="disabled-org")
+        geo_settings = OrganizationGeoSettings.objects.get(organization=org)
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        url = reverse("geo_api:organization_geo_settings", args=[org.pk])
+        auth = self._disabled_org_api_auth(self._get_admin())
+        self._test_disabled_org_api_retrieve(url, auth, status=200)
+        self._test_disabled_org_api_update(
+            url,
+            auth,
+            {"estimated_location_enabled": False},
+            geo_settings,
+            unchanged_field="estimated_location_enabled",
+        )
+
+    def test_location_geojson_and_device_list_disabled_org(self):
+        org = self._create_org(name="disabled-org", slug="disabled-org")
+        location = self._create_location(
+            name="disabled-location", type="indoor", organization=org
+        )
+        device = self._create_object(
+            name="disabled-device", organization=org, mac_address="00:11:22:33:44:69"
+        )
+        self._create_object_location(location=location, content_object=device)
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        with self.subTest("location_geojson stays readable"):
+            response = self.client.get(reverse("geo_api:location_geojson"))
+            self.assertEqual(response.status_code, 200)
+            self.assertContains(response, str(location.id))
+        with self.subTest("location_device_list stays readable"):
+            response = self.client.get(
+                reverse("geo_api:location_device_list", args=[location.id])
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertContains(response, str(device.id))
+            self.assertContains(response, device.name)
+
     def test_create_location_outdoor_with_floorplan(self):
         path = reverse("geo_api:list_location")
         coords = json.loads(Point(2, 23).geojson)
@@ -675,7 +797,7 @@ class TestGeoApi(
         fl = self._create_floorplan(location=l1)
         path = reverse("geo_api:detail_location", args=[l1.pk])
         data = {"floorplan": {"floor": 13}}
-        with self.assertNumQueries(12):
+        with self.assertNumQueries(11):
             response = self.client.patch(path, data, content_type="application/json")
         self.assertEqual(response.status_code, 200)
         fl.refresh_from_db()
@@ -737,7 +859,7 @@ class TestGeoApi(
             "floorplan.floor": "23",
             "floorplan.image": fl_image,
         }
-        with self.assertNumQueries(15):
+        with self.assertNumQueries(14):
             response = self.client.put(
                 path, encode_multipart(BOUNDARY, data), content_type=MULTIPART_CONTENT
             )
@@ -832,7 +954,7 @@ class TestGeoApi(
         floorplan = self._create_floorplan()
         location = floorplan.location
         url = reverse("geo_api:device_location", args=[device.id])
-        with self.assertNumQueries(17):
+        with self.assertNumQueries(18):
             response = self.client.put(
                 url,
                 data={
@@ -855,6 +977,25 @@ class TestGeoApi(
         self.assertEqual(self.location_model.objects.count(), 1)
         self.assertEqual(self.floorplan_model.objects.count(), 1)
 
+    def test_create_devicelocation_disabled_org(self):
+        device = self._create_object()
+        floorplan = self._create_floorplan()
+        location = floorplan.location
+        device.organization.is_active = False
+        device.organization.save(update_fields=["is_active"])
+        url = reverse("geo_api:device_location", args=[device.id])
+        response = self.client.put(
+            url,
+            data={
+                "location": location.id,
+                "floorplan": floorplan.id,
+                "indoor": "12.342,23.541",
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(self.object_location_model.objects.count(), 0)
+
     def test_create_devicelocation_location_floorplan(self):
         device = self._create_object()
         self.assertEqual(self.location_model.objects.count(), 0)
@@ -870,7 +1011,7 @@ class TestGeoApi(
             "floorplan.image": self._get_simpleuploadedfile(),
             "indoor": ["12.342,23.541"],
         }
-        with self.assertNumQueries(31):
+        with self.assertNumQueries(32):
             response = self.client.put(
                 url, encode_multipart(BOUNDARY, data), content_type=MULTIPART_CONTENT
             )
@@ -937,7 +1078,7 @@ class TestGeoApi(
                 "type": "indoor",
             }
         }
-        with self.assertNumQueries(20):
+        with self.assertNumQueries(21):
             response = self.client.put(url, data=data, content_type="application/json")
         self.assertEqual(response.status_code, 201)
         self.assertEqual(self.location_model.objects.count(), 1)
@@ -954,7 +1095,7 @@ class TestGeoApi(
             "floorplan.floor": 1,
             "floorplan.image": self._get_simpleuploadedfile(),
         }
-        with self.assertNumQueries(7):
+        with self.assertNumQueries(8):
             response = self.client.put(
                 url, encode_multipart(BOUNDARY, data), content_type=MULTIPART_CONTENT
             )
@@ -977,7 +1118,7 @@ class TestGeoApi(
             "floorplan.image": self._get_simpleuploadedfile(),
             "indoor": ["12.342,23.541"],
         }
-        with self.assertNumQueries(25):
+        with self.assertNumQueries(26):
             response = self.client.put(
                 url, encode_multipart(BOUNDARY, data), content_type=MULTIPART_CONTENT
             )

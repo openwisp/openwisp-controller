@@ -601,7 +601,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, CopyableFieldsAdmin):
         return super().media + forms.Media(js=js, css={"all": css})
 
     def has_change_permission(self, request, obj=None):
-        perm = super().has_change_permission(request)
+        perm = super().has_change_permission(request, obj)
         if not obj or getattr(request, "_recover_view", False):
             return perm
         return perm and not obj.is_deactivated()
@@ -726,8 +726,9 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, CopyableFieldsAdmin):
         # Validate all selected devices belong to the same organization
         # which is managed by the user.
         org_id = None
-        if queryset:
-            org_id = queryset[0].organization_id
+        first_device = queryset.select_related("organization").first()
+        if first_device:
+            org_id = first_device.organization_id
         if not request.user.is_superuser and not request.user.is_manager(org_id):
             logger.warning(f'{request.user} does not manage "{org_id}" organization.')
             return HttpResponseForbidden()
@@ -735,6 +736,13 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, CopyableFieldsAdmin):
             self.message_user(
                 request,
                 _("Select devices from one organization"),
+                messages.ERROR,
+            )
+            return HttpResponseRedirect(request.get_full_path())
+        if first_device and not first_device.organization.is_active:
+            self.message_user(
+                request,
+                _("Selected organization is disabled."),
                 messages.ERROR,
             )
             return HttpResponseRedirect(request.get_full_path())
@@ -868,7 +876,26 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, CopyableFieldsAdmin):
 
     @admin.action(description=_("Activate selected devices"), permissions=["change"])
     def activate_device(self, request, queryset):
-        self._change_device_status(request, queryset, "activate")
+        disabled_org_devices = list(
+            queryset.filter(organization__is_active=False).iterator()
+        )
+        if disabled_org_devices:
+            devices_html = ", ".join(
+                self._get_device_path(device) for device in disabled_org_devices
+            )
+            self.message_user(
+                request,
+                mark_safe(
+                    _("Cannot activate devices of a disabled organization: %(devices)s")
+                    % {"devices": devices_html}
+                ),
+                messages.ERROR,
+            )
+        self._change_device_status(
+            request,
+            queryset.filter(organization__is_active=True),
+            "activate",
+        )
 
     @admin.action(description=delete_selected.short_description, permissions=["delete"])
     def delete_selected(self, request, queryset):
@@ -976,15 +1003,18 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, CopyableFieldsAdmin):
     def get_extra_context(self, pk=None):
         ctx = super().get_extra_context(pk)
         if pk:
-            device = self.model.objects.select_related("config").get(id=pk)
+            device = self.model.objects.select_related("config", "organization").get(
+                id=pk
+            )
             ctx.update(
                 {
                     "show_deactivate": not device.is_deactivated(),
-                    "show_activate": device.is_deactivated(),
+                    "show_activate": device.is_deactivated()
+                    and device.organization.is_active,
                     "action_checkbox_name": helpers.ACTION_CHECKBOX_NAME,
                 }
             )
-            if device.is_deactivated():
+            if ctx["show_activate"]:
                 ctx["additional_buttons"].append(
                     {
                         "raw_html": mark_safe(
@@ -993,7 +1023,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, CopyableFieldsAdmin):
                         )
                     }
                 )
-            else:
+            elif not device.is_deactivated():
                 ctx["additional_buttons"].append(
                     {
                         "raw_html": mark_safe(
@@ -1178,10 +1208,18 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin, SystemDefinedVariabl
             # validate organization
             if organization:
                 try:
-                    validated_org = Organization.objects.get(pk=organization)
+                    validated_org = Organization.active.get(pk=organization)
                 except (ValidationError, Organization.DoesNotExist) as e:
                     logger.warning(
                         f"Detected tampering in clone template form by user {user}: {e}"
+                    )
+                    view.message_user(
+                        request,
+                        _(
+                            "Cannot clone templates: the selected organization"
+                            " does not exist or is disabled."
+                        ),
+                        messages.ERROR,
                     )
                     return
                 if not user.is_superuser and not user.is_manager(organization):
@@ -1236,11 +1274,11 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin, SystemDefinedVariabl
                 )
 
         if user.is_superuser:
-            all_orgs = Organization.objects.all()
+            all_orgs = Organization.active.all()
             if all_orgs.count() > 1:
                 selectable_orgs = all_orgs
         elif len(user.organizations_managed) > 1:
-            selectable_orgs = Organization.objects.filter(
+            selectable_orgs = Organization.active.filter(
                 pk__in=user.organizations_managed
             )
         if selectable_orgs:

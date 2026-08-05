@@ -729,7 +729,7 @@ class TestEstimatedLocationTransaction(
             device2.save()
             # 3 queries related to notifications cleanup
             device2.refresh_from_db()
-            with self.assertNumQueries(16):
+            with self.assertNumQueries(15):
                 manage_estimated_locations(device2.pk, device2.last_ip)
             mock_info.assert_called_once_with(
                 f"Estimated location saved successfully for {device2.pk}"
@@ -1020,6 +1020,19 @@ class TestEstimatedLocationTransaction(
         whois_obj = self._create_whois_info(ip_address="172.217.22.14")
         device = self._create_device(last_ip=whois_obj.ip_address)
         device.deactivate()
+        manage_estimated_locations(device.pk, device.last_ip)
+        mock_info.assert_called_once_with(
+            f"Device {device.pk} no longer needs estimated location "
+            f"for {device.last_ip}"
+        )
+
+    @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
+    @mock.patch(_ESTIMATED_LOCATION_INFO_LOGGER)
+    def test_manage_locations_skips_when_org_disabled(self, mock_info):
+        whois_obj = self._create_whois_info(ip_address="172.217.22.14")
+        device = self._create_device(last_ip=whois_obj.ip_address)
+        device.organization.is_active = False
+        device.organization.save(update_fields=["is_active"])
         manage_estimated_locations(device.pk, device.last_ip)
         mock_info.assert_called_once_with(
             f"Device {device.pk} no longer needs estimated location "

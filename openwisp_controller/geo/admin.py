@@ -1,5 +1,6 @@
 import reversion
 from django.contrib import admin
+from django.contrib.admin.options import ModelAdmin as DjangoModelAdmin
 from django.utils.translation import gettext_lazy as _
 from django_loci.base.admin import (
     AbstractFloorPlanAdmin,
@@ -45,6 +46,16 @@ class FloorPlanInline(AbstractFloorPlanInline):
 class FloorPlanAdmin(MultitenantAdminMixin, AbstractFloorPlanAdmin):
     form = FloorPlanForm
     list_filter = [MultitenantOrgFilter, "created"]
+
+    def get_form(self, request, obj=None, **kwargs):
+        try:
+            return super().get_form(request, obj, **kwargs)
+        except KeyError as error:
+            if error.args != ("location",):
+                raise
+            form = DjangoModelAdmin.get_form(self, request, obj, **kwargs)
+            form._user = request.user
+            return form
 
 
 FloorPlanAdmin.list_display.insert(1, "organization")
