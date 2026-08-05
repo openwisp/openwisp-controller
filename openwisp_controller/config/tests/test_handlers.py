@@ -3,7 +3,7 @@ from unittest.mock import patch
 from django.test import TransactionTestCase
 
 from .. import tasks
-from .utils import CreateConfigMixin
+from .utils import CreateConfigMixin, Device
 
 
 class TestHandlers(CreateConfigMixin, TransactionTestCase):
@@ -57,3 +57,27 @@ class TestHandlers(CreateConfigMixin, TransactionTestCase):
             org.save()
             device.refresh_from_db()
             self.assertEqual(device._is_deactivated, True)
+
+    def test_deactivate_organization_devices_partial_failure(self):
+        org = self._create_org()
+        failing_device = self._create_device(
+            organization=org, name="failing-device", mac_address="00:11:22:33:44:01"
+        )
+        self._create_config(device=failing_device)
+        ok_device = self._create_device(
+            organization=org, name="ok-device", mac_address="00:11:22:33:44:02"
+        )
+        self._create_config(device=ok_device)
+        with patch("openwisp_controller.config.handlers.chain"):
+            org.is_active = False
+            org.save()
+        with patch.object(tasks, "logger") as mocked_logger:
+            with patch.object(Device, "deactivate", side_effect=[Exception, None]):
+                tasks.deactivate_organization_devices(org.id)
+        mocked_logger.exception.assert_called_once_with(
+            "Failed to deactivate device %s while disabling organization %s",
+            failing_device.pk,
+            org.id,
+        )
+        ok_device.refresh_from_db()
+        self.assertEqual(ok_device._is_deactivated, True)
