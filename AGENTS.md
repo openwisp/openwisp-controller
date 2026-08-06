@@ -62,6 +62,7 @@ If instructions conflict (please let us know!), repository config and CI workflo
 - Be careful with authentication, authorization, queryset filtering, serializers, admin behavior, cache invalidation, signals, Celery tasks, and websocket updates.
 - When changing APIs, include tests for permissions, validation, filtering, pagination, and organization boundaries.
 - Changes to swappable models, tenant isolation, authentication flows, or admin/REST authorization must be covered by both the default package suite and the `SAMPLE_APP=1` integration suite. Add a `tests/openwisp2` regression test when the affected feature has no existing sample-app analogue.
+- Apps under `tests/openwisp2/sample_*` are disposable test and example projects, not maintained deployments. Prefer updating their existing migrations to keep them minimal. Add an append-only migration only when an important change needs documented upgrade guidance for users who customized their OpenWISP modules.
 - When a Celery task, notification, cache invalidation, or other external side effect depends on database changes made in the current transaction, register it with `transaction.on_commit()` so it cannot run against uncommitted or rolled-back data. Do not defer work that must run before commit or is independent of the transaction. Test commit and rollback behavior, and account for Celery eager execution in tests versus asynchronous execution in production.
 
 ## Security Notes
