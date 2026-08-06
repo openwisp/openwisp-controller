@@ -4,8 +4,8 @@
   django._jsonEditors = new Map();
   var inFullScreenMode = false,
     prevDefaultValues = {},
-    defaultValuesUrl =
-      window.location.origin + "/admin/config/device/get-default-values/",
+    current_app_label = `${window.location.pathname.split("/").filter(Boolean)[1]}`,
+    defaultValuesUrl = `${window.location.origin}/admin/${current_app_label}/device/get-default-values/`,
     removeDefaultValues = function (contextValue, defaultValues) {
       // remove default values when template is removed.
       Object.keys(prevDefaultValues).forEach(function (key) {
