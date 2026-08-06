@@ -268,8 +268,8 @@ class AbstractVpn(
             self.ip = self._auto_create_ip()
         if self._is_backend_type("zerotier"):
             config = deepcopy(self.config["zerotier"][0])
-            config["name"] = self.name
             if created:
+                config["name"] = self.name
                 self._create_zt_server(config)
         try:
             super().save(*args, **kwargs)
@@ -589,7 +589,9 @@ class AbstractVpn(
             )
             context[context_keys["vpn_subnet"]] = str(self.subnet.subnet)
         if self._is_backend_type("zerotier") and self.network_id:
-            context[context_keys["network_name"]] = self.name
+            context[context_keys["network_name"]] = (
+                self.config.get("zerotier", [{}])[0].get("name") or self.name
+            )
             context[context_keys["node_id"]] = self.node_id
             context[context_keys["network_id"]] = self.network_id
         return context
