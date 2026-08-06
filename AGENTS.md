@@ -53,6 +53,7 @@ If instructions conflict (please let us know!), repository config and CI workflo
 - Changes to core logic, model validation, migrations, database schema, tenant isolation, authentication, or shared behavior require all affected package and integration suites.
 - Before pushing a branch or opening a pull request for a behavior-affecting change, verify that the full test suite has passed at least once for the current branch after its latest code, test, dependency, migration, or configuration change. If no successful full-suite result is available, stop, report the missing verification, and do not push or open the pull request. If the full suite cannot run, report the blocker and wait for user direction.
 - Prefer in-process tests so coverage tools can measure changed code.
+- Keep helpers and classes used by only one test method inside that method. Promote them to class or module scope only when genuinely reused.
 
 ## Django Notes
 
