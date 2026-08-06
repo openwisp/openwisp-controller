@@ -152,7 +152,7 @@ class TestPkiApi(
     def test_ca_delete_api(self):
         ca1 = self._create_ca(name="ca1", organization=self._get_org())
         path = reverse("pki_api:ca_detail", args=[ca1.pk])
-        with self.assertNumQueries(5):
+        with self.assertNumQueries(6):
             r = self.client.delete(path)
         self.assertEqual(r.status_code, 204)
         self.assertEqual(Ca.objects.count(), 0)
@@ -244,10 +244,35 @@ class TestPkiApi(
         self.assertEqual(r.data["id"], cert1.pk)
         self.assertEqual(r.data["extensions"], [])
 
+    def test_cert_put_api(self):
+        cert1 = self._create_cert(name="cert1")
+        org2 = self._create_org()
+        path = reverse("pki_api:cert_detail", args=[cert1.pk])
+        data = {
+            "name": "cert1-change",
+            "organization": org2.pk,
+            "notes": "new-notes",
+        }
+        with self.assertNumQueries(10):
+            r = self.client.put(path, data, content_type="application/json")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.data["name"], "cert1-change")
+        self.assertEqual(r.data["organization"], org2.pk)
+        self.assertEqual(r.data["notes"], "new-notes")
+
+    def test_cert_patch_api(self):
+        cert1 = self._create_cert(name="cert1")
+        path = reverse("pki_api:cert_detail", args=[cert1.pk])
+        data = {"name": "cert1-change"}
+        with self.assertNumQueries(8):
+            r = self.client.patch(path, data, content_type="application/json")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.data["name"], "cert1-change")
+
     def test_cert_delete_api(self):
         cert1 = self._create_cert(name="cert1")
         path = reverse("pki_api:cert_detail", args=[cert1.pk])
-        with self.assertNumQueries(5):
+        with self.assertNumQueries(7):
             r = self.client.delete(path)
         self.assertEqual(r.status_code, 204)
         self.assertEqual(Cert.objects.count(), 0)
@@ -259,6 +284,28 @@ class TestPkiApi(
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data["ca"], cert1.ca.id)
+
+    def test_post_cert_renew_api(self):
+        cert1 = self._create_cert(name="cert1")
+        old_serial_num = cert1.serial_number
+        path = reverse("pki_api:cert_renew", args=[cert1.pk])
+        with self.assertNumQueries(6):
+            r = self.client.post(path)
+        self.assertEqual(r.status_code, 200)
+        cert1.refresh_from_db()
+        self.assertNotEqual(cert1.serial_number, old_serial_num)
+        self.assertNotEqual(r.data["serial_number"], old_serial_num)
+
+    def test_post_cert_revoke_api(self):
+        cert1 = self._create_cert(name="cert1")
+        self.assertFalse(cert1.revoked)
+        path = reverse("pki_api:cert_revoke", args=[cert1.pk])
+        with self.assertNumQueries(3):
+            r = self.client.post(path)
+        cert1.refresh_from_db()
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(cert1.revoked)
+        self.assertTrue(r.data["revoked"])
 
     @capture_any_output()
     def test_bearer_authentication(self):
@@ -344,7 +391,7 @@ class TestTransactionPkiApi(
             "organization": org2.pk,
             "notes": "new-notes",
         }
-        with self.assertNumQueries(10):
+        with self.assertNumQueries(11):
             r = self.client.put(path, data, content_type="application/json")
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data["name"], "cert1-change")
@@ -355,7 +402,7 @@ class TestTransactionPkiApi(
         cert1 = self._create_cert(name="cert1")
         path = reverse("pki_api:cert_detail", args=[cert1.pk])
         data = {"name": "cert1-change"}
-        with self.assertNumQueries(8):
+        with self.assertNumQueries(9):
             r = self.client.patch(path, data, content_type="application/json")
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data["name"], "cert1-change")
@@ -364,7 +411,7 @@ class TestTransactionPkiApi(
         cert1 = self._create_cert(name="cert1")
         old_serial_num = cert1.serial_number
         path = reverse("pki_api:cert_renew", args=[cert1.pk])
-        with self.assertNumQueries(6):
+        with self.assertNumQueries(7):
             r = self.client.post(path)
         self.assertEqual(r.status_code, 200)
         cert1.refresh_from_db()

@@ -308,9 +308,9 @@ levels of OpenWISP, see `netjsonconfig context: configuration variables
 The default value of the ``auto_cert`` field for new ``Template`` objects.
 
 The ``auto_cert`` field is valid only for templates which have ``type``
-set to ``VPN`` and indicates whether configuration regarding the VPN
-tunnel is provisioned automatically to each device using the template,
-e.g.:
+set to ``VPN`` or ``cert`` and indicates whether configuration regarding
+the VPN tunnel (or the x509 certificate) is provisioned automatically to
+each device using the template, e.g.:
 
 - when using OpenVPN, new `x509 <https://tools.ietf.org/html/rfc5280>`_
   certificates will be generated automatically using the same CA assigned
@@ -330,6 +330,23 @@ The objects that are automatically created will also be removed when they
 are not needed anymore (e.g.: when the VPN template is removed from a
 configuration object).
 
+.. _openwisp_controller_regenerate_certs_on_hardware_change:
+
+``OPENWISP_CONTROLLER_REGENERATE_CERTS_ON_HARDWARE_CHANGE``
+-----------------------------------------------------------
+
+============ ========
+**type**:    ``bool``
+**default**: ``True``
+============ ========
+
+When a device's name or MAC address changes, OpenWISP automatically
+revokes the existing X.509 client certificates and provisions new ones
+with the updated identity attributes. This applies only to active,
+automatically managed certificates (that is, those generated for templates
+with ``auto_cert`` enabled); manually assigned certificates are left
+untouched. Set this to ``False`` to disable this automatic regeneration.
+
 ``OPENWISP_CONTROLLER_CERT_PATH``
 ---------------------------------
 
@@ -342,6 +359,8 @@ The file system path where x509 certificate will be installed when
 downloaded on routers when ``auto_cert`` is being used (enabled by
 default).
 
+.. _openwisp_controller_common_name_format:
+
 ``OPENWISP_CONTROLLER_COMMON_NAME_FORMAT``
 ------------------------------------------
 
@@ -350,13 +369,13 @@ default).
 **default**: ``{mac_address}-{name}``
 ============ ========================
 
-Defines the format of the ``common_name`` attribute of VPN client
-certificates that are automatically created when using VPN templates which
-have ``auto_cert`` set to ``True``. A unique slug generated using
-`shortuuid <https://github.com/skorokithakis/shortuuid/>`_ is appended to
-the common name to introduce uniqueness. Therefore, resulting common names
-will have ``{OPENWISP_CONTROLLER_COMMON_NAME_FORMAT}-{unique-slug}``
-format.
+Defines the format of the ``common_name`` attribute of X.509 client
+certificates that are automatically created when using VPN or Certificate
+Templates which have ``auto_cert`` set to ``True``. A unique slug
+generated using `shortuuid <https://github.com/skorokithakis/shortuuid/>`_
+is appended to the common name to introduce uniqueness. Therefore,
+resulting common names will have
+``{OPENWISP_CONTROLLER_COMMON_NAME_FORMAT}-{unique-slug}`` format.
 
 .. note::
 

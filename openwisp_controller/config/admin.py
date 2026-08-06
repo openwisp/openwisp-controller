@@ -50,6 +50,7 @@ from .exportable import DeviceResource
 from .filters import DeviceGroupFilter, GroupFilter, TemplatesFilter
 from .utils import send_file
 from .widgets import DeviceGroupJsonSchemaWidget, JsonSchemaWidget
+from .x509_admin import get_device_certificate_details, register_cert_admin_filter
 
 logger = logging.getLogger(__name__)
 prefix = "config/"
@@ -62,6 +63,7 @@ Vpn = load_model("config", "Vpn")
 Organization = load_model("openwisp_users", "Organization")
 OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
 OrganizationLimits = load_model("config", "OrganizationLimits")
+register_cert_admin_filter()
 
 if "reversion" in settings.INSTALLED_APPS:
     from reversion.admin import VersionAdmin as ModelAdmin
@@ -118,7 +120,11 @@ class BaseConfigAdmin(BaseAdmin):
         css = {"all": (f"{prefix}css/admin.css",)}
         js = list(CopyableFieldsAdmin.Media.js) + [
             f"{prefix}js/{file_}"
-            for file_ in ("preview.js", "unsaved_changes.js", "switcher.js")
+            for file_ in (
+                "preview.js",
+                "unsaved_changes.js",
+                "switcher.js",
+            )
         ]
 
     def get_extra_context(self, pk=None):
@@ -984,6 +990,10 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, CopyableFieldsAdmin):
                     "action_checkbox_name": helpers.ACTION_CHECKBOX_NAME,
                 }
             )
+            if hasattr(device, "config") and device.config:
+                ctx["certificate_details"] = get_device_certificate_details(
+                    device.config
+                )
             if device.is_deactivated():
                 ctx["additional_buttons"].append(
                     {
@@ -1124,6 +1134,8 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin, SystemDefinedVariabl
         "organization",
         "type",
         "backend",
+        "ca",
+        "blueprint_cert",
         "default",
         "required",
         "created",
@@ -1137,14 +1149,16 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin, SystemDefinedVariabl
         "required",
         "created",
     ]
+    multitenant_shared_relations = ("vpn", "ca", "blueprint_cert")
     search_fields = ["name", "notes"]
-    multitenant_shared_relations = ("vpn",)
     fields = [
         "name",
         "organization",
         "type",
         "backend",
         "vpn",
+        "ca",
+        "blueprint_cert",
         "auto_cert",
         "tags",
         "default",
@@ -1157,7 +1171,7 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin, SystemDefinedVariabl
         "modified",
     ]
     readonly_fields = ["system_context"]
-    autocomplete_fields = ["vpn"]
+    autocomplete_fields = ["vpn", "ca", "blueprint_cert"]
 
     @admin.action(permissions=["add"])
     def clone_selected_templates(self, request, queryset):
@@ -1204,14 +1218,10 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin, SystemDefinedVariabl
             errors = False
             for template in queryset:
                 try:
-                    clone = template.clone(user)
-                    # user has access to multiple orgs
                     if organization is not None:
-                        clone.organization = validated_org
-                    # user has access only to one org
+                        clone = template.clone(user, organization=validated_org)
                     else:
-                        clone.organization = template.organization
-                    clone.save()
+                        clone = template.clone(user)
                     create_log_entry(user, clone)
                 except ValidationError as e:
                     # show 1 error message for each template failing

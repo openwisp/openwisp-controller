@@ -2,6 +2,7 @@ from django.db import models
 
 from openwisp_controller.config.base.config import AbstractConfig
 from openwisp_controller.config.base.device import AbstractDevice
+from openwisp_controller.config.base.device_certificate import AbstractDeviceCertificate
 from openwisp_controller.config.base.device_group import AbstractDeviceGroup
 from openwisp_controller.config.base.multitenancy import (
     AbstractOrganizationConfigSettings,
@@ -92,6 +93,15 @@ class VpnClient(DetailsModel, AbstractVpnClient):
     """
 
     class Meta(AbstractVpnClient.Meta):
+        abstract = False
+
+
+class DeviceCertificate(DetailsModel, AbstractDeviceCertificate):
+    """
+    m2m through model
+    """
+
+    class Meta(AbstractDeviceCertificate.Meta):
         abstract = False
 
 

@@ -1,10 +1,12 @@
 import uuid
+from collections import OrderedDict
 from unittest import mock
 
 from celery.exceptions import SoftTimeLimitExceeded
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db import transaction
+from django.db import IntegrityError, transaction
+from django.db.models.deletion import RestrictedError
 from django.test import TestCase, TransactionTestCase
 from netjsonconfig import OpenWrt
 from netjsonconfig.exceptions import ValidationError as NetjsonconfigValidationError
@@ -13,6 +15,7 @@ from swapper import load_model
 from openwisp_utils.tests import catch_signal
 
 from .. import settings as app_settings
+from ..base.template import _get_value_for_comparison, get_unassigned_certs
 from ..signals import config_modified, config_status_changed
 from ..tasks import auto_add_template_to_existing_configs
 from ..tasks import logger as task_logger
@@ -26,6 +29,7 @@ Vpn = load_model("config", "Vpn")
 Ca = load_model("django_x509", "Ca")
 Cert = load_model("django_x509", "Cert")
 User = get_user_model()
+DeviceCertificate = load_model("config", "DeviceCertificate")
 
 _original_context = app_settings.CONTEXT.copy()
 
@@ -188,6 +192,46 @@ class TestTemplate(CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase):
         self.assertIsNotNone(c.pk)
         self.assertNotEqual(c.pk, t.pk)
         self.assertFalse(c.default)
+
+    def test_clone_cert_template_across_organizations_rejected(self):
+        org1 = self._get_org()
+        org2 = self._create_org(name="Org2", slug="org2")
+        ca = self._create_ca(name="ca", common_name="ca", organization=org1)
+        blueprint = self._create_cert(ca=ca, name="blueprint", organization=org1)
+        t = self._create_template(
+            name="Cert Template",
+            type="cert",
+            ca=ca,
+            blueprint_cert=blueprint,
+            organization=org1,
+            config={},
+        )
+        user = User.objects.create_superuser(
+            username="admin", password="tester", email="admin@admin.com"
+        )
+        with self.assertRaises(ValidationError):
+            t.clone(user, organization=org2)
+
+    def test_clone_cert_template_across_shared_orgs(self):
+        org1 = self._get_org()
+        org2 = self._create_org(name="Org2", slug="org2")
+        ca = self._create_ca(name="shared-ca", common_name="shared-ca")
+        blueprint = self._create_cert(ca=ca, name="shared-blueprint")
+        t = self._create_template(
+            name="Cert Template",
+            type="cert",
+            ca=ca,
+            blueprint_cert=blueprint,
+            organization=org1,
+            config={},
+        )
+        user = User.objects.create_superuser(
+            username="admin", password="tester", email="admin@admin.com"
+        )
+        clone = t.clone(user, organization=org2)
+        self.assertEqual(clone.organization, org2)
+        self.assertEqual(clone.ca, ca)
+        self.assertEqual(clone.blueprint_cert, blueprint)
 
     def test_duplicate_files_in_template(self):
         try:
@@ -586,7 +630,7 @@ class TestTemplateTransaction(
             with catch_signal(config_status_changed) as handler:
                 t.config["interfaces"][0]["name"] = "eth2"
                 t.full_clean()
-                with self.assertNumQueries(13):
+                with self.assertNumQueries(14):
                     t.save()
                 c.refresh_from_db()
                 handler.assert_not_called()
@@ -967,3 +1011,720 @@ class TestTemplateTransaction(
             required_template.full_clean()
             required_template.save()
             mocked_task.assert_not_called()
+
+    def test_auto_add_template_to_existing_configs_task_timeout(self):
+        template = self._create_template()
+        with mock.patch.object(
+            Template,
+            "_auto_add_to_existing_configs",
+            side_effect=SoftTimeLimitExceeded,
+        ):
+            with mock.patch.object(task_logger, "error") as mocked_error:
+                auto_add_template_to_existing_configs(str(template.pk))
+            mocked_error.assert_called_once()
+
+    def test_standalone_cert_renewal_updates_config_status(self):
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        template = self._create_template(
+            name="cert-renewal-test",
+            type="cert",
+            ca=ca,
+            organization=org,
+            config={},
+        )
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        dc = config.devicecertificate_set.first()
+        self.assertIsNotNone(dc)
+        config.status = "applied"
+        config.save(update_fields=["status"])
+        config.refresh_from_db()
+        with mock.patch.object(
+            Config, "update_status_if_checksum_changed"
+        ) as mocked_update:
+            dc.cert.renew()
+            mocked_update.assert_called_once()
+
+    def test_get_cert_context_excludes_unassigned_templates(self):
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+
+        template_keep = self._create_template(
+            name="cert-keep",
+            type="cert",
+            ca=ca,
+            auto_cert=True,
+            organization=org,
+            config={},
+        )
+        template_remove = self._create_template(
+            name="cert-remove",
+            type="cert",
+            ca=ca,
+            auto_cert=True,
+            organization=org,
+            config={},
+        )
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        config.templates.add(template_keep, template_remove)
+
+        keep_prefix = f"cert_{template_keep.pk.hex}"
+        remove_prefix = f"cert_{template_remove.pk.hex}"
+
+        context = config.get_context()
+        self.assertIn(f"{keep_prefix}_path", context)
+        self.assertIn(f"{remove_prefix}_path", context)
+
+        Through = Config.templates.through
+        with transaction.atomic():
+            Through.objects.filter(config=config, template=template_remove).delete()
+            config.refresh_from_db()
+
+            self.assertEqual(
+                config.devicecertificate_set.count(),
+                2,
+                "Stale DeviceCertificate row should still exist",
+            )
+
+            context = config.get_context()
+            self.assertIn(f"{keep_prefix}_path", context)
+            self.assertNotIn(
+                f"{remove_prefix}_path",
+                context,
+                "Cert context for removed template should be excluded",
+            )
+
+        context = config.get_context()
+        self.assertIn(f"{keep_prefix}_path", context)
+        self.assertNotIn(f"{remove_prefix}_path", context)
+
+
+class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase):
+    """
+    tests for standalone X.509 certificate Template configurations
+    """
+
+    def test_cert_template_requires_ca(self):
+        """Test that creating a template with type='cert' requires a CA."""
+        try:
+            self._create_template(type="cert", config={})
+        except ValidationError as err:
+            self.assertIn("ca", err.message_dict)
+            self.assertIn("required", str(err.message_dict["ca"][0]))
+        else:
+            self.fail("ValidationError not raised for missing CA")
+
+    def test_blueprint_must_match_ca(self):
+        """Test that blueprint_cert must match the selected CA."""
+        org = self._get_org()
+        ca_main = self._create_ca(
+            name="Main CA", common_name="Main CA", organization=org
+        )
+        ca_other = self._create_ca(
+            name="Other CA", common_name="Other CA", organization=org
+        )
+        blueprint = self._create_cert(
+            name="Master Blueprint", ca=ca_main, organization=org
+        )
+        try:
+            self._create_template(
+                type="cert",
+                ca=ca_other,
+                blueprint_cert=blueprint,
+                organization=org,
+                config={},
+            )
+        except ValidationError as err:
+            self.assertIn("blueprint_cert", err.message_dict)
+            self.assertIn("match", str(err.message_dict["blueprint_cert"][0]))
+        else:
+            self.fail("ValidationError not raised for CA mismatch")
+
+    def test_blueprint_cannot_be_already_assigned(self):
+        """Test that blueprint_cert cannot be already assigned to a device."""
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        blueprint = self._create_cert(ca=ca, organization=org)
+        config = self._create_config(organization=org)
+        template = self._create_template(
+            name="cert-template",
+            type="cert",
+            ca=ca,
+            organization=org,
+            config={},
+        )
+        config.templates.add(template)
+        dc = DeviceCertificate.objects.get(config=config, template=template)
+        dc.cert = blueprint
+        dc.save()
+        try:
+            self._create_template(
+                type="cert",
+                ca=ca,
+                blueprint_cert=blueprint,
+                organization=org,
+                config={},
+            )
+        except ValidationError as err:
+            self.assertIn("blueprint_cert", err.message_dict)
+            error_messages = " ".join(err.message_dict["blueprint_cert"])
+            self.assertIn("already assigned", error_messages)
+        else:
+            self.fail("ValidationError not raised for assigned blueprint")
+
+    def test_non_cert_clears_fields(self):
+        """Test that non-cert template types clear ca and blueprint_cert fields."""
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        blueprint = self._create_cert(ca=ca, organization=org)
+        t = self._create_template(
+            type="cert",
+            ca=ca,
+            blueprint_cert=blueprint,
+            organization=org,
+            config={},
+        )
+        t.type = "generic"
+        t.backend = "netjsonconfig.OpenWrt"
+        t.config = {"interfaces": [{"name": "eth0", "type": "ethernet"}]}
+        t.full_clean()
+        self.assertIsNone(t.ca)
+        self.assertIsNone(t.blueprint_cert)
+
+    def test_organization_validation_for_relations(self):
+        """Test organization validation for ca field."""
+        org1 = self._get_org()
+        org2 = self._create_org(name="Org2", slug="org2")
+        ca_org2 = self._create_ca(organization=org2)
+
+        try:
+            self._create_template(
+                type="cert",
+                ca=ca_org2,
+                organization=org1,
+                config={},
+            )
+        except ValidationError as err:
+            self.assertIn("organization", err.message_dict)
+            self.assertIn("related CA match", str(err.message_dict["organization"][0]))
+        else:
+            self.fail("ValidationError not raised for cross-organization CA relation")
+
+    def test_organization_validation_skipped_for_non_cert(self):
+        """
+        Organization validation for 'ca' and 'blueprint_cert'
+        should not run if the template is not type 'cert'.
+        """
+        org1 = self._get_org()
+        org2 = self._create_org(name="Org2", slug="org2")
+        ca_org2 = self._create_ca(organization=org2)
+        blueprint_org2 = self._create_cert(ca=ca_org2, organization=org2)
+        t = self._create_template(
+            name="stale-relations",
+            type="generic",
+            backend="netjsonconfig.OpenWrt",
+            ca=ca_org2,
+            blueprint_cert=blueprint_org2,
+            organization=org1,
+            config={"interfaces": [{"name": "eth0", "type": "ethernet"}]},
+        )
+        try:
+            t.full_clean()
+        except ValidationError as err:
+            if "organization" in err.message_dict:
+                self.fail(
+                    "Organization validation ran on stale cert relations "
+                    "for a non-cert template."
+                )
+            raise err
+        self.assertIsNone(t.ca)
+        self.assertIsNone(t.blueprint_cert)
+
+    def test_active_mutation_blocked(self):
+        """
+        Test that cert-specific fields cannot be changed
+        if assigned to active devices.
+        """
+        org = self._get_org()
+        ca1 = self._create_ca(name="CA1", common_name="CA1", organization=org)
+        ca2 = self._create_ca(name="CA2", common_name="CA2", organization=org)
+        blueprint1 = self._create_cert(
+            name="BP1", common_name="BP1_CN", ca=ca1, organization=org
+        )
+        blueprint2 = self._create_cert(
+            name="BP2", common_name="BP2_CN", ca=ca1, organization=org
+        )
+        template = self._create_template(
+            name="Active Cert Template",
+            type="cert",
+            ca=ca1,
+            blueprint_cert=blueprint1,
+            organization=org,
+            config={},
+        )
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        with self.subTest("Cannot mutate CA on active template"):
+            template.ca = ca2
+            template.blueprint_cert = None
+            try:
+                template.full_clean()
+            except ValidationError as err:
+                self.assertIn("ca", err.message_dict)
+                self.assertIn(
+                    "already assigned to active devices", str(err.message_dict["ca"][0])
+                )
+            else:
+                self.fail("ValidationError not raised for active mutation of CA")
+
+        with self.subTest("Cannot mutate blueprint_cert on active template"):
+            template.refresh_from_db()
+            template.blueprint_cert = blueprint2
+            try:
+                template.full_clean()
+            except ValidationError as err:
+                self.assertIn("blueprint_cert", err.message_dict)
+                self.assertIn(
+                    "already assigned to active devices",
+                    str(err.message_dict["blueprint_cert"][0]),
+                )
+            else:
+                self.fail(
+                    "ValidationError not raised for active mutation of blueprint_cert"
+                )
+
+        with self.subTest("Cannot change type away from cert on active template"):
+            template.refresh_from_db()
+            template.type = "generic"
+            try:
+                template.full_clean()
+            except ValidationError as err:
+                self.assertIn("type", err.message_dict)
+                self.assertIn(
+                    "already assigned to active devices",
+                    str(err.message_dict["type"][0]),
+                )
+            else:
+                self.fail(
+                    "ValidationError not raised for active mutation of template type"
+                )
+
+    def test_cert_generation_fallback_to_ca_defaults(self):
+        """
+        Verify synchronous generation falls back to CA defaults
+        when no blueprint_cert is specified.
+        """
+        org = self._get_org()
+        ca = self._create_ca(
+            name="Fallback CA",
+            organization=org,
+            country_code="DE",
+            city="Berlin",
+            key_length="2048",
+            digest="sha256",
+        )
+        template = self._create_template(
+            name="No Blueprint Template",
+            type="cert",
+            ca=ca,
+            blueprint_cert=None,
+            organization=org,
+            config={},
+        )
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        dev_cert = config.devicecertificate_set.first()
+        self.assertIsNotNone(dev_cert)
+        generated_cert = dev_cert.cert
+        self.assertEqual(generated_cert.country_code, "DE")
+        self.assertEqual(generated_cert.city, "Berlin")
+        self.assertEqual(generated_cert.key_length, "2048")
+        self.assertEqual(generated_cert.digest, "sha256")
+
+    def test_cert_generation_and_revocation_lifecycle(self):
+        """
+        Verify synchronous generation copies blueprint attributes, injects CN/OIDs,
+        and securely revokes the underlying certificate upon removal.
+        """
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        blueprint = self._create_cert(
+            name="Master Blueprint",
+            common_name="Master Blueprint CN",
+            ca=ca,
+            organization=org,
+            key_length="4096",
+            digest="sha512",
+            city="Rome",
+            country_code="IT",
+            extensions=[
+                {"name": "nsComment", "value": "Test comment", "critical": False}
+            ],
+        )
+        template = self._create_template(
+            name="Deep Lifecycle Template",
+            type="cert",
+            ca=ca,
+            blueprint_cert=blueprint,
+            organization=org,
+            config={},
+        )
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        dev_cert = config.devicecertificate_set.first()
+        self.assertIsNotNone(dev_cert, "DeviceCertificate was not created")
+        generated_cert = dev_cert.cert
+        with self.subTest("Copies blueprint attributes and sets CN"):
+            self.assertEqual(generated_cert.key_length, "4096")
+            self.assertEqual(generated_cert.digest, "sha512")
+            self.assertEqual(generated_cert.city, "Rome")
+            self.assertEqual(generated_cert.country_code, "IT")
+            self.assertTrue(
+                generated_cert.common_name.startswith(
+                    f"{device.mac_address}-{device.name}"
+                )
+            )
+
+        with self.subTest("Injects custom MAC and UUID OIDs"):
+            extensions = generated_cert.extensions
+            mac_oid = "1.3.6.1.4.1.65901.1"
+            uuid_oid = "1.3.6.1.4.1.65901.2"
+            mac_ext = next(
+                (
+                    ext
+                    for ext in extensions
+                    if ext.get("oid") == mac_oid or ext.get("name") == mac_oid
+                ),
+                None,
+            )
+            uuid_ext = next(
+                (
+                    ext
+                    for ext in extensions
+                    if ext.get("oid") == uuid_oid or ext.get("name") == uuid_oid
+                ),
+                None,
+            )
+            self.assertIsNotNone(mac_ext, "MAC OID extension missing")
+            self.assertIn(device.mac_address, mac_ext["value"])
+            self.assertIsNotNone(uuid_ext, "UUID OID extension missing")
+            self.assertIn(str(device.id), uuid_ext["value"])
+
+        with self.subTest("Secure Revocation (post_remove)"):
+            cert_pk = generated_cert.pk
+            config.templates.remove(template)
+            self.assertEqual(config.devicecertificate_set.count(), 0)
+            revoked_cert = Cert.objects.get(pk=cert_pk)
+            self.assertTrue(
+                revoked_cert.revoked, "Underlying certificate was not revoked!"
+            )
+
+    def test_cert_generation_copies_blueprint_organizational_unit_name(self):
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        blueprint = self._create_cert(
+            ca=ca,
+            organization=org,
+            organizational_unit_name="Network Operations",
+        )
+        template = self._create_template(
+            type="cert",
+            ca=ca,
+            blueprint_cert=blueprint,
+            organization=org,
+            config={},
+        )
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        cert = config.devicecertificate_set.get(template=template).cert
+        self.assertEqual(cert.organizational_unit_name, "Network Operations")
+
+    def test_device_certificate_autocert_save_is_atomic(self):
+        """
+        Ensure certificate auto-provisioning does not leak Cert rows
+        when DeviceCertificate save fails.
+        """
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        template = self._create_template(
+            name="Atomic Cert Template",
+            type="cert",
+            ca=ca,
+            organization=org,
+            config={},
+        )
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        existing_cert = self._create_cert(ca=ca, organization=org)
+        dc = DeviceCertificate.objects.get(config=config, template=template)
+        dc.cert = existing_cert
+        dc.save()
+        cert_count = Cert.objects.count()
+
+        with self.assertRaises(IntegrityError):
+            DeviceCertificate.objects.create(
+                config=config,
+                template=template,
+            )
+
+        self.assertEqual(Cert.objects.count(), cert_count)
+
+    def test_cert_template_reorder_does_not_revoke(self):
+        """
+        Verify that reordering templates or performing bulk .set() updates
+        does not delete and recreate the existing DeviceCertificate.
+        """
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        cert_template = self._create_template(
+            name="Cert Template", type="cert", ca=ca, organization=org, config={}
+        )
+        regular_template = self._create_template(
+            name="Regular Template",
+            organization=org,
+            config={"system": {"hostname": "test_router"}},
+        )
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        config.templates.set([regular_template, cert_template])
+        dev_cert = config.devicecertificate_set.first()
+        self.assertIsNotNone(dev_cert, "DeviceCertificate should be created.")
+        original_dev_cert_id = dev_cert.pk
+        original_cert_id = dev_cert.cert.pk
+        config.templates.set([cert_template, regular_template], clear=True)
+        dev_certs = config.devicecertificate_set.all()
+        self.assertEqual(dev_certs.count(), 1)
+        surviving_dev_cert = dev_certs.first()
+        self.assertEqual(
+            surviving_dev_cert.pk,
+            original_dev_cert_id,
+            "DeviceCertificate was deleted and recreated during reordering!",
+        )
+        self.assertEqual(
+            surviving_dev_cert.cert.pk,
+            original_cert_id,
+            "Underlying X.509 Cert was replaced during reordering!",
+        )
+        self.assertFalse(
+            surviving_dev_cert.cert.revoked,
+            "Certificate was erroneously revoked during reordering!",
+        )
+
+    def test_cert_template_partial_replacement_cleans_up(self):
+        """
+        Verify that when a subset of templates is replaced via .set(..., clear=True),
+        the DeviceCertificates for the removed templates are correctly deleted,
+        while the kept ones survive.
+        """
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+
+        cert_template_1 = self._create_template(
+            name="Cert Template 1", type="cert", ca=ca, organization=org, config={}
+        )
+        cert_template_2 = self._create_template(
+            name="Cert Template 2", type="cert", ca=ca, organization=org, config={}
+        )
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        config.templates.set([cert_template_1, cert_template_2])
+        self.assertEqual(
+            config.devicecertificate_set.count(), 2, "Two certs should be created"
+        )
+        kept_cert_id = config.devicecertificate_set.get(template=cert_template_1).pk
+        removed_dc = config.devicecertificate_set.get(template=cert_template_2)
+        removed_cert_id = removed_dc.pk
+        removed_cert_pk = removed_dc.cert_id
+        removed_cert = Cert.objects.get(pk=removed_cert_pk)
+        config.templates.set([cert_template_1], clear=True)
+        self.assertEqual(
+            config.devicecertificate_set.count(), 1, "Only one cert should remain"
+        )
+        self.assertTrue(
+            config.devicecertificate_set.filter(pk=kept_cert_id).exists(),
+            "The kept template's certificate should have survived.",
+        )
+        self.assertFalse(
+            config.devicecertificate_set.filter(pk=removed_cert_id).exists(),
+            "The removed template's certificate should have been deleted.",
+        )
+        removed_cert.refresh_from_db()
+        self.assertTrue(
+            removed_cert.revoked,
+            "The removed template's underlying certificate should be revoked.",
+        )
+
+    def test_get_unassigned_certs_with_null_device_cert(self):
+        """
+        Test that a DeviceCertificate with cert=None does not poison
+        the get_unassigned_certs() SQL query due to NULL semantics.
+        """
+        org = self._get_org()
+        ca = self._create_ca(name="Test-CA", organization=org)
+        unassigned_cert = self._create_cert(
+            name="Available-Blueprint", ca=ca, organization=org
+        )
+        device = self._create_device(name="Test-Device", organization=org)
+        config = self._create_config(device=device)
+        template = self._create_template(
+            name="Test-Template", type="cert", ca=ca, organization=org, config={}
+        )
+        config.templates.add(template)
+        device_cert = DeviceCertificate.objects.get(config=config, template=template)
+        self.assertIsNotNone(device_cert.cert_id)
+        choices = get_unassigned_certs()
+        queryset = choices.get("pk__in")
+        self.assertIsNotNone(queryset)
+        self.assertIn(unassigned_cert, queryset)
+
+    def test_get_value_for_comparison(self):
+        self.assertEqual(_get_value_for_comparison({"a": 1}), {"a": 1})
+        od = OrderedDict([("b", 2)])
+        result = _get_value_for_comparison(od)
+        self.assertIsInstance(result, dict)
+        self.assertNotIsInstance(result, OrderedDict)
+        self.assertEqual(result, {"b": 2})
+        result = _get_value_for_comparison(OrderedDict())
+        self.assertIsInstance(result, dict)
+        self.assertEqual(result, {})
+
+    def test_cert_template_config_none(self):
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        template = self._create_template(
+            type="cert",
+            ca=ca,
+            blueprint_cert=None,
+            organization=org,
+            config=None,
+            auto_cert=True,
+        )
+        self.assertEqual(template.config, {})
+
+    def test_validate_cert_template_changes_deleted_instance(self):
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        template = self._create_template(
+            type="cert",
+            ca=ca,
+            organization=org,
+            config={},
+        )
+        pk = template.pk
+        template.delete()
+        stale = Template(pk=pk, type="cert", ca=ca, organization=org)
+        stale._state.adding = False
+        stale.clean()
+
+    def test_validate_cert_template_changes_type_mutation(self):
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        template = self._create_template(
+            type="cert",
+            ca=ca,
+            organization=org,
+            config={},
+        )
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        template.type = "generic"
+        with self.assertRaises(ValidationError) as ctx:
+            template.clean()
+        self.assertIn("type", ctx.exception.error_dict)
+
+    def test_validate_cert_template_changes_same_instance_after_save(self):
+        org = self._get_org()
+        ca1 = self._create_ca(organization=org)
+        ca2 = self._create_ca(organization=org, name="ca2", common_name="ca2")
+        template = self._create_template(
+            type="cert",
+            ca=ca1,
+            organization=org,
+            config={},
+        )
+        template.ca = ca2
+        template.save()
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        template.ca = ca1
+        with self.assertRaises(ValidationError) as ctx:
+            template.clean()
+        self.assertIn("ca", ctx.exception.error_dict)
+
+    def test_certificate_template_context_injection(self):
+        """
+        Verify that Certificate Templates automatically inject their
+        file paths, UUIDs, and PEM payloads into the configuration context.
+        """
+        org = self._create_org()
+        ca = self._create_ca(organization=org)
+        template = self._create_template(
+            name="context-injection-test",
+            type="cert",
+            ca=ca,
+            auto_cert=True,
+            organization=org,
+        )
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        context = config.get_context()
+        prefix = f"cert_{template.pk.hex}"
+        device_cert = config.devicecertificate_set.first()
+        self.assertIsNotNone(device_cert, "DeviceCertificate was not created")
+        cert = device_cert.cert
+        self.assertIn(f"{prefix}_path", context)
+        self.assertIn(f"{prefix}_key_path", context)
+        self.assertTrue(
+            context[f"{prefix}_path"].endswith(f"cert-{template.pk.hex}.pem")
+        )
+        self.assertTrue(
+            context[f"{prefix}_key_path"].endswith(f"key-{template.pk.hex}.pem")
+        )
+        self.assertIn(f"{prefix}_uuid", context)
+        self.assertEqual(context[f"{prefix}_uuid"], str(cert.id))
+        self.assertIn(f"{prefix}_pem", context)
+        self.assertIn(f"{prefix}_key", context)
+        self.assertEqual(context[f"{prefix}_pem"], cert.certificate)
+        self.assertEqual(context[f"{prefix}_key"], cert.private_key)
+
+    def test_device_certificate_blocks_cert_deletion(self):
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        template = self._create_template(
+            name="cert-test", type="cert", ca=ca, organization=org, config={}
+        )
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        dev_cert = config.devicecertificate_set.first()
+        cert = dev_cert.cert
+        with self.assertRaises(RestrictedError):
+            cert.delete()
+
+    def test_device_certificate_allows_cert_deletion_after_removal(self):
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        template = self._create_template(
+            name="cert-test", type="cert", ca=ca, organization=org, config={}
+        )
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        dev_cert = config.devicecertificate_set.first()
+        cert = dev_cert.cert
+        cert_pk = cert.pk
+        config.templates.remove(template)
+        cert = Cert.objects.get(pk=cert_pk)
+        cert.delete()
+        self.assertFalse(Cert.objects.filter(pk=cert_pk).exists())

@@ -6,7 +6,6 @@ import subprocess
 from copy import deepcopy
 from subprocess import CalledProcessError, TimeoutExpired
 
-import shortuuid
 from cache_memoize import cache_memoize
 from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
@@ -33,6 +32,12 @@ from ..tasks_zerotier import (
     trigger_zerotier_server_remove_member,
     trigger_zerotier_server_update,
     trigger_zerotier_server_update_member,
+)
+from ..utils import (
+    DEFAULT_CLIENT_EXTENSIONS,
+    copy_ca_attributes,
+    generate_common_name,
+    revoke_device_cert,
 )
 from .base import BaseConfig, ConfigChecksumCacheMixin
 from .cache import CacheDependency, CacheInvalidationMixin, _resolve_pk_snapshot
@@ -979,16 +984,7 @@ class AbstractVpnClient(models.Model):
         """
         Returns the common name for a new certificate.
         """
-        d = self.config.device
-        end = 63 - len(d.mac_address)
-        d.name = d.name[:end]
-        unique_slug = shortuuid.ShortUUID().random(length=8)
-        cn_format = app_settings.COMMON_NAME_FORMAT
-        if cn_format == "{mac_address}-{name}" and d.name == d.mac_address:
-            cn_format = "{mac_address}"
-        common_name = cn_format.format(**d.__dict__)[:55]
-        common_name = f"{common_name}-{unique_slug}"
-        return common_name
+        return generate_common_name(self.config.device)
 
     @classmethod
     def post_save(cls, instance, **kwargs):
@@ -1018,17 +1014,7 @@ class AbstractVpnClient(models.Model):
         # network after deletion of vpn client object
         if instance.vpn._is_backend_type("zerotier"):
             instance.vpn._remove_zt_network_member(instance.zerotier_member_id)
-        try:
-            # For OpenVPN, the related certificates are revoked, not deleted.
-            # This is because if the device retains a copy of the certificate,
-            # it could continue using it against the OpenVPN CA.
-            # By revoking the certificate, it gets added to the
-            # Certificate Revocation List (CRL). OpenVPN can then use this
-            # CRL to reject the certificate, thereby ensuring its invalidation.
-            if instance.cert and instance.auto_cert:
-                instance.cert.revoke()
-        except ObjectDoesNotExist:
-            pass
+        revoke_device_cert(instance)
         try:
             if instance.ip:
                 instance.ip.delete()
@@ -1046,23 +1032,14 @@ class AbstractVpnClient(models.Model):
         """
         Automatically creates and assigns a client x509 certificate
         """
-        server_extensions = [
-            {"name": "nsCertType", "value": "client", "critical": False}
-        ]
         ca = self.vpn.ca
         cert_model = self.__class__.cert.field.related_model
         cert = cert_model(
             name=name,
             ca=ca,
-            key_length=ca.key_length,
-            digest=str(ca.digest),
-            country_code=ca.country_code,
-            state=ca.state,
-            city=ca.city,
-            organization_name=ca.organization_name,
-            email=ca.email,
             common_name=common_name,
-            extensions=server_extensions,
+            extensions=list(DEFAULT_CLIENT_EXTENSIONS),
+            **copy_ca_attributes(ca),
         )
         cert = self._auto_create_cert_extra(cert)
         cert.full_clean()

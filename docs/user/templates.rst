@@ -209,3 +209,23 @@ engine: netjsonconfig.
 For more advanced technical information about templates, consult the
 netjsonconfig documentation: `Basic Concepts, Template
 <https://netjsonconfig.openwisp.org/en/latest/general/basics.html#template>`_.
+
+.. _certificate_templates:
+
+X.509 Certificate Generator Templates
+-------------------------------------
+
+A Certificate Template is a Template whose **Type** is set to
+:guilabel:`Certificate generator` (``cert``). See
+:doc:`/controller/user/certificate-templates` for detailed documentation.
+
+It allows declaring the *Certificate Authority* and an optional *Blueprint
+Certificate* that will be used to issue an X.509 certificate for each
+device the template is assigned to, without needing a VPN backend.
+
+When :guilabel:`Automatic certificate provisioning` (``auto_cert``) is
+enabled, this template type automatically provisions and revokes X.509
+certificates for assigned devices. Certificates assigned manually (with
+``auto_cert`` disabled) are not managed for you. See the
+:doc:`/controller/user/certificate-templates` documentation for more
+details.

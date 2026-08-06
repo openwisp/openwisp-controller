@@ -555,7 +555,7 @@ class TestVpnTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTestCase
         vpn.host = "changed.example.com"
         # select_related on the client queryset keeps this bounded: dropping
         # it reintroduces the per-client N+1 and increases the query count.
-        with self.assertNumQueries(25):
+        with self.assertNumQueries(27):
             vpn.save(update_fields=["host"])
         config = Config.objects.get(pk=device.config.pk)
         # the client's stored checksum must reflect the new VPN server context
@@ -572,7 +572,7 @@ class TestVpnTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTestCase
         with catch_signal(config_modified) as mocked_config_modified:
             # select_related on the client queryset keeps this bounded: dropping
             # it reintroduces the per-client N+1 and increases the query count.
-            with self.assertNumQueries(19):
+            with self.assertNumQueries(21):
                 VpnClient.invalidate_clients_cache(vpn)
         mocked_config_modified.assert_not_called()
         config = Config.objects.get(pk=device.config.pk)
