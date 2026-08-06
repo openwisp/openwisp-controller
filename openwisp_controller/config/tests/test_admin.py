@@ -2499,6 +2499,29 @@ class TestAdmin(
         self.assertContains(response, "errorlist")
         self.assertEqual(Device.objects.count(), 0)
 
+    def test_clone_template_superuser_shared_organization(self):
+        org = self._get_org()
+        template = self._create_template(
+            name="Org Owned Template",
+            organization=org,
+        )
+        admin_user = self._create_admin(
+            username="admin_shared_clone", email="admin_shared_clone@example.com"
+        )
+        self.client.force_login(admin_user)
+        url = reverse(f"admin:{self.app_label}_template_changelist")
+        data = {
+            "action": "clone_selected_templates",
+            "_selected_action": [str(template.pk)],
+            "organization": "",
+            "post": "yes",
+        }
+        response = self.client.post(url, data, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Successfully cloned selected templates")
+        cloned_template = Template.objects.get(name="Org Owned Template (Clone)")
+        self.assertIsNone(cloned_template.organization)
+
 
 class TestTransactionAdmin(
     CreateConfigTemplateMixin,
