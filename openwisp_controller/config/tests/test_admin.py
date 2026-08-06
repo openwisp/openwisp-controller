@@ -2,6 +2,7 @@ import csv
 import io
 import json
 import os
+from types import SimpleNamespace
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -15,8 +16,8 @@ from django.core.files.base import ContentFile
 from django.core.management import call_command
 from django.db import IntegrityError
 from django.db.models.signals import post_save
-from django.test import TestCase, TransactionTestCase
-from django.urls import reverse
+from django.test import RequestFactory, TestCase, TransactionTestCase
+from django.urls import resolve, reverse
 from reversion.models import Version
 from swapper import load_model
 
@@ -321,13 +322,11 @@ class TestAdmin(
         data = self._get_device_params(org=org1)
         data.update({"group": str(self._create_device_group().pk)})
         self._login()
-        with catch_signal(
-            device_group_changed
-        ) as mocked_device_group_changed, catch_signal(
-            device_name_changed
-        ) as mocked_device_name_changed, catch_signal(
-            management_ip_changed
-        ) as mocked_management_ip_changed:
+        with (
+            catch_signal(device_group_changed) as mocked_device_group_changed,
+            catch_signal(device_name_changed) as mocked_device_name_changed,
+            catch_signal(management_ip_changed) as mocked_management_ip_changed,
+        ):
             self.client.post(path, data)
 
         mocked_device_group_changed.assert_not_called()
@@ -763,9 +762,10 @@ class TestAdmin(
         dg2.templates.add(t2)
         data = self._get_device_params(org=org)
         data.update(group=str(dg1.pk))
-        with catch_signal(post_save) as mock_post_save, catch_signal(
-            device_group_changed
-        ) as device_group_changed_mock:
+        with (
+            catch_signal(post_save) as mock_post_save,
+            catch_signal(device_group_changed) as device_group_changed_mock,
+        ):
             self.client.post(
                 reverse(f"admin:{self.app_label}_device_add"), data, follow=True
             )
@@ -1614,11 +1614,14 @@ class TestAdmin(
         v = self._create_vpn()
         path = reverse(f"admin:{self.app_label}_vpn_download", args=[v.pk])
         # First request warms up the cache
-        with patch.object(
-            Vpn, "generate", return_value=v.generate()
-        ) as mocked_generate, patch.object(
-            Vpn, "get_cached_configuration", return_value=v.get_cached_configuration()
-        ) as mocked_get_cached_configuration:
+        with (
+            patch.object(Vpn, "generate", return_value=v.generate()) as mocked_generate,
+            patch.object(
+                Vpn,
+                "get_cached_configuration",
+                return_value=v.get_cached_configuration(),
+            ) as mocked_get_cached_configuration,
+        ):
             response = self.client.get(path)
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.get("content-type"), "application/octet-stream")
@@ -1626,11 +1629,14 @@ class TestAdmin(
             mocked_get_cached_configuration.assert_called_once()
 
         # Second request uses the cached config
-        with patch.object(
-            Vpn, "generate", return_value=v.generate()
-        ) as mocked_generate, patch.object(
-            Vpn, "get_cached_configuration", return_value=v.get_cached_configuration()
-        ) as mocked_get_cached_configuration:
+        with (
+            patch.object(Vpn, "generate", return_value=v.generate()) as mocked_generate,
+            patch.object(
+                Vpn,
+                "get_cached_configuration",
+                return_value=v.get_cached_configuration(),
+            ) as mocked_get_cached_configuration,
+        ):
             response = self.client.get(path)
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.get("content-type"), "application/octet-stream")
@@ -2990,6 +2996,143 @@ class TestTransactionAdmin(
                 template2.refresh_from_db()
                 self.assertEqual(template2.default_values["ifname"], "eth3")
                 mocked_signal.assert_called_once()
+
+    def test_delete_organization_with_active_device(self):
+        org = self._create_org(name="organization-delete", slug="organization-delete")
+        first_device = self._create_device(organization=org)
+        second_device = self._create_device(
+            name="second-device",
+            organization=org,
+            mac_address="00:11:22:33:44:56",
+        )
+        url = reverse(
+            f"admin:{org._meta.app_label}_{org._meta.model_name}_delete",
+            args=[org.pk],
+        )
+        warning = (
+            "This organization contains active devices. It is highly recommended "
+            "to deactivate them before deleting the organization to ensure "
+            "sensitive configuration data is disposed of safely."
+        )
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(
+            response, "your account doesn't have permission to delete"
+        )
+        self.assertContains(response, warning, count=1)
+        response = self.client.post(url, {"post": "yes"}, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(org.__class__.objects.filter(pk=org.pk).exists())
+        self.assertFalse(Device.objects.filter(pk=first_device.pk).exists())
+        self.assertFalse(Device.objects.filter(pk=second_device.pk).exists())
+
+    def test_delete_organization_with_deactivated_device(self):
+        org = self._create_org(name="organization-delete", slug="organization-delete")
+        device = self._create_device(organization=org)
+        device.deactivate()
+        url = reverse(
+            f"admin:{org._meta.app_label}_{org._meta.model_name}_delete",
+            args=[org.pk],
+        )
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "This organization contains active devices.")
+        response = self.client.post(url, {"post": "yes"}, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(org.__class__.objects.filter(pk=org.pk).exists())
+        self.assertFalse(Device.objects.filter(pk=device.pk).exists())
+
+    def test_delete_organizations_with_multiple_active_devices(self):
+        first_org = self._create_org(name="first-organization", slug="first-org")
+        second_org = self._create_org(name="second-organization", slug="second-org")
+        first_device = self._create_device(organization=first_org)
+        second_device = self._create_device(
+            name="second-device",
+            organization=second_org,
+            mac_address="00:11:22:33:44:56",
+        )
+        url = reverse(
+            f"admin:{first_org._meta.app_label}_{first_org._meta.model_name}_changelist"
+        )
+        data = {
+            "action": "delete_selected",
+            "_selected_action": [first_org.pk, second_org.pk],
+        }
+        warning = (
+            "2 organizations contain active devices. It is highly recommended to "
+            "deactivate them before deleting the organizations to ensure sensitive "
+            "configuration data is disposed of safely."
+        )
+        response = self.client.post(url, data)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, warning, count=1)
+        response = self.client.post(url, {**data, "post": "yes"}, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(first_org.__class__.objects.filter(pk=first_org.pk).exists())
+        self.assertFalse(second_org.__class__.objects.filter(pk=second_org.pk).exists())
+        self.assertFalse(Device.objects.filter(pk=first_device.pk).exists())
+        self.assertFalse(Device.objects.filter(pk=second_device.pk).exists())
+
+    def test_organization_delete_warning_uses_authorized_organizations(self):
+        first_org = self._create_org(name="first-organization", slug="first-org")
+        second_org = self._create_org(name="second-organization", slug="second-org")
+        first_device = self._create_device(organization=first_org)
+        self._create_device(
+            name="second-device",
+            organization=second_org,
+            mac_address="00:11:22:33:44:56",
+        )
+        user = self._create_operator(organizations=[first_org])
+        url = reverse(
+            f"admin:{first_org._meta.app_label}_{first_org._meta.model_name}_changelist"
+        )
+        request = RequestFactory().post(
+            url,
+            {
+                "action": "delete_selected",
+                "_selected_action": [first_org.pk, second_org.pk],
+            },
+        )
+        request.resolver_match = resolve(url)
+        request.user = user
+        # TODO: replace _registry with get_model_admin once Django 4.2 is dropped
+        device_admin = admin.site._registry[Device]
+        admin_site = SimpleNamespace(
+            _registry={first_org.__class__: admin.site._registry[first_org.__class__]}
+        )
+        with (
+            patch.object(device_admin, "admin_site", admin_site),
+            patch.object(device_admin, "message_user") as message_user,
+        ):
+            device_admin._add_active_device_delete_warning(request, first_device)
+        message = str(message_user.call_args.args[1])
+        self.assertIn("This organization contains active devices.", message)
+        self.assertNotIn("organizations contain active devices.", message)
+
+    def test_organization_delete_warning_is_checked_once(self):
+        org = self._create_org(name="organization-delete", slug="organization-delete")
+        first_device = self._create_device(organization=org)
+        second_device = self._create_device(
+            name="second-device",
+            organization=org,
+            mac_address="00:11:22:33:44:56",
+        )
+        first_device.deactivate()
+        second_device.deactivate()
+        url = reverse(
+            f"admin:{org._meta.app_label}_{org._meta.model_name}_delete",
+            args=[org.pk],
+        )
+        request = RequestFactory().get(url)
+        request.resolver_match = resolve(url)
+        # TODO: replace _registry with get_model_admin once Django 4.2 is dropped
+        device_admin = admin.site._registry[Device]
+        with patch.object(
+            Device.objects, "filter", wraps=Device.objects.filter
+        ) as filter_:
+            device_admin._add_active_device_delete_warning(request, first_device)
+            device_admin._add_active_device_delete_warning(request, second_device)
+        self.assertEqual(filter_.call_count, 1)
 
 
 class TestDeviceGroupAdmin(
