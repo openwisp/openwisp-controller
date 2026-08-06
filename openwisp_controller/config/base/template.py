@@ -22,6 +22,8 @@ from .base import BaseConfig
 
 logger = logging.getLogger(__name__)
 
+_ORGANIZATION_UNSET = object()
+
 TYPE_CHOICES = (
     ("generic", _("Generic")),
     ("vpn", _("VPN-client")),
@@ -212,10 +214,14 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
     def _get_initial_value_or_fallback(self, field):
         initial = getattr(self, f"_initial_{field}", None)
         if initial == models.DEFERRED:
+            if not self.pk:
+                return None
+            query_field = field[:-3] if field.endswith("_id") else field
             try:
-                return getattr(
-                    self.__class__.objects.only(field).get(pk=self.pk), field
-                )
+                obj = self.__class__.objects.only(query_field).get(pk=self.pk)
+                val = getattr(obj, field)
+                setattr(self, f"_initial_{field}", val)
+                return val
             except self.__class__.DoesNotExist:
                 return None
         return initial
@@ -498,9 +504,9 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
         except (ObjectDoesNotExist, AttributeError):
             return {}
 
-    def clone(self, user, organization=None):
+    def clone(self, user, organization=_ORGANIZATION_UNSET):
         clone = copy(self)
-        if organization is not None:
+        if organization is not _ORGANIZATION_UNSET:
             clone.organization = organization
         clone.name = self.__get_clone_name()
         clone._state.adding = True

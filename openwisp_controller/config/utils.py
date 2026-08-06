@@ -138,7 +138,7 @@ def get_client_extensions(blueprint=None, hardware_oids=None):
     if blueprint and blueprint.extensions:
         extensions = copy.deepcopy(blueprint.extensions)
     else:
-        extensions = list(DEFAULT_CLIENT_EXTENSIONS)
+        extensions = copy.deepcopy(DEFAULT_CLIENT_EXTENSIONS)
     if hardware_oids:
         extensions.extend(hardware_oids)
     return extensions

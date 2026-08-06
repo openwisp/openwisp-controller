@@ -52,9 +52,9 @@
                 <td>
                     {% if cert.has_cert %}
                         {% if cert.is_revoked %}
-                            <img src="{% static 'admin/img/icon-yes.svg' %}" alt="True">
+                            <img src="{% static 'admin/img/icon-yes.svg' %}" alt="{% trans 'Yes' %}">
                         {% else %}
-                            <img src="{% static 'admin/img/icon-no.svg' %}" alt="False">
+                            <img src="{% static 'admin/img/icon-no.svg' %}" alt="{% trans 'No' %}">
                         {% endif %}
                     {% else %}
                         {% trans "Pending Generation" %}

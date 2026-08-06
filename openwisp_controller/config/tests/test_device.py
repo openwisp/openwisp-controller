@@ -1005,15 +1005,27 @@ class TestDeviceCertificateRegenerationTask(
         self.assertFalse(device_cert.cert.revoked)
 
     def test_setting_disabled(self):
+        org = self._create_org()
+        device = self._create_device(organization=org)
+        ca = self._create_ca(name="test-ca", organization=org)
+        template = self._create_template(
+            organization=org, type="cert", ca=ca, auto_cert=True
+        )
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        device_cert = DeviceCertificate.objects.get(config=config, template=template)
+        original_cert_id = device_cert.cert_id
         with mock.patch.object(
             app_settings, "REGENERATE_CERTS_ON_HARDWARE_CHANGE", False
         ):
-            result = regenerate_device_certificates_task(str(uuid.uuid4()))
-        self.assertIsNone(result)
+            regenerate_device_certificates_task(str(device.id))
+        device_cert.refresh_from_db()
+        self.assertEqual(device_cert.cert_id, original_cert_id)
+        self.assertFalse(device_cert.cert.revoked)
 
     def test_device_does_not_exist(self):
-        result = regenerate_device_certificates_task(str(uuid.uuid4()))
-        self.assertIsNone(result)
+        regenerate_device_certificates_task(str(uuid.uuid4()))
+        self.assertEqual(DeviceCertificate.objects.count(), 0)
 
     @mock.patch(
         "openwisp_controller.config.tasks.regenerate_device_certificates_task.delay"

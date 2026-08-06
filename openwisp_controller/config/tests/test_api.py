@@ -1606,7 +1606,8 @@ class TestConfigApi(
                 },
             }
         )
-        response = self.client.put(path, data, content_type="application/json")
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.put(path, data, content_type="application/json")
         self.assertEqual(response.status_code, 200, response.data)
         config.refresh_from_db()
         self.assertIn(
