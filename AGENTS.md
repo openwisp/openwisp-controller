@@ -57,6 +57,8 @@ If instructions conflict (please let us know!), repository config and CI workflo
 
 ## Django Notes
 
+- Build internal URLs with named URL patterns and `reverse()` or `reverse_lazy()`, including in tests. Use the appropriate namespace and URL arguments.
+- In the main behavior test for non-trivial, frequently called views, include `assertNumQueries()` with representative data to enforce an intentional query budget and catch N+1 queries. Use `AssertNumQueriesSubTestMixin` from `openwisp_utils.tests` where available: it records the query-count check as a subtest, so subsequent assertions in the method still run. Change the expected count only when the extra queries are necessary and understood.
 - Preserve multi-tenant isolation and object-level permissions for organizations, devices, templates, VPNs, credentials, commands, maps, and IP/subnet data.
 - A model permission does not permit access to another organization's data. Begin organization-owned, parent, and related-object lookups with objects managed by the requester; filters may only narrow that queryset, and writes must reject cross-organization relations.
 - Cached lookups must check permission and organization scope on every request. Changed endpoints need cross-organization regression tests.
