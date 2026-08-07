@@ -801,6 +801,36 @@ class TestTemplateTransaction(
             template.save()
             mocked_task.assert_not_called()
 
+    def test_validation_fix_attached_to_config_field(self):
+        """
+        Ensure netjsonconfig validation errors are attached to the 'config' field
+        """
+        config = {
+            "interfaces": [
+                {
+                    "name": "vpn_test",
+                    "type": "openvpn",
+                    "mode": "server",
+                    # Missing required fields like keys, etc.
+                }
+            ]
+        }
+        t = Template(
+            name="validation_test",
+            backend="netjsonconfig.OpenWrt",
+            config=config,
+        )
+        try:
+            t.full_clean()
+        except ValidationError as e:
+            self.assertIn("config", e.message_dict)
+            self.assertIn(
+                'Invalid configuration triggered by "#/interfaces/0"',
+                e.message_dict["config"][0],
+            )
+        else:
+            self.fail("ValidationError not raised")
+
     @mock.patch.object(task_logger, "warning")
     def test_task_failure(self, mocked_warning):
         update_template_related_config_status.delay(uuid.uuid4())
