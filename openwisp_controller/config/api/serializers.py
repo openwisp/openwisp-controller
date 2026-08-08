@@ -341,6 +341,10 @@ class DeviceDetailSerializer(WHOISMixin, DeviceConfigSerializer):
                     pk_set=None,
                     raw_data=raw_data_for_signal_handlers,
                 )
+                # re-assign the default templates of the new organization
+                # (including shared defaults), mirroring the behavior applied
+                # when a device is first registered
+                instance.config.add_default_templates()
         return super().update(instance, validated_data)
 
 

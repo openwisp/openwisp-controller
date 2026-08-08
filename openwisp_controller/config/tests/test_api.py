@@ -543,6 +543,44 @@ class TestConfigApi(
         self.assertEqual(config.templates.count(), 1)
         self.assertEqual(config.templates.first(), org2_template)
 
+    def test_device_change_organization_default_templates(self):
+        org1 = self._create_org(name="org1")
+        org2 = self._create_org(name="org2")
+        shared_default = self._create_template(
+            name="shared-default", organization=None, default=True
+        )
+        org1_default = self._create_template(
+            name="org1-default", organization=org1, default=True
+        )
+        org2_default = self._create_template(
+            name="org2-default", organization=org2, default=True
+        )
+        device = self._create_device(organization=org1)
+        config = self._create_config(device=device)
+        # on registration the device receives the shared default and the
+        # defaults of its own organization
+        self.assertEqual(set(config.templates.all()), {shared_default, org1_default})
+
+        path = reverse("config_api:device_detail", args=[device.pk])
+        data = {"organization": org2.pk}
+        response = self.client.patch(path, data=data, content_type="application/json")
+        self.assertEqual(response.status_code, 200)
+        device.refresh_from_db()
+        config.refresh_from_db()
+        self.assertEqual(device.organization, org2)
+        # after the org change the shared default and the new organization's
+        # default are assigned, the previous organization's default is removed
+        self.assertEqual(set(config.templates.all()), {shared_default, org2_default})
+
+        # moving the device back reassigns the original organization's default
+        data = {"organization": org1.pk}
+        response = self.client.patch(path, data=data, content_type="application/json")
+        self.assertEqual(response.status_code, 200)
+        device.refresh_from_db()
+        config.refresh_from_db()
+        self.assertEqual(device.organization, org1)
+        self.assertEqual(set(config.templates.all()), {shared_default, org1_default})
+
     def test_device_patch_api(self):
         d1 = self._create_device(name="test-device")
         path = reverse("config_api:device_detail", args=[d1.pk])
