@@ -6,6 +6,14 @@
 <link rel="stylesheet" type="text/css" href="{% static "admin/css/changelists.css" %}">
 <link rel="stylesheet" type="text/css" href="{% static "admin/css/ow-filters.css" %}">
 <link rel="stylesheet" type="text/css" href="{% static "connection/css/batch-command.css" %}">
+<script>
+{% if OPENWISP_CONTROLLER_API_HOST %}
+    const owControllerApiHost = new URL('{{ OPENWISP_CONTROLLER_API_HOST }}');
+{% else %}
+    const owControllerApiHost = window.location;
+{% endif %}
+    const batchCommandId = '{{ original.pk }}';
+</script>
 {% endblock %}
 
 {% block content %}
@@ -96,7 +104,11 @@
 
 <!-- Results Table -->
 <div class="results-container">
-  <table id="result_list" class="results-table">
+  <table id="result_list" class="results-table"
+    data-device-url="{% url 'admin:config_device_change' '00000000-0000-0000-0000-000000000000' %}"
+    data-active-status="{{ request.GET.status|default:'' }}"
+    data-per-page="{{ paginator.per_page }}"
+    data-current-page="{{ page_obj.number }}">
     <thead>
       <tr>
         <th>{% trans "Device" %}</th>
@@ -107,7 +119,9 @@
     </thead>
     <tbody>
       {% for command in commands %}
-      <tr class="{% cycle 'row1' 'row2' %}">
+      <tr id="batch-command-row-{{ command.device_pk }}"
+          data-device-pk="{{ command.device_pk }}"
+          class="{% cycle 'row1' 'row2' %}">
         <td>
           {% if command.is_skipped %}
           <span class="device-name-disabled">{{ command.device_name }}</span>
@@ -170,4 +184,6 @@
 {% block footer %}
 {{ block.super }}
 <script src="{% static "admin/js/ow-filter.js" %}"></script>
+<script src="{% static "connection/js/lib/reconnecting-websocket.min.js" %}"></script>
+<script src="{% static "connection/js/batch-command.js" %}"></script>
 {% endblock %}

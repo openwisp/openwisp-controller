@@ -1,155 +1,164 @@
-{% extends "admin/base_site.html" %}
+{% extends device_changelist_template|default:"admin/change_list.html" %}
 {% load i18n admin_urls static %}
+
+{% comment %}
+Second step of the mass command workflow.
+
+This extends the changelist template of whichever ModelAdmin is registered for
+Device, not the stock one, because that is where other modules load the assets
+their columns need: openwisp-monitoring pulls the stylesheet and the script of
+the health status accordion in from there. The device table, its pagination and
+its styling are then reused as they are, and only the surrounding chrome is
+added here. BatchCommandDeviceAdminMixin empties list_filter and search_fields,
+which is enough for the parent template to render neither.
+See BatchCommandAdmin.get_device_changelist_template().
+
+Note the two forms on this page are siblings, never nested: the changelist
+brings its own <form> (which is never submitted, its checkboxes have no name)
+and the execute button lives in a separate one below it.
+{% endcomment %}
+
+{% block extrastyle %}
+{{ block.super }}
+{% comment %}
+The changelist only loads forms.css when it has a formset, but the summary
+below is built out of the same .module.aligned rows the execute page uses and
+needs it for its spacing.
+{% endcomment %}
+<link rel="stylesheet" type="text/css" href="{% static "admin/css/forms.css" %}">
+<link rel="stylesheet" type="text/css" href="{% static "connection/css/batch-command.css" %}">
+{% endblock %}
 
 {% block extrahead %}
 {{ block.super }}
-{{ media }}
-<link rel="stylesheet" type="text/css" href="{% static 'connection/css/batch-command.css' %}">
+<script src="{% url 'admin:jsi18n' %}"></script>
+<script src="{% static "connection/js/execute-command.js" %}" defer></script>
 {% endblock %}
 
-{% block bodyclass %}app-{{ opts.app_label }} model-{{ opts.model_name }} confirm-batch-command{% endblock %}
+{% block bodyclass %}{{ block.super }} confirm-batch-command{% endblock %}
+
+{% comment %}
+Suppresses the changelist's "Add Device" button, which has no place on a
+confirmation screen. Overriding the block empty also removes the duplicate: the
+theme declares object-tools twice, in .title-wrapper (admin/base.html) and in
+#content-main (admin/change_list.html), so the default renders at both.
+{% endcomment %}
+{% block object-tools %}{% endblock %}
 
 {% block breadcrumbs %}
 <div class="breadcrumbs">
   <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
-  &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
-  &rsaquo; <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+  &rsaquo; <a href="{% url 'admin:app_list' app_label=batch_opts.app_label %}">{{ batch_opts.app_config.verbose_name }}</a>
+  &rsaquo; <a href="{% url batch_opts|admin_urlname:'changelist' %}">{{ batch_opts.verbose_name_plural|capfirst }}</a>
   &rsaquo; {% trans 'Review mass command' %}
 </div>
 {% endblock %}
 
-{% block content_title %}{% endblock %}
+{% comment %}
+Everything goes in a single "content" block.
 
+Not "object-tools": the openwisp theme declares that block twice, once inside
+.title-wrapper in admin/base.html and once inside #content-main in
+admin/change_list.html, so overriding it renders the content in both places.
+The same is true of "filters". And a template may only declare a given block
+once, so the stepper, the summary, the device table and the execute button all
+live in this one block.
+{% endcomment %}
 {% block content %}
-<div id="content-main" class="batch-command-execution">
-  <div class="batch-command-execution__heading">
-    <h1>{% trans 'Review mass command' %}</h1>
-    <p>{% trans 'Confirm what will run before execution.' %}</p>
+<nav class="stepper" aria-label="{% trans 'Execution progress' %}">
+  <div class="stepper__step stepper__step--inactive">
+    <span class="stepper__badge">1</span>
+    <span class="stepper__label">
+      <span class="stepper__label-text">{% trans 'Configure' %}</span>
+      <span class="stepper__label-underline" aria-hidden="true"></span>
+    </span>
   </div>
-
-  <nav class="stepper" aria-label="{% trans 'Execution progress' %}">
-    <div class="stepper__step stepper__step--completed">
-      <span class="stepper__badge">
-        <svg class="stepper__check" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M3.5 8.5L6.5 11.5L12.5 5.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </span>
-      <span class="stepper__label">
-        <span class="stepper__label-text">{% trans 'Configure' %}</span>
-        <span class="stepper__label-underline" aria-hidden="true"></span>
-      </span>
-    </div>
-    <div class="stepper__divider" aria-hidden="true">
-      <svg class="stepper__arrow" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M6 3.5L10.5 8L6 12.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-    </div>
-    <div class="stepper__step stepper__step--active" aria-current="step">
-      <span class="stepper__badge">2</span>
-      <span class="stepper__label">
-        <span class="stepper__label-text">{% trans 'Review' %}</span>
-        <span class="stepper__label-underline" aria-hidden="true"></span>
-      </span>
-    </div>
-  </nav>
-
-  {# ── Summary card ──────────────────────────────────────── #}
-  <div class="bce-card">
-    <div class="bce-card__header">
-      <div class="bce-card__header-row">
-        <div>
-          <h2 class="bce-card__title">{% trans 'Summary' %}</h2>
-        </div>
-        <a href="{% url opts|admin_urlname:'execute' %}" class="bce-card__edit-link">
-          <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" width="14" height="14">
-            <path d="M10.5 3.5L12.5 5.5L5.5 12.5H3.5V10.5L10.5 3.5Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          {% trans 'Edit' %}
-        </a>
-      </div>
-    </div>
-    <div class="bce-card__body">
-      <dl class="bcr-summary">
-        <div class="bcr-summary__row">
-          <dt class="bcr-summary__label">{% trans 'Command' %}</dt>
-          <dd class="bcr-summary__value">
-            <span class="bcr-summary__badge">{{ command_type_display }}</span>
-            {% if command_description %}<span class="bcr-summary__desc">&mdash; {{ command_description }}</span>{% endif %}
-          </dd>
-        </div>
-        <div class="bcr-summary__row">
-          <dt class="bcr-summary__label">{% trans 'Targets' %}</dt>
-          <dd class="bcr-summary__value">{{ targets_display }}</dd>
-        </div>
-        <div class="bcr-summary__row">
-          <dt class="bcr-summary__label">{% trans 'Will run on' %}</dt>
-          <dd class="bcr-summary__value">
-            <strong>{{ device_count }}</strong> {% blocktrans count device_count=device_count %}device{% plural %}devices{% endblocktrans %}
-          </dd>
-        </div>
-        {% if skipped_devices_count %}
-        <div class="bcr-summary__row">
-          <dt class="bcr-summary__label">{% trans 'Will skip' %}</dt>
-          <dd class="bcr-summary__value bcr-summary__value--warning">
-            {{ skipped_devices_count }} {% blocktrans count skipped_devices_count=skipped_devices_count %}device{% plural %}devices{% endblocktrans %}
-          </dd>
-        </div>
-        {% endif %}
-        <div class="bcr-summary__row">
-          <dt class="bcr-summary__label">{% trans 'Triggered by' %}</dt>
-          <dd class="bcr-summary__value">{{ request.user }}</dd>
-        </div>
-      </dl>
-    </div>
-  </div>
-
-  {% if skipped_devices_count %}
-  {# ── Warning banner ──────────────────────────────────────── #}
-  <div class="bce-warning">
-    <svg viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-      <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 10-2 0 1 1 0 002 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+  <div class="stepper__divider" aria-hidden="true">
+    <svg class="stepper__arrow" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M6 3.5L10.5 8L6 12.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>
-    <div>
-      <strong>{% blocktrans count skipped_devices_count=skipped_devices_count %}{{ skipped_devices_count }} device will be skipped{% plural %}{{ skipped_devices_count }} devices will be skipped{% endblocktrans %}</strong>
-      <p>{% trans 'These devices do not match the selected filters or are not available.' %}</p>
+  </div>
+  <div class="stepper__step stepper__step--active" aria-current="step">
+    <span class="stepper__badge">2</span>
+    <span class="stepper__label">
+      <span class="stepper__label-text">{% trans 'Review' %}</span>
+      <span class="stepper__label-underline" aria-hidden="true"></span>
+    </span>
+  </div>
+</nav>
+
+<fieldset class="module aligned bc-summary">
+  <h2>{% trans 'Summary' %}</h2>
+  <div class="form-row">
+    <div class="flex-container">
+      <label>{% trans 'Type' %}</label>
+      <div class="readonly">{{ command_type_display }}</div>
+    </div>
+  </div>
+  {% if command_description %}
+  <div class="form-row">
+    <div class="flex-container">
+      <label>{% trans 'Command' %}</label>
+      <div class="readonly"><code>{{ command_description }}</code></div>
     </div>
   </div>
   {% endif %}
-
-  {# ── Affected devices ──────────────────────────────────── #}
-  <div class="bce-card">
-    <div class="bce-card__header">
-      <div class="bce-card__header-row">
-        <div>
-          <h2 class="bce-card__title">{% trans 'Affected devices' %}</h2>
-          <p class="bce-card__subtitle">{% trans 'Devices that will receive this command' %}</p>
-        </div>
+  <div class="form-row">
+    <div class="flex-container">
+      <label>{% trans 'Label' %}</label>
+      <div class="readonly">{{ wizard.label }}</div>
+    </div>
+  </div>
+  <div class="form-row">
+    <div class="flex-container">
+      <label>{% trans 'Targets' %}</label>
+      <div class="readonly">{{ targets_display }}</div>
+    </div>
+  </div>
+  <div class="form-row">
+    <div class="flex-container">
+      <label>{% trans 'Will run on' %}</label>
+      <div class="readonly">
+        <strong id="bc-selected-count">{{ device_count }}</strong> {% trans 'devices' %}
       </div>
     </div>
-    <div class="bce-card__body">
-      <div class="bcr-devices-placeholder"></div>
+  </div>
+  <div class="form-row">
+    <div class="flex-container">
+      <label>{% trans 'Triggered by' %}</label>
+      <div class="readonly">{{ request.user }} &mdash; {% now "F j, Y, P" %}</div>
     </div>
   </div>
+</fieldset>
 
-  {# ── Sticky action bar ─────────────────────────────────── #}
-  <div class="bcr-action-bar">
-    <div class="bcr-action-bar__summary">
-      {% blocktrans count device_count=device_count %}
-      About to run <strong>{{ command_type_display }}</strong> on <strong>{{ device_count }}</strong> device
+{# same .module h2 caption bar as the Summary heading above #}
+<fieldset class="module aligned bc-devices-heading">
+  <h2>{% trans 'Affected devices' %}</h2>
+</fieldset>
+
+{# the device table, its pagination and its own <form> #}
+{{ block.super }}
+
+{# sibling of the changelist's form, never nested inside it #}
+{% comment %}
+"data-wizard-token" namespaces the sessionStorage entry holding the unselected
+devices. sessionStorage lives as long as the browser tab, so without it a new
+mass command would inherit the devices unselected by the previous one.
+{% endcomment %}
+<form method="post" id="bc-execute-form" class="bc-execute-form"
+  data-total-devices="{{ device_count }}"
+  data-wizard-token="{{ wizard.token }}">
+  {% csrf_token %}
+  <input type="hidden" name="excluded" id="id_excluded" value="">
+  <div class="submit-row">
+    <a class="button cancel-link" href="{% url batch_opts|admin_urlname:'execute' %}">{% trans 'Back' %}</a>
+    <button type="submit" class="default" id="bc-execute-button">
+      {% blocktrans trimmed count counter=device_count %}
+      Execute on {{ counter }} device
       {% plural %}
-      About to run <strong>{{ command_type_display }}</strong> on <strong>{{ device_count }}</strong> devices
+      Execute on {{ counter }} devices
       {% endblocktrans %}
-    </div>
-    <div class="bcr-action-bar__actions">
-      <a href="{% url opts|admin_urlname:'execute' %}" class="button">{% trans 'Back' %}</a>
-      <button type="button" class="button default">
-        {% blocktrans count device_count=device_count %}
-        Execute on {{ device_count }} device
-        {% plural %}
-        Execute on {{ device_count }} devices
-        {% endblocktrans %}
-      </button>
-    </div>
+    </button>
   </div>
-</div>
+</form>
 {% endblock %}

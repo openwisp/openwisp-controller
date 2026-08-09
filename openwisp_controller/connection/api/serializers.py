@@ -15,6 +15,19 @@ Device = load_model("config", "Device")
 BatchCommand = load_model("connection", "BatchCommand")
 
 
+def command_to_batch_payload(command):
+    """Serialize a Command into the payload used for batch-command websocket messages.
+
+    Shared by the batch-command signal receiver and the batch-command consumer so
+    real-time messages and the initial ``request_current_state`` reply use the same
+    shape (including the extra fields the admin table needs to render a row).
+    """
+    data = CommandSerializer(command).data
+    data["device_name"] = command.device.name
+    data["status_display"] = command.get_status_display()
+    return data
+
+
 class ValidatedDeviceFieldSerializer(ValidatedModelSerializer):
     def validate(self, data):
         # Add "device_id" to the data for validation
