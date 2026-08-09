@@ -8,9 +8,10 @@ from openwisp_notifications.signals import notify
 from openwisp_notifications.types import register_notification_type
 from swapper import get_model_name, load_model
 
-from openwisp_utils.admin_theme.menu import register_menu_subitem
+from openwisp_utils.admin_theme.menu import register_menu_group, register_menu_subitem
 
 from ..config.signals import config_deactivating, config_modified
+from .settings import BATCH_COMMAND_PAGE_SIZE
 from .signals import is_working_changed
 
 
@@ -37,6 +38,7 @@ class ConnectionConfig(AppConfig):
         Config = load_model("config", "Config")
         Credentials = load_model("connection", "Credentials")
         Command = load_model("connection", "Command")
+        BatchCommand = load_model("connection", "BatchCommand")
 
         config_modified.connect(
             self.config_modified_receiver, dispatch_uid="connection.update_config"
@@ -61,6 +63,11 @@ class ConnectionConfig(AppConfig):
             sender=Command,
             dispatch_uid="command_save_handler",
         )
+        post_save.connect(
+            self.batch_command_save_receiver,
+            sender=BatchCommand,
+            dispatch_uid="batch_command_save_handler",
+        )
 
     @classmethod
     def config_modified_receiver(cls, **kwargs):
@@ -68,16 +75,53 @@ class ConnectionConfig(AppConfig):
 
     @classmethod
     def command_save_receiver(cls, sender, created, instance, **kwargs):
-        from .api.serializers import CommandSerializer
+        from .api.serializers import CommandSerializer, command_to_batch_payload
 
         channel_layer = layers.get_channel_layer()
-        if created:
-            # Trigger websocket message only when command status is updated
-            return
         serialized_data = CommandSerializer(instance).data
+        if not created:
+            # Trigger websocket message only when command status is updated
+            async_to_sync(channel_layer.group_send)(
+                f"config.device-{instance.device_id}",
+                {"type": "send.update", "model": "Command", "data": serialized_data},
+            )
+        if instance.batch_command_id:
+            batch_data = command_to_batch_payload(instance)
+            # Authoritative counts, recomputed fresh on every send rather than
+            # relying on the client to increment a running total (a missed
+            # or duplicate message would otherwise desync it permanently).
+            batch = instance.batch_command
+            affected_devices = batch.batch_commands.count()
+            batch_data["affected_devices"] = affected_devices
+            # the table also paginates the skipped devices, which are not
+            # Command rows: without them the client computes too few pages
+            # and the last one becomes unreachable
+            batch_data["total_rows"] = affected_devices + len(
+                batch.skipped_devices or {}
+            )
+            if created:
+                # Results are ordered by creation, so a new one is always the
+                # last: its index is the count minus one. Only new results
+                # carry a page, a status change is not a new row and must not
+                # be drawn anywhere it is not already displayed.
+                batch_data["page"] = (
+                    affected_devices - 1
+                ) // BATCH_COMMAND_PAGE_SIZE + 1
+            async_to_sync(channel_layer.group_send)(
+                f"config.batchcommand-{instance.batch_command_id}",
+                {"type": "send.update", "model": "Command", "data": batch_data},
+            )
+
+    @classmethod
+    def batch_command_save_receiver(cls, sender, instance, **kwargs):
+        from .api.serializers import BatchCommandSerializer
+
+        channel_layer = layers.get_channel_layer()
+        serialized_data = BatchCommandSerializer(instance).data
+        serialized_data["status_display"] = instance.get_status_display()
         async_to_sync(channel_layer.group_send)(
-            f"config.device-{instance.device_id}",
-            {"type": "send.update", "model": "Command", "data": serialized_data},
+            f"config.batchcommand-{instance.pk}",
+            {"type": "send.update", "model": "BatchCommand", "data": serialized_data},
         )
 
     @classmethod
@@ -186,5 +230,26 @@ class ConnectionConfig(AppConfig):
                 "model": get_model_name("connection", "Credentials"),
                 "name": "changelist",
                 "icon": "ow-access-credential",
+            },
+        )
+        register_menu_group(
+            position=35,
+            config={
+                "label": _("Network Operations"),
+                "icon": "ow-build",
+                "items": {
+                    1: {
+                        "label": _("Mass command admin"),
+                        "model": get_model_name("connection", "BatchCommand"),
+                        "name": "changelist",
+                        "icon": "ow-mass-upgrade",
+                    },
+                    2: {
+                        "label": _("Mass command execute"),
+                        "model": get_model_name("connection", "BatchCommand"),
+                        "name": "execute",
+                        "icon": "ow-mass-upgrade",
+                    },
+                },
             },
         )
