@@ -549,13 +549,13 @@ class TestAdmin(
 
     def test_vpn_cert_fk_queryset(self):
         data = self._create_multitenancy_test_env(vpn=True)
+        self.assertIsNone(data["vpn_inactive"].cert)
         self._test_multitenant_admin(
             url=reverse(f"admin:{self.app_label}_vpn_add"),
             visible=[data["vpn1"].cert.name, data["vpn_shared"].cert.name],
-            hidden=[data["vpn2"].cert.name, data["vpn_inactive"].cert.name],
+            hidden=[data["vpn2"].cert.name],
             select_widget=True,
             administrator=True,
-            superuser_hidden=[data["vpn_inactive"].cert.name],
         )
 
     def test_changelist_recover_deleted_button(self):

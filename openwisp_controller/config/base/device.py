@@ -509,7 +509,7 @@ class AbstractDevice(OrgMixin, BaseModel):
             device_ids = [device_ids]
             old_group_ids = [old_group_ids]
         for device_id, old_group_id in zip(device_ids, old_group_ids):
-            device = Device.objects.get(pk=device_id)
+            device = Device.objects.select_related("organization").get(pk=device_id)
             if device.is_deactivated() or not device.organization.is_active:
                 # Skip deactivated devices: their configuration is intentionally
                 # emptied during deactivation, so re-applying group templates
