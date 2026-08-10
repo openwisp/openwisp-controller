@@ -17,7 +17,12 @@ class RelatedDeviceModelPermission(DjangoModelPermissions):
             device = getattr(obj, self._device_field)
         else:
             device = view.get_parent_queryset().first()
-        return perm and device and not device.is_deactivated()
+        return (
+            perm
+            and device
+            and not device.is_deactivated()
+            and (device.organization.is_active or request.method == "DELETE")
+        )
 
     def has_permission(self, request, view):
         perm = super().has_permission(request, view)

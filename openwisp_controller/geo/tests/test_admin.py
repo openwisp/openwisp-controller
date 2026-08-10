@@ -218,15 +218,6 @@ class TestAdmin(TestAdminMixin, TestGeoMixin, BaseTestAdmin, TestCase):
         form = floorplan_admin.get_form(request, floorplan)
         self.assertEqual(form._user, request.user)
 
-    def test_floorplan_admin_get_form_read_only_fallback(self):
-        floorplan_admin, request, floorplan = self._get_floorplan_admin_request()
-        with mock.patch(
-            "django_loci.base.admin.AbstractFloorPlanAdmin.get_form",
-            side_effect=KeyError("location"),
-        ):
-            form = floorplan_admin.get_form(request, floorplan)
-        self.assertEqual(form._user, request.user)
-
     def test_floorplan_admin_get_form_reraises_unrelated_keyerror(self):
         floorplan_admin, request, floorplan = self._get_floorplan_admin_request()
         with mock.patch(

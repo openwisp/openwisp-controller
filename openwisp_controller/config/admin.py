@@ -876,9 +876,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, CopyableFieldsAdmin):
 
     @admin.action(description=_("Activate selected devices"), permissions=["change"])
     def activate_device(self, request, queryset):
-        disabled_org_devices = list(
-            queryset.filter(organization__is_active=False).iterator()
-        )
+        disabled_org_devices = list(queryset.filter(organization__is_active=False))
         if disabled_org_devices:
             devices_html = ", ".join(
                 self._get_device_path(device) for device in disabled_org_devices
@@ -1211,7 +1209,8 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin, SystemDefinedVariabl
                     validated_org = Organization.active.get(pk=organization)
                 except (ValidationError, Organization.DoesNotExist) as e:
                     logger.warning(
-                        f"Detected tampering in clone template form by user {user}: {e}"
+                        "Cannot clone template: the organization selected by "
+                        f"user {user} does not exist or is disabled: {e}"
                     )
                     view.message_user(
                         request,

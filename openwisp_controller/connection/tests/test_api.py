@@ -195,7 +195,7 @@ class TestCommandsAPI(
             data=json.dumps(payload),
             content_type="application/json",
         )
-        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.status_code, 403)
 
     def test_command_disabled_org_api_crud(self):
         org = self.device_conn.device.organization
@@ -210,8 +210,11 @@ class TestCommandsAPI(
             command,
             detail_url=detail_url,
             list_url=list_url,
-            operations=("list", "retrieve"),
+            create_payload={"type": "custom", "input": {"command": "echo test"}},
+            operations=("list", "retrieve", "create"),
             organization=org,
+            org_admin_expected={"create": {"status": 403}},
+            superuser_expected={"create": {"status": 403}},
         )
 
     # for ensuring that only related connections are shown
@@ -632,7 +635,7 @@ class TestConnectionApi(
             "failure_reason": "",
         }
         response = self.client.post(path, data, content_type="application/json")
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 403)
 
     def test_deviceconnection_disabled_org_api_crud(self):
         dc = self._create_device_connection()
@@ -643,14 +646,26 @@ class TestConnectionApi(
         detail_url = reverse(
             "connection_api:deviceconnection_detail", args=(dc.device.pk, dc.pk)
         )
+        blocked_spec = {
+            "create": {"status": 403},
+            "update": {"status": 403, "unchanged": True},
+        }
         self._test_disabled_org_api_crud(
             dc,
             detail_url=detail_url,
             list_url=list_url,
+            create_payload={
+                "credentials": self._get_credentials().pk,
+                "update_strategy": app_settings.UPDATE_STRATEGIES[0][0],
+                "enabled": True,
+                "failure_reason": "",
+            },
             update_payload={"enabled": False},
             unchanged_field="enabled",
-            operations=("list", "retrieve", "update", "delete"),
+            operations=("list", "retrieve", "create", "update", "delete"),
             organization=org,
+            org_admin_expected=blocked_spec,
+            superuser_expected=blocked_spec,
         )
 
     def test_post_deviceconenction_with_no_config_device(self):
@@ -719,7 +734,7 @@ class TestConnectionApi(
         dc = self._create_device_connection()
         d1 = dc.device.id
         path = reverse("connection_api:deviceconnection_detail", args=(d1, dc.pk))
-        with self.assertNumQueries(10):
+        with self.assertNumQueries(11):
             response = self.client.delete(path)
         self.assertEqual(response.status_code, 204)
 

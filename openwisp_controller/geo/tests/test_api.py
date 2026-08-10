@@ -954,7 +954,7 @@ class TestGeoApi(
         floorplan = self._create_floorplan()
         location = floorplan.location
         url = reverse("geo_api:device_location", args=[device.id])
-        with self.assertNumQueries(18):
+        with self.assertNumQueries(17):
             response = self.client.put(
                 url,
                 data={
@@ -1011,7 +1011,7 @@ class TestGeoApi(
             "floorplan.image": self._get_simpleuploadedfile(),
             "indoor": ["12.342,23.541"],
         }
-        with self.assertNumQueries(32):
+        with self.assertNumQueries(31):
             response = self.client.put(
                 url, encode_multipart(BOUNDARY, data), content_type=MULTIPART_CONTENT
             )
@@ -1078,7 +1078,7 @@ class TestGeoApi(
                 "type": "indoor",
             }
         }
-        with self.assertNumQueries(21):
+        with self.assertNumQueries(20):
             response = self.client.put(url, data=data, content_type="application/json")
         self.assertEqual(response.status_code, 201)
         self.assertEqual(self.location_model.objects.count(), 1)
@@ -1095,7 +1095,7 @@ class TestGeoApi(
             "floorplan.floor": 1,
             "floorplan.image": self._get_simpleuploadedfile(),
         }
-        with self.assertNumQueries(8):
+        with self.assertNumQueries(7):
             response = self.client.put(
                 url, encode_multipart(BOUNDARY, data), content_type=MULTIPART_CONTENT
             )
@@ -1118,7 +1118,7 @@ class TestGeoApi(
             "floorplan.image": self._get_simpleuploadedfile(),
             "indoor": ["12.342,23.541"],
         }
-        with self.assertNumQueries(26):
+        with self.assertNumQueries(25):
             response = self.client.put(
                 url, encode_multipart(BOUNDARY, data), content_type=MULTIPART_CONTENT
             )

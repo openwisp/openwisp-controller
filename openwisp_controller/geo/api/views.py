@@ -210,12 +210,10 @@ class DeviceLocationView(
             if self.request.method == "PUT":
                 # For PUT-as-create operation, we need to ensure that we have
                 # relevant permissions, as if this was a POST request. This
-                # will either raise a PermissionDenied exception, or simply
-                # return None.
+                # will either raise a PermissionDenied exception (covers a
+                # disabled organization too, since RelatedDeviceModelPermission
+                # checks device.organization.is_active) or simply return None.
                 self.check_permissions(clone_request(self.request, "POST"))
-                device = self.get_parent_queryset().first()
-                if device and not device.organization.is_active:
-                    raise PermissionDenied()
             else:
                 # PATCH requests where the object does not exist should still
                 # return a 404 response.

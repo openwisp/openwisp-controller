@@ -544,6 +544,7 @@ class TestAdmin(
             hidden=[data["vpn2"].ca.name, data["vpn_inactive"].ca.name],
             select_widget=True,
             administrator=True,
+            superuser_hidden=[data["vpn_inactive"].ca.name],
         )
 
     def test_vpn_cert_fk_queryset(self):
@@ -554,6 +555,7 @@ class TestAdmin(
             hidden=[data["vpn2"].cert.name, data["vpn_inactive"].cert.name],
             select_widget=True,
             administrator=True,
+            superuser_hidden=[data["vpn_inactive"].cert.name],
         )
 
     def test_changelist_recover_deleted_button(self):

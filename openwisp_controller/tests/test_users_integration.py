@@ -13,6 +13,10 @@ class TestUsersIntegration(GetEditFormInlineMixin, TestUsersAdmin):
 
     def _get_disabled_org_test_excluded_inline(self):
         inlines = super()._get_disabled_org_test_excluded_inline()
+        # The shared disabled-org test helper asserts has_delete_permission
+        # stays True for every inline on a disabled organization, but this
+        # inline's has_delete_permission always returns False regardless of
+        # organization status, so it must be excluded from that assertion.
         inlines += [OrganizationLimitsInline]
         return inlines
 

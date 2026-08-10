@@ -3,6 +3,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import F, Q
 from django.http import Http404
 from django.urls.base import reverse
+from django.utils.translation import gettext_lazy as _
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import serializers, status
 from rest_framework.generics import (
@@ -124,6 +125,11 @@ class DeviceActivateView(ProtectedAPIMixin, GenericAPIView):
 
     def post(self, request, *args, **kwargs):
         device = self.get_object()
+        if not device.organization.is_active:
+            return Response(
+                {"detail": _("Cannot activate a device of a disabled organization.")},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         device.activate()
         serializer = DeviceDetailSerializer(
             device, context=self.get_serializer_context()
@@ -134,6 +140,10 @@ class DeviceActivateView(ProtectedAPIMixin, GenericAPIView):
 class DeviceDeactivateView(ProtectedAPIMixin, GenericAPIView):
     serializer_class = serializers.Serializer
     queryset = Device.objects.filter(_is_deactivated=False)
+    # Deactivation stays allowed even when the organization is disabled:
+        # it's the remediation an operator needs if the org-wide deactivation
+        # task failed for this device (see deactivate_organization_devices).
+    allow_disabled_organization_writes = True
 
     def post(self, request, *args, **kwargs):
         device = self.get_object()

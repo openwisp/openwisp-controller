@@ -819,6 +819,10 @@ class TestWireguard(BaseTestVpn, TestWireguardVpnMixin, TestCase):
 
     @mock.patch("openwisp_controller.config.tasks.requests.post")
     def test_trigger_vpn_server_endpoint_disabled_org(self, mocked_post):
+        # The webhook must still fire for a disabled organization's VPN so that
+        # peer removals triggered by cascading device deactivation reach the server.
+        # Peer additions are already prevented upstream because disabled
+        # organizations cannot create new devices or VPN clients.
         org = self._get_org()
         vpn = self._create_vpn(organization=org)
         org.is_active = False
@@ -828,7 +832,7 @@ class TestWireguard(BaseTestVpn, TestWireguardVpnMixin, TestCase):
             auth_token="secret",
             vpn_id=str(vpn.id),
         )
-        mocked_post.assert_not_called()
+        mocked_post.assert_called_once()
 
 
 class TestWireguardTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTestCase):

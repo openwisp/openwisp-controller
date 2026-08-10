@@ -630,10 +630,13 @@ class TestConfigApi(
         deactivate_path = reverse(
             "config_api:device_deactivate", args=[active_device.pk]
         )
+        # Reactivation is blocked while the organization is disabled, but
+        # deactivation remains allowed so operators can remediate devices missed
+        # by the organization-wide deactivation task.
         activate_response = self.client.post(activate_path)
         deactivate_response = self.client.post(deactivate_path)
         self.assertEqual(activate_response.status_code, 403)
-        self.assertEqual(deactivate_response.status_code, 403)
+        self.assertEqual(deactivate_response.status_code, 200)
 
     def test_device_disabled_org_api_crud(self):
         org = self._create_org(name="disabled-org", slug="disabled-org")

@@ -2,6 +2,7 @@ from django.contrib import admin, messages
 from django.contrib.admin import action
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
+from django.utils.translation import ngettext_lazy
 from django_x509.base.admin import AbstractCaAdmin, AbstractCertAdmin
 from reversion.admin import VersionAdmin
 from swapper import load_model
@@ -18,12 +19,18 @@ def _exclude_disabled_org(self, request, queryset):
     allowed = queryset.filter(
         Q(organization__isnull=True) | Q(organization__is_active=True)
     )
-    skipped = queryset.count() - allowed.count()
+    skipped = queryset.exclude(
+        Q(organization__isnull=True) | Q(organization__is_active=True)
+    ).count()
     if skipped:
         self.message_user(
             request,
-            _("%d item(s) belonging to a disabled organization were skipped.")
-            % skipped,
+            ngettext_lazy(
+                "%(count)d item belonging to a disabled organization was skipped.",
+                "%(count)d items belonging to a disabled organization were skipped.",
+                skipped,
+            )
+            % {"count": skipped},
             level=messages.WARNING,
         )
     return allowed
