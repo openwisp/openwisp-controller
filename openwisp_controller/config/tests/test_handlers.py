@@ -1,9 +1,12 @@
 from unittest.mock import DEFAULT, patch
 
 from django.test import TransactionTestCase
+from swapper import load_model
 
 from .. import tasks
 from .utils import CreateConfigMixin, Device
+
+Organization = load_model("openwisp_users", "Organization")
 
 
 class TestHandlers(CreateConfigMixin, TransactionTestCase):
@@ -14,6 +17,15 @@ class TestHandlers(CreateConfigMixin, TransactionTestCase):
             mocked_chain.assert_not_called()
 
         with self.subTest("Test task executed on changing active to inactive org"):
+            observed = {}
+
+            def _record_db_state(*args, **kwargs):
+                observed["is_active"] = (
+                    Organization.objects.only("is_active").get(pk=org.pk).is_active
+                )
+                return DEFAULT
+
+            mocked_chain.side_effect = _record_db_state
             org.is_active = False
             org.save()
             mocked_chain.assert_called_once_with(
@@ -21,6 +33,9 @@ class TestHandlers(CreateConfigMixin, TransactionTestCase):
                 tasks.invalidate_controller_views_cache.si(str(org.id)),
             )
             mocked_chain.return_value.delay.assert_called_once()
+            # Dispatch happens only after the is_active write has committed.
+            self.assertEqual(observed["is_active"], False)
+            mocked_chain.side_effect = None
 
         mocked_chain.reset_mock()
         with self.subTest("Test task not executed on saving inactive org"):
@@ -50,7 +65,7 @@ class TestHandlers(CreateConfigMixin, TransactionTestCase):
             device.refresh_from_db()
             config.refresh_from_db()
             self.assertEqual(device._is_deactivated, True)
-            self.assertEqual(config.status in ("deactivating", "deactivated"), True)
+            self.assertIn(config.status, ("deactivating", "deactivated"))
 
         with self.subTest("Re-enabling org does not reactivate devices"):
             org.is_active = True

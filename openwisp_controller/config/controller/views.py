@@ -116,7 +116,12 @@ class UpdateLastIpMixin(object):
         # dupe.save() triggers signal handlers that call is_deactivated()
         # and WHOIS checks that read device.organization.
         for dupe in queryset.select_related("organization").only(
-            "pk", "key", "last_ip", "_is_deactivated", "organization__id"
+            "pk",
+            "key",
+            "last_ip",
+            "_is_deactivated",
+            "organization__id",
+            "organization__is_active",
         ):
             dupe.last_ip = ""
             dupe.save(update_fields=["last_ip"])
@@ -417,6 +422,12 @@ class DeviceRegisterView(UpdateLastIpMixin, CsrfExtemptMixin, View):
             device = self.model.objects.select_related("config").get(key=key)
             if device.is_deactivated():
                 return ControllerResponse("error: device deactivated", status=403)
+            if device.organization_id != self.organization.id:
+                # The shared secret matched a different (active) organization
+                # than the one this device actually belongs to; treat it the
+                # same as an unrecognized secret rather than leaking that the
+                # device exists.
+                return ControllerResponse("error: unrecognized secret", status=403)
             if not device.organization.is_active:
                 return ControllerResponse("error: organization disabled", status=403)
             # update device info

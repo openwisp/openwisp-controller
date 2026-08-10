@@ -1233,10 +1233,46 @@ class TestController(
         self._create_config(device=device)
         org.is_active = False
         org.save(update_fields=["is_active"])
-        response = self.client.post(
-            self.register_url,
-            self._get_reregistration_payload(device, name=TEST_MACADDR_NAME),
+        payload = self._get_reregistration_payload(device, name=TEST_MACADDR_NAME)
+        response = self.client.post(self.register_url, payload)
+        self.assertContains(response, "error: unrecognized secret", status_code=403)
+
+    @capture_any_output()
+    def test_register_reregistration_403_cross_tenant_secret(self):
+        org = self._get_org()
+        device = self._create_device(
+            organization=org,
+            key=TEST_CONSISTENT_KEY,
+            mac_address=TEST_MACADDR,
+            name=TEST_MACADDR_NAME,
         )
+        self._create_config(device=device)
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        other_org = self._create_org(
+            shared_secret="other_org_secret", name="other-org", slug="other-org"
+        )
+        payload = self._get_reregistration_payload(device, name=TEST_MACADDR_NAME)
+        payload["secret"] = other_org.config_settings.shared_secret
+        response = self.client.post(self.register_url, payload)
+        self.assertContains(response, "error: unrecognized secret", status_code=403)
+
+    @capture_any_output()
+    def test_register_reregistration_403_cross_tenant_secret_both_active(self):
+        org = self._get_org()
+        device = self._create_device(
+            organization=org,
+            key=TEST_CONSISTENT_KEY,
+            mac_address=TEST_MACADDR,
+            name=TEST_MACADDR_NAME,
+        )
+        self._create_config(device=device)
+        other_org = self._create_org(
+            shared_secret="other_org_secret", name="other-org", slug="other-org"
+        )
+        payload = self._get_reregistration_payload(device, name=TEST_MACADDR_NAME)
+        payload["secret"] = other_org.config_settings.shared_secret
+        response = self.client.post(self.register_url, payload)
         self.assertContains(response, "error: unrecognized secret", status_code=403)
 
     def test_download_config_404_disabled_org(self):

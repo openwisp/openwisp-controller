@@ -126,17 +126,14 @@ def invalidate_devicegroup_cache_delete(instance_id, model_name, **kwargs):
 def trigger_vpn_server_endpoint(endpoint, auth_token, vpn_id):
     Vpn = load_model("config", "Vpn")
     try:
-        vpn = Vpn.objects.select_related("organization").get(pk=vpn_id)
+        vpn = Vpn.objects.get(pk=vpn_id)
     except Vpn.DoesNotExist:
         logger.error(f"VPN Server UUID: {vpn_id} does not exist.")
         return
-    if vpn.organization_id and not vpn.organization.is_active:
-        logger.info(
-            "Skipping update webhook for VPN Server UUID: %s of disabled organization",
-            vpn_id,
-        )
-        return
-
+    # Do not skip disabled organizations: the update is still needed to push
+    # peer removals caused by cascading device deactivation. Peer additions are
+    # already blocked upstream because disabled organizations cannot create new
+    # devices or VPN clients.
     # Cache the configuration here makes downloading the configuration faster.
     vpn.get_cached_configuration()
     task_key = f"vpn_update_task:{vpn_id}"
@@ -234,10 +231,14 @@ def deactivate_organization_devices(organization_id):
     Re-enabling an organization does not reactivate its devices.
     """
     Device = load_model("config", "Device")
-    devices = Device.objects.filter(
-        organization_id=organization_id,
-        _is_deactivated=False,
-    ).select_related("config")
+    devices = (
+        Device.objects.filter(
+            organization_id=organization_id,
+            _is_deactivated=False,
+        )
+        .select_related("config")
+        .order_by("created")
+    )
     for device in devices.iterator():
         try:
             device.deactivate()

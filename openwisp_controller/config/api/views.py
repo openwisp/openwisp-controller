@@ -141,8 +141,8 @@ class DeviceDeactivateView(ProtectedAPIMixin, GenericAPIView):
     serializer_class = serializers.Serializer
     queryset = Device.objects.filter(_is_deactivated=False)
     # Deactivation stays allowed even when the organization is disabled:
-        # it's the remediation an operator needs if the org-wide deactivation
-        # task failed for this device (see deactivate_organization_devices).
+    # it's the remediation an operator needs if the org-wide deactivation
+    # task failed for this device (see deactivate_organization_devices).
     allow_disabled_organization_writes = True
 
     def post(self, request, *args, **kwargs):
