@@ -35,6 +35,7 @@ If instructions conflict (please let us know!), repository config and CI workflo
 
 ## Development Notes
 
+- Respect module boundaries and encapsulation. The module that owns a model, stored state, lifecycle, or domain invariant must expose the cohesive public operation that reads or changes it. Integrations must use that operation, not write its fields, coordinate multi-step changes to its internal state, or depend on its storage representation. Prefer behavior-oriented public APIs over setters for internal flags. When an integration needs a missing capability, add it to the owning module with invariant tests, then call it from the integration.
 - Follow the DRY principle: do not duplicate information or code across files.
 - Preserve public APIs, migrations, swappable models, VPN backends, connector behavior, and integration points unless explicitly required.
 - Mark user-facing strings for translation with Django i18n helpers in Django code.
