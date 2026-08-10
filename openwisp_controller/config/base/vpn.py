@@ -257,7 +257,11 @@ class AbstractVpn(
         if not created:
             self._check_changes()
         create_dh = False
-        if self.ca and (not self.cert or self.cert.ca_id != self.ca_id):
+        if (
+            self.ca
+            and (not self.cert or self.cert.ca_id != self.ca_id)
+            and (not self.organization_id or self.organization.is_active)
+        ):
             self.cert = self._auto_create_cert()
         if self._is_backend_type("openvpn") and not self.dh:
             self.dh = self._placeholder_dh
@@ -970,7 +974,11 @@ class AbstractVpnClient(models.Model):
         """
         Automatically creates an x509 certificate.
         """
-        if not self.vpn._is_backend_type("openvpn") or self.cert:
+        if (
+            not self.vpn._is_backend_type("openvpn")
+            or self.cert
+            or not self.config.device.organization.is_active
+        ):
             return
         cn = self._get_common_name()
         self._auto_create_cert(name=self.config.device.name, common_name=cn)

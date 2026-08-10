@@ -426,6 +426,27 @@ class TestVpn(BaseTestVpn, TestCase):
         self.assertEqual(cert.count(), 1)
         self.assertEqual(cert.first().common_name[:-9], client._get_common_name()[:-9])
 
+    def test_auto_create_cert_skipped_for_disabled_org(self):
+        org = self._get_org()
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        vpn = self._create_vpn(organization=org)
+        self.assertIsNone(vpn.cert)
+
+    def test_vpnclient_auto_create_cert_skipped_for_disabled_org(self):
+        org = self._get_org()
+        vpn = self._create_vpn(organization=org)
+        d = self._create_device(organization=org)
+        c = self._create_config(device=d)
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        client = VpnClient(
+            vpn=vpn, config=c, auto_cert=True, template=self._create_template()
+        )
+        client.full_clean()
+        client.save()
+        self.assertIsNone(client.cert)
+
     @mock.patch.object(Vpn, "dhparam", side_effect=SoftTimeLimitExceeded)
     def test_update_vpn_dh_timeout(self, dhparam):
         vpn = self._create_vpn(dh="")

@@ -97,6 +97,7 @@ class TestConnectionAdmin(TestAdminMixin, CreateConnectionsMixin, TestCase):
             visible=[str(data["cred1"].name) + str(" (SSH)")],
             hidden=[str(data["cred2"].name) + str(" (SSH)"), data["cred3_inactive"]],
             select_widget=True,
+            superuser_hidden=[data["cred3_inactive"]],
         )
 
     def test_credentials_disabled_org_admin_crud(self):
