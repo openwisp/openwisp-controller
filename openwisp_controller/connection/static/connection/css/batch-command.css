@@ -1,23 +1,20 @@
+/* ==== Mass Command Change Page CSS ==== */
 #batchcommand_form .submit-row {
   display: none;
 }
-
 .commands-title {
   font-size: 22px;
   font-weight: 300;
   margin: 0;
   padding: 0;
 }
-
 .search-section {
   padding: 20px;
 }
-
 .search-form {
   display: flex;
   align-items: center;
 }
-
 #main #content .search-icon {
   width: 20px;
   height: 20px;
@@ -25,92 +22,89 @@
   font-size: 16px;
   margin-top: -3px;
 }
-
 #main #content .search-input {
   padding: 10px 15px;
 }
-
 #main #content .search-button {
   padding: 10px 20px;
   margin-left: 15px;
 }
-
 .filter-clear-link:hover {
   color: var(--ow-color-fg-darker);
 }
-
 .results-table {
   width: 100%;
   border-collapse: collapse;
+  /* the output column takes whatever these three leave over */
+  --device-column: 22%;
+  --status-column: 10%;
+  --modified-column: 12%;
 }
-
+.results-table th:nth-child(1),
+.results-table td:nth-child(1):not(.empty-results) {
+  width: var(--device-column);
+}
+.results-table th:nth-child(2),
+.results-table td:nth-child(2) {
+  width: var(--status-column);
+  white-space: nowrap;
+}
+.results-table th:nth-child(4),
+.results-table td:nth-child(4) {
+  width: var(--modified-column);
+  white-space: nowrap;
+}
 #main #content .device-link {
   color: var(--ow-color-primary);
   font-weight: bold;
 }
-
 .device-name-disabled {
   color: var(--body-quiet-color);
   font-style: italic;
 }
-
 .empty-results {
   padding: 40px;
   text-align: center;
   color: var(--body-quiet-color);
   font-style: italic;
 }
-
 .pagination {
   padding: 15px 20px;
   text-align: right;
   border-top: 2px solid var(--hairline-color);
   background: var(--darkened-bg);
 }
-
 .pagination a {
   color: var(--body-fg);
   text-decoration: none;
   margin: 0 5px;
 }
-
 .pagination .current-page {
   margin: 0 10px;
   color: var(--body-quiet-color);
 }
-
 .paginator {
   color: var(--body-quiet-color);
   padding: 10px 20px;
   border-bottom: 1px solid var(--hairline-color);
   margin: 0;
 }
-
 .command-status {
   font-weight: bold;
 }
-
 .command-status.success {
   color: var(--ow-color-success);
 }
-
 .command-status.failed {
   color: var(--error-fg);
 }
-
 .command-status.in-progress {
   color: var(--body-quiet-color);
 }
-
 .command-status.skipped {
   color: var(--body-quiet-color);
   opacity: 0.7;
 }
-
-.command-output {
-  padding: 0;
-}
-
 .command-output pre {
   white-space: pre-wrap;
   word-wrap: break-word;
@@ -120,16 +114,14 @@
   color: inherit;
   background: transparent;
 }
-
 .skipped-devices-list {
   line-height: 1.7;
 }
-
 .field-display_skipped_devices .readonly.readonly {
   padding: 0;
 }
 
-/* Adjustments for list filters */
+/* List Filters */
 #main #content .left-arrow {
   left: -1.125rem;
 }
@@ -143,29 +135,19 @@
   margin-bottom: 0.5rem;
 }
 
-/* ================================================================
-   STEPPER
-   ================================================================ */
-
+/* ==== Stepper CSS ==== */
 .stepper {
   --step-active-bg: var(--ow-color-primary);
   --step-active-text: var(--ow-color-white);
-  --step-active-highlight: var(--ow-color-primary-light);
-  --step-active-tint: var(--ow-color-primary-lighter);
-  --step-active-underline: var(--ow-color-primary);
-
   --step-inactive-bg: var(--ow-color-fg-light);
   --step-inactive-text: var(--ow-color-fg-dark);
-
-  --divider-color: var(--ow-color-fg-light);
   --arrow-color: var(--ow-color-fg-dark);
   display: inline-flex;
   align-items: stretch;
   overflow: hidden;
   margin-bottom: 1.75rem;
 }
-
-.stepper__step {
+.stepper-step {
   align-items: center;
   cursor: pointer;
   display: flex;
@@ -173,9 +155,7 @@
   padding: 0.875rem 1.5rem 0.875rem 0;
   position: relative;
 }
-
-/* Badge */
-.stepper__badge {
+.stepper-badge {
   align-items: center;
   border-radius: 50%;
   display: flex;
@@ -188,60 +168,42 @@
   width: 2rem;
   z-index: 1;
 }
-
-.stepper__step--active .stepper__badge {
+.stepper-step.active .stepper-badge {
   background-color: var(--step-active-bg);
   color: var(--step-active-text);
 }
-
-.stepper__step--active .stepper__badge::before {
-  background-color: var(--step-active-highlight);
-}
-
-.stepper__step--inactive .stepper__badge {
+.stepper-step.inactive .stepper-badge {
   background-color: var(--step-inactive-bg);
   color: var(--step-inactive-text);
 }
-
-.stepper__step--inactive .stepper__badge::before {
-  display: none;
-}
-
-/* Label */
-.stepper__label {
+.stepper-label {
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
   min-width: 0;
 }
-
-.stepper__label-text {
+.stepper-label-text {
   font-size: 0.875rem;
   font-weight: 500;
   line-height: 1.2;
   white-space: nowrap;
 }
-
-.stepper__step--active .stepper__label-text {
+.stepper-step.active .stepper-label-text {
   color: var(--step-active-bg);
   font-weight: 600;
 }
-
-.stepper__step--inactive .stepper__label-text {
+.stepper-step.inactive .stepper-label-text {
   color: var(--step-inactive-text);
   font-weight: 500;
 }
-
-/* Divider + arrow */
-.stepper__divider {
+.stepper-divider {
   align-items: center;
   display: flex;
   flex-shrink: 0;
   justify-content: center;
   padding: 0.5rem 1rem 0.5rem 0;
 }
-
-.stepper__arrow {
+.stepper-arrow {
   color: var(--arrow-color);
   display: block;
   flex-shrink: 0;
@@ -249,50 +211,41 @@
   width: 1rem;
 }
 
-/* ================================================================
-   CONFIRM PAGE
-   ================================================================ */
-
-/* The device table on the confirm page is the stock admin changelist,
-   only the surrounding chrome is styled here. */
-
-/* the stepper and the summary sit outside #content-main, so they do not
-   inherit its spacing */
-.confirm-batch-command .stepper {
+/* ==== Confirm Page CSS ==== */
+.confirm-command .stepper {
   margin-bottom: 1.5rem;
 }
-
-.bc-summary {
+.command-summary {
   margin-bottom: 1.5rem;
 }
-
-.bc-summary .form-row {
+.command-summary .form-row {
   padding: 8px 12px;
 }
-
-/* heading above the device table: only the caption bar, the table follows it
-   as a separate block */
-.bc-devices-heading {
+.devices-heading {
   margin-bottom: 1rem;
 }
-
-.confirm-batch-command #changelist {
+.confirm-command #changelist {
   margin-top: 0;
 }
-
 /* no admin actions on this changelist, so the row would be empty */
-.confirm-batch-command #changelist .actions {
+.confirm-command #changelist .actions {
   display: none;
 }
-
-/* the checkbox column: not a link, so it renders as a plain cell */
-.confirm-batch-command #result_list th.column-select_device,
-.confirm-batch-command #result_list td.field-select_device {
+/* Django styles its own rows with "tr:has(.action-select:checked)", which cannot match here */
+.confirm-command #changelist tbody tr:has(.device-checkbox:checked) {
+  background-color: var(--selected-row);
+}
+@media (forced-colors: active) {
+  .confirm-command #changelist tbody tr:has(.device-checkbox:checked) {
+    background-color: SelectedItem;
+  }
+}
+.confirm-command #result_list th.column-select_device,
+.confirm-command #result_list td.field-select_device {
   text-align: center;
   width: 2rem;
 }
-
-.bc-execute-form .submit-row {
+.execute-form .submit-row {
   display: flex;
   gap: 0.5rem;
   justify-content: flex-end;
