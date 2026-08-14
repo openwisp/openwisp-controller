@@ -543,6 +543,16 @@ class AbstractCommand(TimeStampedEditableModel):
             )
 
     @property
+    def output_preview(self):
+        """Last line of the output, for tables which list many commands."""
+        lines = (self.output or "").strip().splitlines()
+        if not lines:
+            return ""
+        if len(lines) == 1:
+            return lines[0]
+        return "… " + lines[-1]
+
+    @property
     def is_custom(self):
         return self.type == "custom"
 
@@ -799,11 +809,11 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
     def __str__(self):
         return self.label
 
-    @cached_property
+    @property
     def total_devices(self):
         return self.affected_devices + len(self.skipped_devices or {})
 
-    @cached_property
+    @property
     def affected_devices(self):
         return self.batch_commands.count()
 
@@ -880,12 +890,13 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
 
     def resolve_devices(self):
         """
-        Returns an iterator of devices targeted by this batch command,
+        Returns a queryset of devices targeted by this batch command,
         resolved from explicit M2M devices or filtered by organization,
-        group, and location. Returns an empty iterator if no devices match.
+        group, and location. Callers which walk the whole result should
+        consume it with iterator().
         """
         if self.pk and self.devices.exists():
-            return self.devices.select_related("config").iterator()
+            return self.devices.select_related("config")
         Device = load_model("config", "Device")
         qs = Device.objects.select_related("config")
         if self.organization_id:
@@ -894,7 +905,7 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
             qs = qs.filter(group=self.group)
         if self.location:
             qs = qs.filter(devicelocation__location=self.location)
-        return qs.iterator()
+        return qs
 
     @classmethod
     def execute(cls, **kwargs):
@@ -912,7 +923,7 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
                 batch.devices.set(devices_list)
                 batch._validate_org_relations()
             else:
-                batch.devices.set(list(batch.resolve_devices()))
+                batch.devices.set(batch.resolve_devices())
             if not batch.devices.exists():
                 raise ValidationError(
                     _("No devices match the specified criteria."),
@@ -942,7 +953,7 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
         cls._validate_devices_org(devices_list, batch.organization_id)
         if devices_list is not None:
             return {"devices": list(devices_list)}
-        return {"devices": list(batch.resolve_devices())}
+        return {"devices": batch.resolve_devices()}
 
     def _clean_sensitive_info(self):
         if self.type == "change_password":
@@ -965,7 +976,7 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
         Device = load_model("config", "Device")
         self.skipped_devices = {}
         device_pks = []
-        for device in self.resolve_devices():
+        for device in self.resolve_devices().iterator():
             device_pks.append(device.pk)
             command = Command(
                 device=device,
