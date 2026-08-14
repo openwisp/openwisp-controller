@@ -2,6 +2,8 @@ import json
 import logging
 from copy import deepcopy
 
+from django.utils.formats import date_format
+from django.utils.timezone import localtime
 from swapper import load_model
 
 from ...config.base.channels_consumer import BaseDeviceConsumer
@@ -81,6 +83,10 @@ class BatchCommandConsumer(BaseDeviceConsumer):
             row = CommandSerializer(command).data
             row["device_name"] = command.device.name
             row["status_display"] = command.get_status_display()
+            row["output"] = command.output_preview
+            row["modified"] = date_format(
+                localtime(command.modified), "DATETIME_FORMAT"
+            )
             commands.append(row)
         self.send(
             json.dumps(

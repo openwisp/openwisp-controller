@@ -3,6 +3,8 @@ from channels import layers
 from django.apps import AppConfig
 from django.db import transaction
 from django.db.models.signals import post_save
+from django.utils.formats import date_format
+from django.utils.timezone import localtime
 from django.utils.translation import gettext_lazy as _
 from openwisp_notifications.signals import notify
 from openwisp_notifications.types import register_notification_type
@@ -88,6 +90,10 @@ class ConnectionConfig(AppConfig):
             batch_data = CommandSerializer(instance).data
             batch_data["device_name"] = instance.device.name
             batch_data["status_display"] = instance.get_status_display()
+            batch_data["output"] = instance.output_preview
+            batch_data["modified"] = date_format(
+                localtime(instance.modified), "DATETIME_FORMAT"
+            )
             batch_data["type"] = "command_update"
             batch = instance.batch_command
             affected_devices = batch.affected_devices
