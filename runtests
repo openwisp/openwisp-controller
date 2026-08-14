@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+coverage erase
+
 echo "Starting standard tests"
 coverage run runtests.py --parallel --exclude-tag=selenium_tests \
   || coverage run ./runtests.py
