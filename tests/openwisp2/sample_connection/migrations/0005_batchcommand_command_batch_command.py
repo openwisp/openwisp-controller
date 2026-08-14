@@ -98,7 +98,7 @@ class Migration(migrations.Migration):
                         blank=True,
                         null=True,
                         default=dict,
-                        verbose_name="Skipped devices",
+                        verbose_name="skipped devices",
                         help_text=(
                             "Maps device UUIDs to validation error messages for "
                             "devices that were skipped during command creation."

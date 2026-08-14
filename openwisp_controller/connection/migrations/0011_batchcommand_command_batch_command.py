@@ -98,7 +98,7 @@ class Migration(migrations.Migration):
                             "devices that were skipped during command creation."
                         ),
                         null=True,
-                        verbose_name="Skipped devices",
+                        verbose_name="skipped devices",
                     ),
                 ),
                 (

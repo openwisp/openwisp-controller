@@ -8,6 +8,7 @@ from django import forms
 from django.contrib import admin, messages
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
+from django.db.models import Count
 from django.http import HttpResponseForbidden, JsonResponse
 from django.shortcuts import redirect
 from django.template.response import TemplateResponse
@@ -22,7 +23,6 @@ from openwisp_utils.admin import ReadOnlyAdmin, TimeReadonlyAdminMixin
 
 from ..admin import MultitenantAdminMixin
 from ..config.admin import DeactivatedDeviceReadOnlyMixin, DeviceAdmin
-from . import settings as app_settings
 from .filters import GroupFilter, LocationFilter, TypeFilter
 from .schema import schema
 from .widgets import CommandSchemaWidget, CredentialsSchemaWidget
@@ -31,6 +31,11 @@ Credentials = swapper.load_model("connection", "Credentials")
 DeviceConnection = swapper.load_model("connection", "DeviceConnection")
 Command = swapper.load_model("connection", "Command")
 BatchCommand = swapper.load_model("connection", "BatchCommand")
+Device = swapper.load_model("config", "Device")
+DeviceGroup = swapper.load_model("config", "DeviceGroup")
+DeviceLocation = swapper.load_model("geo", "DeviceLocation")
+Location = swapper.load_model("geo", "Location")
+Organization = swapper.load_model("openwisp_users", "Organization")
 
 
 class CredentialsForm(forms.ModelForm):
@@ -46,14 +51,6 @@ class CommandForm(forms.ModelForm):
 
 
 class BatchCommandExecutionForm(forms.ModelForm):
-    """Collects the mass command details on the first step of the workflow.
-
-    This form is the only place where the submitted values are validated.
-    Narrowing the querysets in ``__init__`` controls what the widgets offer,
-    it does not control what is accepted, so ``clean()`` re-checks the
-    submitted values against the organizations the user actually manages.
-    """
-
     required_css_class = "required"
 
     class Meta:
@@ -69,14 +66,10 @@ class BatchCommandExecutionForm(forms.ModelForm):
         ]
         widgets = {
             "notes": forms.Textarea(attrs={"rows": 3}),
-            # filled in by execute-command.js, which renders the fields
-            # relevant to the selected command type
             "input": forms.HiddenInput(),
         }
 
     class Media:
-        # select2 must be loaded before jquery.init.js, which calls
-        # jQuery.noConflict(): same ordering as admin.widgets.AutocompleteMixin
         js = [
             "admin/js/vendor/jquery/jquery.min.js",
             "admin/js/vendor/select2/select2.full.min.js",
@@ -345,27 +338,14 @@ DeviceAdmin.add_reversion_following(follow=["deviceconnection_set"])
 
 
 class BatchCommandDeviceAdminMixin:
-    """Turns the device changelist into the selection table of the confirm page.
+    """Applied on top of the ModelAdmin registered for Device, for
+    openwisp-monitoring which replaces that registration and
+    its extra columns must appear.
 
-    Applied on top of whichever ModelAdmin is registered for Device rather
-    than on top of this module's DeviceAdmin, because other modules replace
-    that registration: openwisp-monitoring unregisters Device and registers
-    its own subclass, which adds the health status column. Building on the
-    registered class means those columns appear here too, along with the
-    select_related and the media they need, without this module knowing
-    which ones exist. See BatchCommandAdmin.get_device_admin().
-
-    Filters and search are removed on purpose: the devices are already
-    determined by the targets chosen on the execute page, this table only
-    allows excluding individual devices from that set. Emptying
-    ``list_filter`` and ``search_fields`` is enough for the stock changelist
-    template to render neither, so it can be reused as it is.
+    Filters and search are emptied because the devices are already chosen on
+    the execute page, this table only excludes some of them.
     """
 
-    # DeviceAdmin leaves this as an empty tuple, which ModelAdmin reads as
-    # "link the first column": that would wrap the checkbox in an <a> and
-    # navigate to the device instead of ticking it. Name is the column the
-    # device changelist links anyway.
     list_display_links = ["name"]
     list_filter = []
     search_fields = []
@@ -373,12 +353,6 @@ class BatchCommandDeviceAdminMixin:
     list_per_page = 20
     ordering = ["name"]
     change_list_template = "admin/connection/batch_command/confirm_command.html"
-    # django-import-export replaces change_list_template on the instance with
-    # a template of its own, which redefines the object-tools block and so
-    # brings back the "Import", "Export" and "Add device" buttons this page
-    # suppresses. Setting this to None is its documented way of opting out:
-    # ImportExportMixinBase.init_change_list_template() then falls back to
-    # the template set above. Unused when import-export is not installed.
     import_export_change_list_template = None
 
     def __init__(self, model, admin_site, devices=None):
@@ -386,30 +360,21 @@ class BatchCommandDeviceAdminMixin:
         self.devices = devices
 
     def get_list_display(self, request):
-        # resolved per request instead of being a class attribute: the
-        # attribute would be a snapshot taken when this module is imported,
-        # which can be before another module has replaced the registration
         return ["select_device"] + list(super().get_list_display(request))
 
     def get_queryset(self, request):
-        # MultitenantAdminMixin.get_queryset() scopes this to the
-        # organizations managed by the user, independently of list_filter
         return super().get_queryset(request).filter(pk__in=self.devices)
 
     @admin.display(description="")
     def select_device(self, obj):
-        # deliberately without a "name": these checkboxes are never
-        # submitted, execute-command.js mirrors them into the hidden
-        # "excluded" field of the form holding the execute button
         return format_html(
-            '<input type="checkbox" class="bc-select-device" value="{}" checked>',
+            '<input type="checkbox" class="device-checkbox" value="{}" checked>',
             obj.pk,
         )
 
 
 class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
     execute_command_template = "admin/connection/batch_command/execute_command.html"
-    # rendered through BatchCommandDeviceAdmin.change_list_template
     confirm_command_template = "admin/connection/batch_command/confirm_command.html"
     session_key = "batch_command_wizard"
     list_display = [
@@ -440,7 +405,7 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
     change_form_template = (
         "admin/connection/batch_command/batch_command_change_form.html"
     )
-    device_commands_per_page = app_settings.BATCH_COMMAND_PAGE_SIZE
+    device_commands_per_page = 20
     exclude = ("devices",)
     fields = [
         "organization_display",
@@ -459,14 +424,9 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
     readonly_fields = [
         "organization_display",
         "colored_status",
-        "type",
         "formatted_input",
         "affected_devices",
         "display_skipped_devices",
-        "group",
-        "location",
-        "created",
-        "modified",
     ]
 
     class Media:
@@ -500,11 +460,8 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
 
     def execute_command_view(self, request):
         """First step of the mass command workflow: collect the details.
-
-        A valid submission is stored in the session and the user is
-        redirected to the confirm page (Post/Redirect/Get), so that the
-        device table there can be paginated with ordinary GET requests: a
-        pagination link cannot carry the contents of a form.
+        A valid submission goes to the session and redirects to the confirm
+        page, so that its device table can be paginated with plain GETs.
         """
         self._check_add_permission(request)
         if request.method == "POST":
@@ -531,9 +488,7 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
 
     def confirm_command_view(self, request):
         """Second step: review the targeted devices and dispatch the command.
-
-        Dispatching is decided by the HTTP method alone, never by looking
-        for a field in the request body.
+        Dispatching is decided by the HTTP method alone.
         """
         self._check_add_permission(request)
         if request.method == "POST":
@@ -553,21 +508,11 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
 
     def get_device_admin(self, devices):
         """Builds the ModelAdmin rendering the device table of the confirm page.
-
-        Composed with the ModelAdmin currently registered for Device instead
-        of a named class, so that the table shows the columns of the device
-        changelist as it actually is. Modules layered on top of the
-        controller replace that registration rather than extending the class
-        this module imports: openwisp-monitoring, for one, unregisters Device
-        and registers a subclass adding the health status column.
-
-        Resolved here, per request, rather than at import time: every app has
-        finished loading by now, so the registration is final. Nothing is
-        imported from those modules and none of them needs to know about this
-        page; with none of them installed this returns the controller's own
-        Device admin and the table is unchanged.
+        Composed with whichever ModelAdmin is registered for Device, so the
+        table shows the columns of the device changelist as it actually is:
+        openwisp-monitoring replaces that registration to add its own.
+        Resolved per request, when the registration is final.
         """
-        Device = swapper.load_model("config", "Device")
         registered = self.admin_site.get_model_admin(Device).__class__
         # the mixin comes first so that its attributes win over the
         # registered admin's
@@ -580,16 +525,10 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
 
     def get_device_changelist_template(self):
         """The template the registered Device admin renders its changelist with.
-
-        The confirm page extends it instead of the stock changelist template,
-        because that is where other modules load the assets their columns
-        need: openwisp-monitoring pulls in the stylesheet drawing the health
-        status accordion, and the script expanding it, from there.
-
-        Read from the class rather than from an instance, since
-        django-import-export rewrites the attribute on the instance.
+        The confirm page extends it rather than the stock one, because that
+        is where other modules load the assets their columns need. Read from
+        the class: django-import-export rewrites it on the instance.
         """
-        Device = swapper.load_model("config", "Device")
         registered = self.admin_site.get_model_admin(Device).__class__
         return getattr(registered, "change_list_template", None) or (
             "admin/change_list.html"
@@ -597,41 +536,45 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
 
     def _restart(self, request):
         """Sends the user back to step one when there is no wizard to show."""
-        messages.warning(
-            request, _("Please fill in the mass command details to continue.")
+        self.message_user(
+            request,
+            _("Please fill in the mass command details to continue."),
+            messages.WARNING,
         )
         return redirect(f"admin:{self.opts.app_label}_{self.opts.model_name}_execute")
 
     def _resolve_target_queryset(self, request, wizard):
         """Devices matched by the organization, group and location chosen.
-
-        ``distinct()`` and an explicit ordering are required because this
-        queryset is paginated: the devicelocation join can return the same
-        device more than once, and page boundaries are undefined without an
-        ordering.
+        The targeting rule lives on the model so this page and the execution
+        cannot drift apart; the multitenancy scope and the ordering the
+        pagination needs are admin concerns, applied on top.
         """
-        Device = swapper.load_model("config", "Device")
-        qs = Device.objects.all()
+        try:
+            devices = BatchCommand.dry_run(
+                organization_id=wizard.get("organization_id"),
+                group_id=wizard.get("group_id"),
+                location_id=wizard.get("location_id"),
+            )["devices"]
+        except ValidationError:
+            # a wizard left in the session while its group or location moved
+            # to another organization: nothing matches, and execute() reports
+            # it through its usual error path
+            return Device.objects.none()
         if not request.user.is_superuser:
-            qs = qs.filter(organization_id__in=request.user.organizations_managed)
-        if wizard.get("organization_id"):
-            qs = qs.filter(organization_id=wizard["organization_id"])
-        if wizard.get("group_id"):
-            qs = qs.filter(group_id=wizard["group_id"])
-        if wizard.get("location_id"):
-            qs = qs.filter(devicelocation__location_id=wizard["location_id"])
-        return qs.distinct().order_by("name")
+            devices = devices.filter(
+                organization_id__in=request.user.organizations_managed
+            )
+        return devices.distinct().order_by("name")
 
     def _confirm_context(self, request, wizard, devices):
         targets = []
-        for app_label, model_name, key in (
-            ("openwisp_users", "Organization", "organization_id"),
-            ("config", "DeviceGroup", "group_id"),
-            ("geo", "Location", "location_id"),
+        for model, key in (
+            (Organization, "organization_id"),
+            (DeviceGroup, "group_id"),
+            (Location, "location_id"),
         ):
             if not wizard.get(key):
                 continue
-            model = swapper.load_model(app_label, model_name)
             target = model.objects.filter(pk=wizard[key]).first()
             if target:
                 targets.append(str(target))
@@ -651,10 +594,8 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
 
     def _execute_batch_command(self, request):
         """Applies the device selection and dispatches the mass command.
-
-        The wizard is popped from the session before anything else happens,
-        so that a double submit cannot create the batch twice: the second
-        request finds nothing and is sent back to step one.
+        The wizard is popped first, so a double submit cannot create the
+        batch twice: the second request finds nothing and restarts.
         """
         wizard = request.session.pop(self.session_key, None)
         if not wizard:
@@ -680,11 +621,13 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
         except ValidationError as error:
             # put the wizard back so the user can correct the selection
             request.session[self.session_key] = wizard
-            messages.error(request, error.messages[0])
+            self.message_user(request, error.messages[0], messages.ERROR)
             return redirect(
                 f"admin:{self.opts.app_label}_{self.opts.model_name}_confirm"
             )
-        messages.success(request, _("Mass command executed successfully."))
+        self.message_user(
+            request, _("Mass command executed successfully."), messages.SUCCESS
+        )
         return redirect(
             f"admin:{self.opts.app_label}_{self.opts.model_name}_change", batch.pk
         )
@@ -696,6 +639,22 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
     def get_readonly_fields(self, request, obj=None):
         fields = super().get_readonly_fields(request, obj)
         return fields + list(self.__class__.readonly_fields)
+
+    def get_queryset(self, request):
+        return (
+            super()
+            .get_queryset(request)
+            .annotate(_affected_devices=Count("batch_commands", distinct=True))
+        )
+
+    def get_object(self, request, object_id, from_field=None):
+        """Avoids duplicating queries in change_view custom logic"""
+        cache_attr = f"_cached_object_{object_id}_{from_field}"
+        if not hasattr(request, cache_attr):
+            setattr(
+                request, cache_attr, super().get_object(request, object_id, from_field)
+            )
+        return getattr(request, cache_attr)
 
     def _get_commands(self, request, obj):
         qs = Command.objects.filter(batch_command=obj).select_related("device")
@@ -733,17 +692,27 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
     formatted_input.short_description = _("input")
 
     def affected_devices(self, obj):
-        return obj.affected_devices
+        count = getattr(obj, "_affected_devices", None)
+        if count is None:
+            count = obj.affected_devices
+        return count
 
     affected_devices.short_description = _("affected devices")
+    affected_devices.admin_order_field = "_affected_devices"
+
+    def _get_skipped_devices(self, obj):
+        if not hasattr(obj, "_skipped_devices_cache"):
+            obj._skipped_devices_cache = {
+                str(device.pk): device
+                for device in Device.objects.filter(pk__in=obj.skipped_devices.keys())
+            }
+        return obj._skipped_devices_cache
 
     def display_skipped_devices(self, obj):
         if not obj.skipped_devices:
             return "-"
-        Device = swapper.load_model("config", "Device")
-        pks = list(obj.skipped_devices.keys())
-        devices = {str(d.pk): d for d in Device.objects.filter(pk__in=pks)}
-        count = len(pks)
+        devices = self._get_skipped_devices(obj)
+        count = len(obj.skipped_devices)
         lines = [str(count)]
         for pk_str, errors in obj.skipped_devices.items():
             device = devices.get(pk_str)
@@ -794,8 +763,6 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
             choices = status_choices
 
         filter_specs.append(StatusFilter())
-
-        Device = swapper.load_model("config", "Device")
 
         # Location filter
         location_spec = self._build_related_filter(
@@ -864,22 +831,17 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
             "device_pk": command.device.pk,
             "status": command.status,
             "status_display": command.get_status_display(),
-            "output": (command.output or "").lstrip(),
-            "created": command.created,
+            "output": command.output_preview,
+            "modified": command.modified,
             "is_skipped": False,
         }
 
     def _paginate_commands(self, commands_qs, skipped_rows, page_param, per_page=None):
         """Returns one page of rows without loading the whole batch in memory.
-
         Commands keep the ordering of ``AbstractCommand.Meta`` ("created"),
-        which is the order they were fanned out in: the newest one is always
-        last. That is what lets the change page append results live without
-        re-fetching, because a new result always belongs on the last page.
-
-        Skipped devices are not Command rows, they are entries of the
-        ``skipped_devices`` field, so they are kept as a (normally short)
-        list and follow the commands.
+        so the newest is always last and the change page can append results
+        live. Skipped devices are not Command rows, they come as a list and
+        follow the commands.
         """
         per_page = per_page or self.device_commands_per_page
         commands_count = commands_qs.count()
@@ -924,21 +886,19 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
         return qs
 
     def _get_matching_skipped_devices(self, obj, filters):
-        Device = swapper.load_model("config", "Device")
         pks = list(obj.skipped_devices.keys())
-        device_qs = Device.objects.filter(pk__in=pks)
         location_id = filters["location_id"]
         if location_id:
-            DeviceLocation = swapper.load_model("geo", "DeviceLocation")
-            device_locations = set(
-                DeviceLocation.objects.filter(
-                    device_id__in=pks,
+            device_locations = {
+                str(pk)
+                for pk in DeviceLocation.objects.filter(
+                    content_object_id__in=pks,
                     location_id=location_id,
-                ).values_list("device_id", flat=True)
-            )
+                ).values_list("content_object_id", flat=True)
+            }
         else:
             device_locations = None
-        devices = {str(d.pk): d for d in device_qs}
+        devices = self._get_skipped_devices(obj)
         rows = []
         for pk_str, errors in obj.skipped_devices.items():
             device = devices.get(pk_str)
@@ -962,7 +922,7 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
                     "status": "skipped",
                     "status_display": _("skipped"),
                     "output": ", ".join(errors),
-                    "created": None,
+                    "modified": None,
                     "is_skipped": True,
                 }
             )
@@ -996,7 +956,7 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
                     "paginator": paginator,
                     "filter_specs": filter_specs,
                     "has_active_filters": any(
-                        request.GET.get(param) for param in ["status"]
+                        value for key, value in filters.items() if key != "q"
                     ),
                 }
             )

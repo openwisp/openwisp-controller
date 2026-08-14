@@ -36,9 +36,9 @@
   width: 100%;
   border-collapse: collapse;
   /* the output column takes whatever these three leave over */
-  --device-column: 22%;
-  --status-column: 10%;
-  --modified-column: 12%;
+  --device-column: 23%;
+  --status-column: 13%;
+  --modified-column: 15%;
 }
 .results-table th:nth-child(1),
 .results-table td:nth-child(1):not(.empty-results) {
