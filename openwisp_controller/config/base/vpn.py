@@ -252,16 +252,14 @@ class AbstractVpn(
         """
         Calls _auto_create_cert() if cert is not set.
         """
+        if self.organization_id and not self.organization.is_active:
+            return super().save(*args, **kwargs)
         config = {}
         created = self._state.adding
         if not created:
             self._check_changes()
         create_dh = False
-        if (
-            self.ca
-            and (not self.cert or self.cert.ca_id != self.ca_id)
-            and (not self.organization_id or self.organization.is_active)
-        ):
+        if self.ca and (not self.cert or self.cert.ca_id != self.ca_id):
             self.cert = self._auto_create_cert()
         if self._is_backend_type("openvpn") and not self.dh:
             self.dh = self._placeholder_dh
@@ -962,6 +960,8 @@ class AbstractVpnClient(models.Model):
 
     def save(self, *args, **kwargs):
         """Performs automatic provisioning if ``auto_cert`` is True."""
+        if not self.config.device.organization.is_active:
+            return super().save(*args, **kwargs)
         if self.auto_cert:
             self._auto_x509()
             self._auto_ip()

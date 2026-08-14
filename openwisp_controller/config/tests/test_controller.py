@@ -13,6 +13,7 @@ from swapper import load_model
 from openwisp_utils.tests import capture_any_output, catch_signal
 
 from .. import settings as app_settings
+from .. import tasks
 from ..base.base import logger as base_config_logger
 from ..controller.views import DeviceChecksumView, VpnChecksumView
 from ..controller.views import logger as controller_views_logger
@@ -1489,6 +1490,40 @@ class TestControllerTransaction(
             {"key": device.key},
         )
         self.assertEqual(response.status_code, 404)
+
+    def test_report_status_deactivating_allowed_disabled_org(self):
+        org = self._get_org()
+        self._create_template(required=True, organization=org)
+        device = self._create_device_config(device_opts={"organization": org})
+        c = device.config
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        tasks.deactivate_organization_devices(org.id)
+        c.refresh_from_db()
+        self.assertEqual(c.status, "deactivating")
+
+        with self.subTest("download configuration"):
+            response = self.client.get(
+                reverse("controller:device_download_config", args=[device.pk]),
+                {"key": device.key},
+            )
+            self.assertEqual(response.status_code, 200)
+
+        with self.subTest("download checksum"):
+            response = self.client.get(
+                reverse("controller:device_checksum", args=[device.pk]),
+                {"key": device.key},
+            )
+            self.assertEqual(response.status_code, 200)
+
+        with self.subTest("report status"):
+            response = self.client.post(
+                reverse("controller:device_report_status", args=[device.pk]),
+                {"key": device.key, "status": "applied"},
+            )
+            self.assertEqual(response.status_code, 200)
+        c.refresh_from_db()
+        self.assertEqual(c.status, "deactivated")
 
     def test_vpn_checksum_org_disabled(self):
         vpn = self._create_vpn(organization=self._get_org())

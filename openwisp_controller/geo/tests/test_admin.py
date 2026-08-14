@@ -318,6 +318,7 @@ class TestDeviceAdmin(
             name="active-device",
             organization=active_org,
             mac_address="00:11:22:33:44:70",
+            key="key-active-device",
         )
         self._create_object_location(
             location=active_location, content_object=active_device
@@ -332,6 +333,7 @@ class TestDeviceAdmin(
             name="disabled-device",
             organization=disabled_org,
             mac_address="00:11:22:33:44:71",
+            key="key-disabled-device",
         )
         self._create_object_location(
             location=disabled_location, content_object=disabled_device

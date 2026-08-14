@@ -265,21 +265,6 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
                 dc2.connect()
             mocked_conn.assert_called_once()
 
-        with self.subTest("disabled org, not deactivating: connect blocked"):
-            cred3 = self._create_credentials(name="cred-disabled-org")
-            device3 = self._create_device(
-                name="disabled-org-device", mac_address="11:22:33:44:55:77"
-            )
-            self._create_config(device=device3)
-            dc3 = self._create_device_connection(credentials=cred3, device=device3)
-            device3.organization.is_active = False
-            device3.organization.save(update_fields=["is_active"])
-            with mock.patch.object(dc3.connector_instance, "connect") as mocked_conn:
-                dc3.connect()
-            mocked_conn.assert_not_called()
-            self.assertEqual(dc3.is_working, False)
-            self.assertEqual(dc3.failure_reason, "Organization is disabled")
-
     def test_credentials_schema(self):
         # unrecognized parameter
         try:

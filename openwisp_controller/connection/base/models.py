@@ -600,7 +600,10 @@ class AbstractCommand(TimeStampedEditableModel):
         # is still pending.
         if self.device.is_fully_deactivated():
             self.status = "failed"
-            self._add_output("Device is deactivated.")
+            self._add_output(_("Device is deactivated."))
+        elif not self.device.organization.is_active:
+            self.status = "failed"
+            self._add_output(_("Organization is disabled."))
         else:
             exit_code = self._exec_command()
             # if output is None, the commands couldn't execute

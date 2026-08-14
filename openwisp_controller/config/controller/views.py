@@ -44,7 +44,7 @@ class GetDeviceView(SingleObjectMixin, View):
     model = Device
 
     def get_object(self, *args, **kwargs):
-        kwargs.update({"organization__is_active": True, "config__isnull": False})
+        kwargs.update({"config__isnull": False})
         defer = (
             "notes",
             "organization__name",
@@ -57,6 +57,7 @@ class GetDeviceView(SingleObjectMixin, View):
         queryset = (
             self.model.objects.select_related("organization", "config")
             .defer(*defer)
+            .filter(Q(organization__is_active=True) | Q(config__status="deactivating"))
             .exclude(config__status="deactivated")
         )
         return get_object_or_404(queryset, *args, **kwargs)

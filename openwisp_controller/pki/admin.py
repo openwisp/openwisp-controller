@@ -64,7 +64,6 @@ class CertAdmin(MultitenantAdminMixin, AbstractCertAdmin, VersionAdmin):
 
     @action(description=_("Revoke selected certificates"), permissions=["change"])
     def revoke_action(self, request, queryset):
-        queryset = _exclude_disabled_org(self, request, queryset)
         return super().revoke_action(request, queryset)
 
 

@@ -247,20 +247,27 @@ class TestPkiApi(
         self.assertEqual(Cert.objects.count(), 1)
         self.assertEqual(r.data["extensions"], [])
 
-    def test_cert_revoke_renew_api_disabled_org(self):
+    def test_cert_revoke_api_allowed_for_disabled_org(self):
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        cert = self._create_cert(ca=ca, organization=org)
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        revoke_path = reverse("pki_api:cert_revoke", args=[cert.pk])
+        revoke_response = self.client.post(revoke_path)
+        self.assertEqual(revoke_response.status_code, 200)
+        cert.refresh_from_db()
+        self.assertEqual(cert.revoked, True)
+        self.assertIn(cert, list(ca.get_revoked_certs()))
+
+    def test_cert_renew_api_disabled_org(self):
         org = self._get_org()
         ca = self._create_ca(organization=org)
         cert = self._create_cert(ca=ca, organization=org)
         serial_number = str(cert.serial_number)
         org.is_active = False
         org.save(update_fields=["is_active"])
-        revoke_path = reverse("pki_api:cert_revoke", args=[cert.pk])
         renew_path = reverse("pki_api:cert_renew", args=[cert.pk])
-        revoke_response = self.client.post(revoke_path)
-        self.assertEqual(revoke_response.status_code, 403)
-        cert.refresh_from_db()
-        self.assertEqual(cert.revoked, False)
-        self.assertEqual(cert.serial_number, serial_number)
         renew_response = self.client.post(renew_path)
         self.assertEqual(renew_response.status_code, 403)
         cert.refresh_from_db()

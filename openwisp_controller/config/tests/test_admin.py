@@ -7,7 +7,7 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import django
-from django.contrib import admin
+from django.contrib import admin as django_admin
 from django.contrib.admin.models import LogEntry
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
@@ -56,6 +56,7 @@ User = get_user_model()
 Location = load_model("geo", "Location")
 DeviceLocation = load_model("geo", "DeviceLocation")
 Group = load_model("openwisp_users", "Group")
+Organization = load_model("openwisp_users", "Organization")
 
 
 class TestImportExportMixin:
@@ -282,6 +283,56 @@ class TestAdmin(
     def tearDownClass(cls):
         super().tearDownClass()
         devnull.close()
+
+    def test_disabled_organization_inlines_write_protected(self):
+        # When an organization is disabled, the inlines that openwisp-controller
+        # attaches to the organization admin (configuration settings, shared
+        # object limits, and geographic settings) must become read-only. The
+        # guard is inherited from openwisp-users' OrganizationAdmin, so this
+        # verifies the downstream inlines are covered without re-implementing
+        # it. The guard only denies add and change; it leaves each inline's own
+        # delete decision alone, so inlines that normally allow deletion keep
+        # allowing it (deletion of a disabled organization's data stays
+        # possible).
+        request = RequestFactory().get("/")
+        request.user = self._get_admin()
+        org_admin = django_admin.site._registry[Organization]
+        disabled_org = self._create_org(name="disabled-inline-org", is_active=False)
+        inlines = org_admin.get_inline_instances(request, disabled_org)
+        inlines_by_name = {type(inline).__name__: inline for inline in inlines}
+        for expected in (
+            "ConfigSettingsInline",
+            "OrganizationLimitsInline",
+            "GeoSettingsInline",
+        ):
+            self.assertIn(expected, inlines_by_name)
+        for name, inline in inlines_by_name.items():
+            with self.subTest(inline=name):
+                self.assertEqual(
+                    inline.has_add_permission(request, disabled_org), False
+                )
+                self.assertEqual(
+                    inline.has_change_permission(request, disabled_org), False
+                )
+        # inlines that normally permit deletion still do, proving the guard did
+        # not block deleting the disabled organization's related objects
+        for name in ("ConfigSettingsInline", "GeoSettingsInline"):
+            with self.subTest(inline=name):
+                self.assertEqual(
+                    inlines_by_name[name].has_delete_permission(request, disabled_org),
+                    True,
+                )
+
+    def test_active_organization_inlines_writable(self):
+        request = RequestFactory().get("/")
+        request.user = self._get_admin()
+        org_admin = django_admin.site._registry[Organization]
+        active_org = self._create_org(name="active-inline-org")
+        for inline in org_admin.get_inline_instances(request, active_org):
+            with self.subTest(inline=type(inline).__name__):
+                self.assertEqual(
+                    inline.has_change_permission(request, active_org), True
+                )
 
     def test_device_and_template_different_organization(self):
         org1 = self._get_org()
@@ -1080,7 +1131,7 @@ class TestAdmin(
         )
         org.is_active = False
         org.save(update_fields=["is_active"])
-        model_admin = admin.site._registry[Device]
+        model_admin = django_admin.site._registry[Device]
         self._test_disabled_org_admin_inline_readonly(
             model_admin, device, active_obj=active_device
         )
@@ -3076,9 +3127,11 @@ class TestTransactionAdmin(
         request.resolver_match = resolve(url)
         request.user = user
         # TODO: replace _registry with get_model_admin once Django 4.2 is dropped
-        device_admin = admin.site._registry[Device]
+        device_admin = django_admin.site._registry[Device]
         admin_site = SimpleNamespace(
-            _registry={first_org.__class__: admin.site._registry[first_org.__class__]}
+            _registry={
+                first_org.__class__: django_admin.site._registry[first_org.__class__]
+            }
         )
         with (
             patch.object(device_admin, "admin_site", admin_site),
@@ -3106,7 +3159,7 @@ class TestTransactionAdmin(
         request = RequestFactory().get(url)
         request.resolver_match = resolve(url)
         # TODO: replace _registry with get_model_admin once Django 4.2 is dropped
-        device_admin = admin.site._registry[Device]
+        device_admin = django_admin.site._registry[Device]
         with patch.object(
             Device.objects, "filter", wraps=Device.objects.filter
         ) as filter_:

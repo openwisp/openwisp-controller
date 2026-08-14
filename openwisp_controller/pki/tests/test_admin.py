@@ -202,7 +202,7 @@ class TestAdmin(TestPkiMixin, TestAdminMixin, TestOrganizationMixin, TestCase):
             response, "1 item belonging to a disabled organization was skipped."
         )
 
-    def test_cert_actions_skip_disabled_org(self):
+    def test_cert_revoke_action_allowed_for_disabled_org(self):
         self.client.force_login(self._get_admin())
         org = self._get_org()
         ca = self._create_ca(name="ca-disabled", organization=org)
@@ -211,12 +211,19 @@ class TestAdmin(TestPkiMixin, TestAdminMixin, TestOrganizationMixin, TestCase):
         org.save(update_fields=["is_active"])
         changelist = reverse(f"admin:{self.app_label}_cert_changelist")
         revoke_payload = {"action": "revoke_action", "_selected_action": [cert.pk]}
-        response = self.client.post(changelist, revoke_payload, follow=True)
+        self.client.post(changelist, revoke_payload, follow=True)
         cert.refresh_from_db()
-        self.assertEqual(cert.revoked, False)
-        self.assertContains(
-            response, "1 item belonging to a disabled organization was skipped."
-        )
+        self.assertEqual(cert.revoked, True)
+        self.assertIn(cert, list(ca.get_revoked_certs()))
+
+    def test_cert_renew_action_skips_disabled_org(self):
+        self.client.force_login(self._get_admin())
+        org = self._get_org()
+        ca = self._create_ca(name="ca-disabled", organization=org)
+        cert = self._create_cert(name="cert-disabled", ca=ca, organization=org)
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        changelist = reverse(f"admin:{self.app_label}_cert_changelist")
         old_serial = cert.serial_number
         renew_payload = {
             "action": "renew_cert",

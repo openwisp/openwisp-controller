@@ -79,6 +79,10 @@ class CertRevokeRenewBaseView(ProtectedAPIMixin, GenericAPIView):
 
 
 class CertRevokeView(CertRevokeRenewBaseView):
+    # Revocation is a cleanup operation and must remain allowed for
+    # certificates belonging to disabled organizations (issue #1393).
+    allow_disabled_organization_writes = True
+
     def post(self, request, pk):
         """
         Revokes the Certificate.

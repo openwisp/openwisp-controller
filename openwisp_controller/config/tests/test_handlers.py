@@ -86,13 +86,19 @@ class TestHandlers(CreateConfigMixin, TransactionTestCase):
         with patch("openwisp_controller.config.handlers.chain"):
             org.is_active = False
             org.save()
+        original_deactivate = Device.deactivate
+
+        def _deactivate_side_effect(self, *args, **kwargs):
+            if self.pk == failing_device.pk:
+                raise Exception("Simulated deactivation failure")
+            return original_deactivate(self, *args, **kwargs)
+
         with patch.object(tasks, "logger") as mocked_logger:
             with patch.object(
                 Device,
                 "deactivate",
                 autospec=True,
-                wraps=Device.deactivate,
-                side_effect=[Exception, DEFAULT],
+                side_effect=_deactivate_side_effect,
             ):
                 tasks.deactivate_organization_devices(org.id)
         mocked_logger.exception.assert_called_once_with(

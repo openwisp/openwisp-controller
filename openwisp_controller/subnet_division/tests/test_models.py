@@ -697,6 +697,38 @@ class TestSubnetDivisionRule(
             rule.id,
         )
 
+    def test_provision_extra_ips_skips_disabled_org(self):
+        org = self._create_org(name="disabled-org", slug="disabled-org")
+        master_subnet = self._get_master_subnet(
+            subnet="10.201.0.0/16", organization=org
+        )
+        rule = self._get_vpn_subdivision_rule(
+            organization=org, master_subnet=master_subnet
+        )
+        config = self._create_config(organization=org)
+        subnet = self._create_subnet(
+            subnet="10.201.0.0/28", organization=org, master_subnet=master_subnet
+        )
+        SubnetDivisionIndex.objects.create(
+            keyword="OW_subnet0",
+            subnet=subnet,
+            rule=rule,
+            config=config,
+        )
+        old_number_of_ips = rule.number_of_ips
+        ip_count_before = IpAddress.objects.count()
+        index_count_before = SubnetDivisionIndex.objects.count()
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        with patch("openwisp_controller.subnet_division.tasks.logger.info") as mocked:
+            tasks.provision_extra_ips.run(rule.id, old_number_of_ips=old_number_of_ips)
+        mocked.assert_called_once_with(
+            "Skipping extra IP provisioning for rule %s of disabled organization",
+            rule.id,
+        )
+        self.assertEqual(IpAddress.objects.count(), ip_count_before)
+        self.assertEqual(SubnetDivisionIndex.objects.count(), index_count_before)
+
     def test_device_deleted(self):
         rule = self._get_vpn_subdivision_rule()
         subnet_query = self.subnet_query.filter(organization_id=self.org.id).exclude(
