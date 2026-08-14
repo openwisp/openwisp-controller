@@ -1,30 +1,12 @@
 {% extends device_changelist_template|default:"admin/change_list.html" %}
 {% load i18n admin_urls static %}
 
-{% comment %}
-Second step of the mass command workflow.
-
-This extends the changelist template of whichever ModelAdmin is registered for
-Device, not the stock one, because that is where other modules load the assets
-their columns need: openwisp-monitoring pulls the stylesheet and the script of
-the health status accordion in from there. The device table, its pagination and
-its styling are then reused as they are, and only the surrounding chrome is
-added here. BatchCommandDeviceAdminMixin empties list_filter and search_fields,
-which is enough for the parent template to render neither.
-See BatchCommandAdmin.get_device_changelist_template().
-
-Note the two forms on this page are siblings, never nested: the changelist
-brings its own <form> (which is never submitted, its checkboxes have no name)
-and the execute button lives in a separate one below it.
-{% endcomment %}
+{# step two: extends the changelist template of the registered Device admin, #}
+{# so the assets of columns added by other modules load too #}
+{# see BatchCommandAdmin.get_device_changelist_template() #}
 
 {% block extrastyle %}
 {{ block.super }}
-{% comment %}
-The changelist only loads forms.css when it has a formset, but the summary
-below is built out of the same .module.aligned rows the execute page uses and
-needs it for its spacing.
-{% endcomment %}
 <link rel="stylesheet" type="text/css" href="{% static "admin/css/forms.css" %}">
 <link rel="stylesheet" type="text/css" href="{% static "connection/css/batch-command.css" %}">
 {% endblock %}
@@ -35,14 +17,9 @@ needs it for its spacing.
 <script src="{% static "connection/js/execute-command.js" %}" defer></script>
 {% endblock %}
 
-{% block bodyclass %}{{ block.super }} confirm-batch-command{% endblock %}
+{% block bodyclass %}{{ block.super }} confirm-command{% endblock %}
 
-{% comment %}
-Suppresses the changelist's "Add Device" button, which has no place on a
-confirmation screen. Overriding the block empty also removes the duplicate: the
-theme declares object-tools twice, in .title-wrapper (admin/base.html) and in
-#content-main (admin/change_list.html), so the default renders at both.
-{% endcomment %}
+{# hides the changelist's "Add device" button #}
 {% block object-tools %}{% endblock %}
 
 {% block breadcrumbs %}
@@ -54,40 +31,28 @@ theme declares object-tools twice, in .title-wrapper (admin/base.html) and in
 </div>
 {% endblock %}
 
-{% comment %}
-Everything goes in a single "content" block.
-
-Not "object-tools": the openwisp theme declares that block twice, once inside
-.title-wrapper in admin/base.html and once inside #content-main in
-admin/change_list.html, so overriding it renders the content in both places.
-The same is true of "filters". And a template may only declare a given block
-once, so the stepper, the summary, the device table and the execute button all
-live in this one block.
-{% endcomment %}
 {% block content %}
 <nav class="stepper" aria-label="{% trans 'Execution progress' %}">
-  <div class="stepper__step stepper__step--inactive">
-    <span class="stepper__badge">1</span>
-    <span class="stepper__label">
-      <span class="stepper__label-text">{% trans 'Configure' %}</span>
-      <span class="stepper__label-underline" aria-hidden="true"></span>
+  <div class="stepper-step inactive">
+    <span class="stepper-badge">1</span>
+    <span class="stepper-label">
+      <span class="stepper-label-text">{% trans 'Configure' %}</span>
     </span>
   </div>
-  <div class="stepper__divider" aria-hidden="true">
-    <svg class="stepper__arrow" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <div class="stepper-divider" aria-hidden="true">
+    <svg class="stepper-arrow" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M6 3.5L10.5 8L6 12.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>
   </div>
-  <div class="stepper__step stepper__step--active" aria-current="step">
-    <span class="stepper__badge">2</span>
-    <span class="stepper__label">
-      <span class="stepper__label-text">{% trans 'Review' %}</span>
-      <span class="stepper__label-underline" aria-hidden="true"></span>
+  <div class="stepper-step active" aria-current="step">
+    <span class="stepper-badge">2</span>
+    <span class="stepper-label">
+      <span class="stepper-label-text">{% trans 'Review' %}</span>
     </span>
   </div>
 </nav>
 
-<fieldset class="module aligned bc-summary">
+<fieldset class="module aligned command-summary">
   <h2>{% trans 'Summary' %}</h2>
   <div class="form-row">
     <div class="flex-container">
@@ -119,7 +84,7 @@ live in this one block.
     <div class="flex-container">
       <label>{% trans 'Will run on' %}</label>
       <div class="readonly">
-        <strong id="bc-selected-count">{{ device_count }}</strong> {% trans 'devices' %}
+        <strong id="selected-count">{{ device_count }}</strong> {% trans 'devices' %}
       </div>
     </div>
   </div>
@@ -131,28 +96,23 @@ live in this one block.
   </div>
 </fieldset>
 
-{# same .module h2 caption bar as the Summary heading above #}
-<fieldset class="module aligned bc-devices-heading">
+<fieldset class="module aligned devices-heading">
   <h2>{% trans 'Affected devices' %}</h2>
 </fieldset>
 
-{# the device table, its pagination and its own <form> #}
+{# renders the changelist: the device table, its pagination, and the <form> wrapping both #}
+{# HTML does not allow nested forms, so the execute form below is a sibling of that one: #}
+{# nesting it made the browser drop the opening tag, leaving the button outside any form #}
 {{ block.super }}
 
-{# sibling of the changelist's form, never nested inside it #}
-{% comment %}
-"data-wizard-token" namespaces the sessionStorage entry holding the unselected
-devices. sessionStorage lives as long as the browser tab, so without it a new
-mass command would inherit the devices unselected by the previous one.
-{% endcomment %}
-<form method="post" id="bc-execute-form" class="bc-execute-form"
+<form method="post" id="execute-form" class="execute-form"
   data-total-devices="{{ device_count }}"
   data-wizard-token="{{ wizard.token }}">
   {% csrf_token %}
   <input type="hidden" name="excluded" id="id_excluded" value="">
   <div class="submit-row">
     <a class="button cancel-link" href="{% url batch_opts|admin_urlname:'execute' %}">{% trans 'Back' %}</a>
-    <button type="submit" class="default" id="bc-execute-button">
+    <button type="submit" class="default" id="execute-button">
       {% blocktrans trimmed count counter=device_count %}
       Execute on {{ counter }} device
       {% plural %}

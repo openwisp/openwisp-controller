@@ -11,7 +11,6 @@ from swapper import get_model_name, load_model
 from openwisp_utils.admin_theme.menu import register_menu_group, register_menu_subitem
 
 from ..config.signals import config_deactivating, config_modified
-from .settings import BATCH_COMMAND_PAGE_SIZE
 from .signals import is_working_changed
 
 
@@ -75,7 +74,7 @@ class ConnectionConfig(AppConfig):
 
     @classmethod
     def command_save_receiver(cls, sender, created, instance, **kwargs):
-        from .api.serializers import CommandSerializer, command_to_batch_payload
+        from .api.serializers import CommandSerializer
 
         channel_layer = layers.get_channel_layer()
         serialized_data = CommandSerializer(instance).data
@@ -86,30 +85,19 @@ class ConnectionConfig(AppConfig):
                 {"type": "send.update", "model": "Command", "data": serialized_data},
             )
         if instance.batch_command_id:
-            batch_data = command_to_batch_payload(instance)
-            # Authoritative counts, recomputed fresh on every send rather than
-            # relying on the client to increment a running total (a missed
-            # or duplicate message would otherwise desync it permanently).
+            batch_data = CommandSerializer(instance).data
+            batch_data["device_name"] = instance.device.name
+            batch_data["status_display"] = instance.get_status_display()
+            batch_data["type"] = "command_update"
             batch = instance.batch_command
-            affected_devices = batch.batch_commands.count()
+            affected_devices = batch.affected_devices
             batch_data["affected_devices"] = affected_devices
-            # the table also paginates the skipped devices, which are not
-            # Command rows: without them the client computes too few pages
-            # and the last one becomes unreachable
-            batch_data["total_rows"] = affected_devices + len(
-                batch.skipped_devices or {}
-            )
+            batch_data["total_rows"] = batch.total_devices
             if created:
-                # Results are ordered by creation, so a new one is always the
-                # last: its index is the count minus one. Only new results
-                # carry a page, a status change is not a new row and must not
-                # be drawn anywhere it is not already displayed.
-                batch_data["page"] = (
-                    affected_devices - 1
-                ) // BATCH_COMMAND_PAGE_SIZE + 1
+                batch_data["index"] = affected_devices - 1
             async_to_sync(channel_layer.group_send)(
                 f"config.batchcommand-{instance.batch_command_id}",
-                {"type": "send.update", "model": "Command", "data": batch_data},
+                {"type": "send.update", "data": batch_data},
             )
 
     @classmethod
@@ -117,11 +105,12 @@ class ConnectionConfig(AppConfig):
         from .api.serializers import BatchCommandSerializer
 
         channel_layer = layers.get_channel_layer()
-        serialized_data = BatchCommandSerializer(instance).data
-        serialized_data["status_display"] = instance.get_status_display()
+        batch_data = BatchCommandSerializer(instance).data
+        batch_data["status_display"] = instance.get_status_display()
+        batch_data["type"] = "batch_status"
         async_to_sync(channel_layer.group_send)(
             f"config.batchcommand-{instance.pk}",
-            {"type": "send.update", "model": "BatchCommand", "data": serialized_data},
+            {"type": "send.update", "data": batch_data},
         )
 
     @classmethod

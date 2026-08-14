@@ -1,10 +1,13 @@
 import json
+import logging
 from copy import deepcopy
 
 from swapper import load_model
 
 from ...config.base.channels_consumer import BaseDeviceConsumer
-from .. import settings as app_settings
+from ..api.serializers import BatchCommandSerializer, CommandSerializer
+
+logger = logging.getLogger(__name__)
 
 Device = load_model("config", "Device")
 BatchCommand = load_model("connection", "BatchCommand")
@@ -20,65 +23,52 @@ class CommandConsumer(BaseDeviceConsumer):
 class BatchCommandConsumer(BaseDeviceConsumer):
     model = BatchCommand
     channel_layer_group = "config.batchcommand"
-
-    def connect(self):
-        # ensure the user can only access the batch command if they
-        # can view the organization it belongs to
-        pk = self.scope["url_route"]["kwargs"]["pk"]
-        user = self.scope["user"]
-        batch = (
-            BatchCommand.objects.select_related("organization").filter(pk=pk).first()
-        )
-        if not batch:
-            self.close()
-            return
-        if not user.is_superuser and not (
-            batch.organization_id
-            and user.organizations_managed.filter(pk=batch.organization_id).exists()
-        ):
-            self.close()
-            return
-        super().connect()
+    per_page = 20
+    current_state_message = "request_current_state"
 
     def send_update(self, event):
-        data = deepcopy(event)
-        data.pop("type")
-        self.send(json.dumps(data))
+        self.send(json.dumps(event["data"]))
 
-    per_page = app_settings.BATCH_COMMAND_PAGE_SIZE
+    def is_user_authorized(self):
+        user = self.scope["user"]
+        if user.is_superuser:
+            return True
+        # a mass command cannot be changed or deleted from the admin
+        if not (
+            user.is_staff and self._user_has_permissions(change=False, delete=False)
+        ):
+            return False
+        organization_id = (
+            self.model.objects.filter(pk=self.scope["url_route"]["kwargs"]["pk"])
+            .values_list("organization_id", flat=True)
+            .first()
+        )
+        return bool(organization_id) and user.is_manager(str(organization_id))
 
     def receive(self, text_data):
         try:
             content = json.loads(text_data)
         except ValueError:
+            logger.warning("Received a websocket message which is not valid JSON")
             return
-        if content.get("type") == "request_current_state":
+        message_type = content.get("type")
+        if message_type == self.current_state_message:
             self._handle_current_state_request(content.get("page"))
+        else:
+            logger.warning(f"Unknown websocket message type received: {message_type}")
 
     def _handle_current_state_request(self, page=None):
-        """Reply with the state of the page the client is showing.
-
-        The client requests this once on websocket open (and on every
-        reconnect) so the table can be reconciled even for commands created
-        while the page was closed or before the socket connected.
-
-        Only the requested page is sent: a mass command can target thousands
-        of devices, and serializing all of them (including their output) on
-        every connect would make the payload grow without bound.
-        """
-        # Imported here instead of at module import time to avoid
-        # AppRegistryNotReady errors.
-        from ..api.serializers import BatchCommandSerializer, command_to_batch_payload
+        """Handle request for current state of the operation"""
 
         batch = BatchCommand.objects.filter(
             pk=self.scope["url_route"]["kwargs"]["pk"]
         ).first()
         if not batch:
+            # deleted after the connection was accepted
             return
-        affected_devices = batch.batch_commands.count()
-        batch_data = BatchCommandSerializer(batch).data
-        batch_data["status_display"] = batch.get_status_display()
-        batch_data["affected_devices"] = affected_devices
+        batch_status = BatchCommandSerializer(batch).data
+        batch_status["status_display"] = batch.get_status_display()
+        batch_status["affected_devices"] = batch.affected_devices
         try:
             page = max(int(page), 1)
         except (TypeError, ValueError):
@@ -86,20 +76,19 @@ class BatchCommandConsumer(BaseDeviceConsumer):
         start = (page - 1) * self.per_page
         end = start + self.per_page
         page_commands = batch.batch_commands.select_related("device")[start:end]
-        commands = [command_to_batch_payload(command) for command in page_commands]
+        commands = []
+        for command in page_commands:
+            row = CommandSerializer(command).data
+            row["device_name"] = command.device.name
+            row["status_display"] = command.get_status_display()
+            commands.append(row)
         self.send(
             json.dumps(
                 {
-                    "model": "BatchState",
-                    "data": {
-                        "batch_status": batch_data,
-                        "commands": commands,
-                        "page": page,
-                        # the table paginates the skipped devices too, they
-                        # are not Command rows
-                        "total_rows": affected_devices
-                        + len(batch.skipped_devices or {}),
-                    },
+                    "type": "batch_state",
+                    "batch_status": batch_status,
+                    "commands": commands,
+                    "total_rows": batch.total_devices,
                 }
             )
         )

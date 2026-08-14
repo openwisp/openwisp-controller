@@ -1,11 +1,8 @@
 {% extends "admin/base_site.html" %}
 {% load i18n admin_urls static %}
 
-{% comment %}
-First step of the mass command workflow: collects the command details and the
-targets. A valid submission is stored in the session and redirects to the
-confirm page, where the matched devices can be reviewed.
-{% endcomment %}
+{# step one: collects the command details and targets, saves them in the session, #}
+{# then redirects to the confirm page #}
 
 {% block extrastyle %}
 {{ block.super }}
@@ -36,29 +33,27 @@ confirm page, where the matched devices can be reviewed.
   <form method="post" novalidate>
     {% csrf_token %}
     <nav class="stepper" aria-label="{% trans 'Execution progress' %}">
-      <div class="stepper__step stepper__step--active" aria-current="step">
-        <span class="stepper__badge">1</span>
-        <span class="stepper__label">
-          <span class="stepper__label-text">{% trans 'Configure' %}</span>
-          <span class="stepper__label-underline" aria-hidden="true"></span>
+      <div class="stepper-step active" aria-current="step">
+        <span class="stepper-badge">1</span>
+        <span class="stepper-label">
+          <span class="stepper-label-text">{% trans 'Configure' %}</span>
         </span>
       </div>
-      <div class="stepper__divider" aria-hidden="true">
-        <svg class="stepper__arrow" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <div class="stepper-divider" aria-hidden="true">
+        <svg class="stepper-arrow" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M6 3.5L10.5 8L6 12.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </div>
-      <div class="stepper__step stepper__step--inactive">
-        <span class="stepper__badge">2</span>
-        <span class="stepper__label">
-          <span class="stepper__label-text">{% trans 'Review' %}</span>
-          <span class="stepper__label-underline" aria-hidden="true"></span>
+      <div class="stepper-step inactive">
+        <span class="stepper-badge">2</span>
+        <span class="stepper-label">
+          <span class="stepper-label-text">{% trans 'Review' %}</span>
         </span>
       </div>
     </nav>
 
     {% if form.non_field_errors %}
-    <p class="errornote">{{ form.non_field_errors }}</p>
+    <p class="errornote">{{ form.non_field_errors|join:" " }}</p>
     {% endif %}
 
     <fieldset class="module aligned">
@@ -75,7 +70,6 @@ confirm page, where the matched devices can be reviewed.
         </div>
         {% endif %}
       </div>
-      {# execute-command.js renders the fields of the selected command type here #}
       <div id="command-input-container"></div>
       {{ form.input }}
       {% if form.input.errors %}
