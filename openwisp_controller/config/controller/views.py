@@ -420,7 +420,9 @@ class DeviceRegisterView(UpdateLastIpMixin, CsrfExtemptMixin, View):
         # (key is not None only if CONSISTENT_REGISTRATION is enabled)
         new = False
         try:
-            device = self.model.objects.select_related("config").get(key=key)
+            device = self.model.objects.select_related("config", "organization").get(
+                key=key
+            )
             if device.is_deactivated():
                 return ControllerResponse("error: device deactivated", status=403)
             if device.organization_id != self.organization.id:

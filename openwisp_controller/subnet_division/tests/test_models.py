@@ -690,12 +690,18 @@ class TestSubnetDivisionRule(
         )
         org.is_active = False
         org.save(update_fields=["is_active"])
-        with patch("openwisp_controller.subnet_division.tasks.logger.info") as mocked:
+        with (
+            patch(
+                "openwisp_controller.subnet_division.tasks.logger.info"
+            ) as mocked_logger,
+            patch.object(rule.rule_class, "provision_for_existing_objects") as mocked,
+        ):
             tasks.provision_subnet_ip_for_existing_devices.run(rule.id)
-        mocked.assert_called_once_with(
+        mocked_logger.assert_called_once_with(
             "Skipping subnet provisioning for rule %s of disabled organization",
             rule.id,
         )
+        mocked.assert_not_called()
 
     def test_provision_extra_ips_skips_disabled_org(self):
         org = self._create_org(name="disabled-org", slug="disabled-org")

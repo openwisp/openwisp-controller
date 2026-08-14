@@ -575,11 +575,13 @@ class TestGeoApi(
             "image": self._get_simpleuploadedfile(),
             "location": location.pk,
         }
+        floorplan_count = FloorPlan.objects.count()
         response = self.client.post(path, data, format="multipart")
         # blocked incidentally: FilterSerializerByOrgManaged excludes the
         # disabled organization's location from the "location" field
         # queryset, not by an explicit disabled-org check on this endpoint
         self.assertEqual(response.status_code, 400)
+        self.assertEqual(FloorPlan.objects.count(), floorplan_count)
 
     def test_get_location_list(self):
         path = reverse("geo_api:list_location")
