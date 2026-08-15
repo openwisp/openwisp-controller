@@ -1134,8 +1134,6 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin, SystemDefinedVariabl
         "organization",
         "type",
         "backend",
-        "ca",
-        "blueprint_cert",
         "default",
         "required",
         "created",

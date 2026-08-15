@@ -189,6 +189,8 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
                 setattr(self, f"_initial_{field}", getattr(self, field))
 
     def save(self, *args, **kwargs):
+        # update_fields can be passed by name or as the 4th save() argument.
+        # Keep the same style when adding auto_cert below.
         update_fields = kwargs.get("update_fields")
         is_positional = False
         if update_fields is None and len(args) > 3:
@@ -287,7 +289,7 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
             for config in (
                 self.config_relations.prefetch_related(
                     Prefetch(
-                        "devicecertificate_set",
+                        "device_certificate_relations",
                         queryset=DeviceCertificate.objects.select_related(
                             "template", "cert"
                         ).order_by("created"),

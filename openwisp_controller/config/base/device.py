@@ -301,6 +301,8 @@ class AbstractDevice(OrgMixin, BaseModel):
                 self.key = self.generate_key(shared_secret)
         state_adding = self._state.adding
         update_fields = kwargs.get("update_fields")
+        if update_fields is None and len(args) > 3:
+            update_fields = args[3]
         if not state_adding:
             self._load_deferred_initial_values()
         super().save(*args, **kwargs)

@@ -23,16 +23,24 @@ DEVICE_UUID_OID = "1.3.6.1.4.1.65901.2"
 
 class AbstractDeviceCertificate(TimeStampedEditableModel):
     config = models.ForeignKey(
-        get_model_name("config", "Config"), on_delete=models.CASCADE
+        get_model_name("config", "Config"),
+        on_delete=models.CASCADE,
+        related_name="device_certificate_relations",
+        related_query_name="device_certificate",
     )
     template = models.ForeignKey(
-        get_model_name("config", "Template"), on_delete=models.CASCADE
+        get_model_name("config", "Template"),
+        on_delete=models.CASCADE,
+        related_name="device_certificate_relations",
+        related_query_name="device_certificate",
     )
     cert = models.OneToOneField(
         get_model_name("django_x509", "Cert"),
         on_delete=models.RESTRICT,
         blank=True,
         null=True,
+        related_name="device_certificate",
+        related_query_name="device_certificate",
     )
 
     class Meta:
@@ -80,7 +88,8 @@ class AbstractDeviceCertificate(TimeStampedEditableModel):
                     }
                 )
             if (
-                self.template.organization_id
+                self.config_id
+                and self.template.organization_id
                 and self.config.device.organization_id != self.template.organization_id
             ):
                 raise ValidationError(
@@ -120,7 +129,8 @@ class AbstractDeviceCertificate(TimeStampedEditableModel):
                     }
                 )
             if (
-                self.cert.organization_id
+                self.config_id
+                and self.cert.organization_id
                 and self.config.device.organization_id != self.cert.organization_id
             ):
                 raise ValidationError(
@@ -221,6 +231,43 @@ class AbstractDeviceCertificate(TimeStampedEditableModel):
         Automatically revokes the certificate when the template is unassigned.
         """
         revoke_device_cert(instance)
+
+    @classmethod
+    def validate_bound_cert_organization(
+        cls, sender, instance, update_fields=None, **kwargs
+    ):
+        """
+        Prevent moving a certificate to another organization while assigned.
+        """
+        if instance._state.adding or not instance.pk:
+            return
+        if update_fields is not None and not {
+            "organization",
+            "organization_id",
+        }.intersection(update_fields):
+            return
+        initial_org_id = getattr(
+            instance,
+            "_initial_organization_id",
+            models.DEFERRED,
+        )
+        if initial_org_id is models.DEFERRED:
+            try:
+                old = sender._default_manager.only("organization").get(pk=instance.pk)
+            except sender.DoesNotExist:
+                return
+            initial_org_id = old.organization_id
+        if initial_org_id == instance.organization_id:
+            return
+        if cls.objects.filter(cert=instance).exists():
+            raise ValidationError(
+                {
+                    "organization": _(
+                        "The organization of a certificate assigned to a device "
+                        "cannot be changed."
+                    )
+                }
+            )
 
     @classmethod
     def regenerate_certificates(cls, device_id, expected_cert_ids=None):

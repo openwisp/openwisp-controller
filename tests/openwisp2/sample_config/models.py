@@ -96,7 +96,7 @@ class VpnClient(DetailsModel, AbstractVpnClient):
         abstract = False
 
 
-class DeviceCertificate(DetailsModel, AbstractDeviceCertificate):
+class DeviceCert(DetailsModel, AbstractDeviceCertificate):
     """
     m2m through model
     """

@@ -719,13 +719,25 @@ class TestConfigApi(
 
     def test_template_list_api(self):
         org1 = self._get_org()
+        ca = self._create_ca(organization=org1)
+        blueprint = self._create_cert(ca=ca, organization=org1)
         initial_count = Template.objects.count()
-        self._create_template(name="t1", organization=org1)
+        template = self._create_template(
+            name="t1",
+            organization=org1,
+            type="cert",
+            ca=ca,
+            blueprint_cert=blueprint,
+            config={},
+        )
         path = reverse("config_api:template_list")
         with self.assertNumQueries(4):
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
         self.assertEqual(Template.objects.count(), initial_count + 1)
+        self.assertEqual(r.data["results"][0]["id"], str(template.pk))
+        self.assertEqual(r.data["results"][0]["ca"], ca.pk)
+        self.assertEqual(r.data["results"][0]["blueprint_cert"], blueprint.pk)
 
     def test_template_list_api_filter(self):
         org1 = self._create_org()
@@ -814,12 +826,22 @@ class TestConfigApi(
 
     # template-detail having no Org
     def test_template_detail_api(self):
-        t1 = self._create_template(name="t1")
+        ca = self._create_ca()
+        blueprint = self._create_cert(ca=ca)
+        t1 = self._create_template(
+            name="t1",
+            type="cert",
+            ca=ca,
+            blueprint_cert=blueprint,
+            config={},
+        )
         path = reverse("config_api:template_detail", args=[t1.pk])
         with self.assertNumQueries(3):
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data["organization"], None)
+        self.assertEqual(r.data["ca"], ca.pk)
+        self.assertEqual(r.data["blueprint_cert"], blueprint.pk)
 
     def test_template_put_api(self):
         t1 = self._create_template(name="t1", organization=None)
@@ -1547,8 +1569,8 @@ class TestConfigApi(
             response = self.client.put(path, data, content_type="application/json")
             self.assertEqual(response.status_code, 200, response.data)
             self.assertEqual(config.templates.count(), 1)
-            self.assertEqual(config.devicecertificate_set.count(), 1)
-            generated_cert = config.devicecertificate_set.get().cert
+            self.assertEqual(config.device_certificate_relations.count(), 1)
+            generated_cert = config.device_certificate_relations.get().cert
 
         with self.subTest(
             "Removing template via API deletes/revokes DeviceCertificate"
@@ -1558,7 +1580,7 @@ class TestConfigApi(
                 response = self.client.put(path, data, content_type="application/json")
             self.assertEqual(response.status_code, 200, response.data)
             self.assertEqual(config.templates.count(), 0)
-            self.assertEqual(config.devicecertificate_set.count(), 0)
+            self.assertEqual(config.device_certificate_relations.count(), 0)
             generated_cert.refresh_from_db()
             self.assertTrue(generated_cert.revoked)
 
@@ -1586,7 +1608,7 @@ class TestConfigApi(
         device = self._create_device(organization=org)
         config = self._create_config(device=device)
         config.templates.add(required_cert_template)
-        dev_cert = config.devicecertificate_set.first()
+        dev_cert = config.device_certificate_relations.first()
         self.assertIsNotNone(dev_cert)
         original_dev_cert_id = dev_cert.pk
         original_cert_id = dev_cert.cert.pk
@@ -1618,8 +1640,8 @@ class TestConfigApi(
             regular_template,
             config.templates.all(),
         )
-        self.assertEqual(config.devicecertificate_set.count(), 1)
-        surviving_dev_cert = config.devicecertificate_set.first()
+        self.assertEqual(config.device_certificate_relations.count(), 1)
+        surviving_dev_cert = config.device_certificate_relations.first()
         self.assertEqual(
             surviving_dev_cert.pk,
             original_dev_cert_id,

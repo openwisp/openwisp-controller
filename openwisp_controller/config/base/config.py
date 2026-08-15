@@ -180,18 +180,13 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
     def _resolve_cert_dependency(cls, cert, **kwargs):
         """
         Returns the Config whose checksum depends on this client certificate.
-
-        Mirrors the previous ``certificate_updated`` handler: a revoked
-        certificate or a certificate not linked to a VpnClient or
-        DeviceCertificate does not affect any configuration.
         """
-        if cert.revoked:
-            return []
         configs = set()
-        try:
-            configs.add(cert.vpnclient.config)
-        except ObjectDoesNotExist:
-            pass
+        if not cert.revoked:
+            try:
+                configs.add(cert.vpnclient.config)
+            except ObjectDoesNotExist:
+                pass
         DeviceCertificate = load_model("config", "DeviceCertificate")
         for dc in DeviceCertificate.objects.filter(cert=cert).select_related("config"):
             configs.add(dc.config)
@@ -625,12 +620,12 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
         # handle full cleanup if the device configuration profile is being wiped
         if action == "post_clear":
             if instance.is_deactivating_or_deactivated():
-                instance.devicecertificate_set.all().delete()
+                instance.device_certificate_relations.all().delete()
             else:
                 # If this is a reorder, the subsequent 'add' will complete first,
                 # saving the certs. If it is a pure clear, the certs will be deleted.
                 transaction.on_commit(
-                    lambda: instance.devicecertificate_set.exclude(
+                    lambda: instance.device_certificate_relations.exclude(
                         template_id__in=instance.templates.values_list("id", flat=True)
                     ).delete()
                 )
@@ -646,14 +641,14 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
         # deletes orphaned certificates that are no
         # longer assigned in the templates list.
         if len(pk_set) != templates.filter(required=True).count():
-            instance.devicecertificate_set.exclude(
+            instance.device_certificate_relations.exclude(
                 template_id__in=instance.templates.values_list("id", flat=True)
             ).delete()
         # allocate new DeviceCertificate associations
         # for newly added certificate templates
         if action == "post_add":
             for template in templates.filter(type="cert"):
-                instance.devicecertificate_set.get_or_create(template=template)
+                instance.device_certificate_relations.get_or_create(template=template)
 
     def get_default_templates(self):
         """
@@ -1032,8 +1027,7 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
             self.set_status_applied()
 
     def _invalidate_backend_instance_cache(self):
-        if hasattr(self, "backend_instance"):
-            del self.backend_instance
+        self.__dict__.pop("backend_instance", None)
 
     def _has_device(self):
         return hasattr(self, "device")
@@ -1093,8 +1087,8 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
         cert_template_ids = [t.id for t in self.templates.all() if t.type == "cert"]
         if not cert_template_ids:
             return cert_context
-        for dc in self.devicecertificate_set.all():
-            if dc.cert and dc.template_id in cert_template_ids:
+        for dc in self.device_certificate_relations.select_related("cert").all():
+            if dc.cert and not dc.cert.revoked and dc.template_id in cert_template_ids:
                 template_hex = dc.template_id.hex
                 prefix = f"cert_{template_hex}"
                 cert_filename = "cert-{0}.pem".format(template_hex)

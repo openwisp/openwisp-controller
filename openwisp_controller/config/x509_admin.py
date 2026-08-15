@@ -22,7 +22,7 @@ class DeviceCertificateDeviceFilter(AutocompleteFilter):
 
     title = _("device")
     field_name = "device"
-    parameter_name = "devicecertificate__config__device"
+    parameter_name = "device_certificate__config__device"
     rel_model = Config
 
     def __init__(self, request, params, model, model_admin):

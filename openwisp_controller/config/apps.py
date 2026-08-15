@@ -222,6 +222,11 @@ class ConfigConfig(AppConfig):
             sender=self.devicecert_model,
             dispatch_uid="devicecert.post_delete",
         )
+        pre_save.connect(
+            self.devicecert_model.validate_bound_cert_organization,
+            sender=self.cert_model,
+            dispatch_uid="devicecert.validate_bound_cert_organization",
+        )
         vpn_peers_changed.connect(
             self.vpn_model.update_vpn_server_configuration,
             sender=self.vpn_model,

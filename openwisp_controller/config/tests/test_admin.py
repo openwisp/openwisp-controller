@@ -403,7 +403,7 @@ class TestAdmin(
         response = self.client.get(path)
         self.assertIn("Preview", str(response.content))
 
-    def _create_multitenancy_test_env(self, vpn=False):
+    def _create_multitenancy_test_env(self, vpn=False, cert=False):
         org1 = self._create_org(name="test1org")
         org2 = self._create_org(name="test2org")
         inactive = self._create_org(name="inactive-org", is_active=False)
@@ -454,6 +454,41 @@ class TestAdmin(
             data.update(
                 dict(vpn1=v1, vpn2=v2, vpn_shared=v3, vpn_inactive=v4, t1_vpn=t4)
             )
+        if cert:
+            ca1 = self._create_ca(name="ca1", common_name="ca1-cert", organization=org1)
+            ca2 = self._create_ca(name="ca2", common_name="ca2-cert", organization=org2)
+            ca_shared = self._create_ca(
+                name="ca-shared", common_name="ca-shared", organization=None
+            )
+            ca_inactive = self._create_ca(
+                name="ca-inactive", common_name="ca-inactive", organization=inactive
+            )
+            cert1 = self._create_cert(
+                name="cert1", common_name="cert1-cert", ca=ca1, organization=org1
+            )
+            cert2 = self._create_cert(
+                name="cert2", common_name="cert2-cert", ca=ca2, organization=org2
+            )
+            cert_shared = self._create_cert(
+                name="cert-shared",
+                common_name="cert-shared",
+                ca=ca_shared,
+                organization=None,
+            )
+            cert_inactive = self._create_cert(
+                name="cert-inactive",
+                common_name="cert-inactive",
+                ca=ca_inactive,
+                organization=inactive,
+            )
+            data.update(
+                dict(
+                    cert1=cert1,
+                    cert2=cert2,
+                    cert_shared=cert_shared,
+                    cert_inactive=cert_inactive,
+                )
+            )
         return data
 
     def test_device_queryset(self):
@@ -498,6 +533,30 @@ class TestAdmin(
             url=self._get_autocomplete_view_path(self.app_label, "template", "vpn"),
             visible=[data["vpn1"].name],
             hidden=[data["vpn2"].name, data["vpn_inactive"].name],
+        )
+
+    def test_template_ca_fk_autocomplete_view(self):
+        data = self._create_multitenancy_test_env(vpn=True)
+        self._test_multitenant_admin(
+            url=(
+                f'{reverse("admin:autocomplete")}?app_label={self.app_label}'
+                "&model_name=template&field_name=ca"
+            ),
+            visible=[data["vpn1"].ca.name, data["vpn_shared"].ca.name],
+            hidden=[data["vpn2"].ca.name, data["vpn_inactive"].ca.name],
+            administrator=True,
+        )
+
+    def test_template_blueprint_cert_fk_autocomplete_view(self):
+        data = self._create_multitenancy_test_env(cert=True)
+        self._test_multitenant_admin(
+            url=(
+                f'{reverse("admin:autocomplete")}?app_label={self.app_label}'
+                "&model_name=template&field_name=blueprint_cert"
+            ),
+            visible=[data["cert1"].name, data["cert_shared"].name],
+            hidden=[data["cert2"].name, data["cert_inactive"].name],
+            administrator=True,
         )
 
     def test_vpn_queryset(self):
@@ -1810,7 +1869,7 @@ class TestAdmin(
         )
         self.assertEqual(
             get_device_certificate_changelist_url(device.id),
-            f"{expected_url}?devicecertificate__config__device={device.id}",
+            f"{expected_url}?device_certificate__config__device={device.id}",
         )
 
     def test_certificate_admin_filter_by_device(self):
@@ -1842,7 +1901,7 @@ class TestAdmin(
         response = self.client.get(get_device_certificate_changelist_url(device_1.id))
         self.assertContains(
             response,
-            'name="devicecertificate__config__device"',
+            'name="device_certificate__config__device"',
         )
         self.assertContains(
             response,

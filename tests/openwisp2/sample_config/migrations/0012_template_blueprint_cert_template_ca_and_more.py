@@ -76,7 +76,7 @@ class Migration(migrations.Migration):
             ),
         ),
         migrations.CreateModel(
-            name="DeviceCertificate",
+            name="DeviceCert",
             fields=[
                 (
                     "id",
@@ -110,6 +110,8 @@ class Migration(migrations.Migration):
                         blank=True,
                         null=True,
                         on_delete=django.db.models.deletion.RESTRICT,
+                        related_name="device_certificate",
+                        related_query_name="device_certificate",
                         to="sample_pki.cert",
                     ),
                 ),
@@ -117,6 +119,8 @@ class Migration(migrations.Migration):
                     "config",
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
+                        related_name="device_certificate_relations",
+                        related_query_name="device_certificate",
                         to="sample_config.config",
                     ),
                 ),
@@ -124,6 +128,8 @@ class Migration(migrations.Migration):
                     "template",
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
+                        related_name="device_certificate_relations",
+                        related_query_name="device_certificate",
                         to="sample_config.template",
                     ),
                 ),
@@ -142,7 +148,7 @@ class Migration(migrations.Migration):
             field=models.ManyToManyField(
                 blank=True,
                 related_name="config_device_certificates",
-                through="sample_config.DeviceCertificate",
+                through="sample_config.DeviceCert",
                 to="sample_config.template",
                 verbose_name="device certificates",
             ),

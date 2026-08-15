@@ -253,7 +253,7 @@ class TestPkiApi(
             "organization": org2.pk,
             "notes": "new-notes",
         }
-        with self.assertNumQueries(10):
+        with self.assertNumQueries(11):
             r = self.client.put(path, data, content_type="application/json")
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data["name"], "cert1-change")
@@ -300,7 +300,7 @@ class TestPkiApi(
         cert1 = self._create_cert(name="cert1")
         self.assertFalse(cert1.revoked)
         path = reverse("pki_api:cert_revoke", args=[cert1.pk])
-        with self.assertNumQueries(3):
+        with self.assertNumQueries(4):
             r = self.client.post(path)
         cert1.refresh_from_db()
         self.assertEqual(r.status_code, 200)
@@ -391,7 +391,7 @@ class TestTransactionPkiApi(
             "organization": org2.pk,
             "notes": "new-notes",
         }
-        with self.assertNumQueries(11):
+        with self.assertNumQueries(12):
             r = self.client.put(path, data, content_type="application/json")
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data["name"], "cert1-change")
@@ -422,7 +422,7 @@ class TestTransactionPkiApi(
         cert1 = self._create_cert(name="cert1")
         self.assertFalse(cert1.revoked)
         path = reverse("pki_api:cert_revoke", args=[cert1.pk])
-        with self.assertNumQueries(4):
+        with self.assertNumQueries(5):
             r = self.client.post(path)
         cert1.refresh_from_db()
         self.assertEqual(r.status_code, 200)

@@ -36,5 +36,27 @@ class AbstractCert(ShareableOrgMixin, UnqiueCommonNameMixin, BaseCert):
             ),
         ]
 
+    @classmethod
+    def from_db(cls, db, field_names, values):
+        instance = super().from_db(db, field_names, values)
+        if "organization_id" in field_names:
+            instance._initial_organization_id = instance.organization_id
+        return instance
+
+    def refresh_from_db(self, using=None, fields=None, **kwargs):
+        super().refresh_from_db(using=using, fields=fields, **kwargs)
+        if fields is None or {"organization", "organization_id"}.intersection(fields):
+            self._initial_organization_id = self.organization_id
+
+    def save(self, *args, **kwargs):
+        update_fields = kwargs.get("update_fields")
+        if update_fields is None and len(args) > 3:
+            update_fields = args[3]
+        super().save(*args, **kwargs)
+        if update_fields is None or {"organization", "organization_id"}.intersection(
+            update_fields
+        ):
+            self._initial_organization_id = self.organization_id
+
     def clean(self):
         self._validate_org_relation("ca")

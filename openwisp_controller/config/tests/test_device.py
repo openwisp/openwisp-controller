@@ -844,6 +844,31 @@ class TestDeviceCertificateSignalTrigger(
             device.save(update_fields=["name"])
         mocked_task.assert_not_called()
 
+    @mock.patch(
+        "openwisp_controller.config.tasks.regenerate_device_certificates_task.delay"
+    )
+    def test_positional_update_fields_preserves_dirty_name_for_later_save(
+        self, mocked_task
+    ):
+        org = self._create_org()
+        device = self._create_device(
+            organization=org, name="old-name", mac_address="00:11:22:33:44:55"
+        )
+        ca = self._create_ca(name="test-ca", organization=org)
+        template = self._create_template(
+            organization=org, type="cert", ca=ca, auto_cert=True
+        )
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        device.name = "new-name"
+        device.key = "new-management-key"
+        with self.captureOnCommitCallbacks(execute=True):
+            device.save(False, False, None, ["key"])
+        mocked_task.assert_not_called()
+        with self.captureOnCommitCallbacks(execute=True):
+            device.save(False, False, None, ["name"])
+        mocked_task.assert_called_once()
+
 
 class TestDeviceCertificateRegenerationTask(
     CreateConfigTemplateMixin,
@@ -1174,6 +1199,68 @@ class TestDeviceCertificateModel(
         dc._auto_x509()
         dc.refresh_from_db()
         self.assertEqual(dc.cert_id, cert.id)
+
+    def test_bound_cert_organization_cannot_change(self):
+        org1 = self._create_org(name="org-1", slug="org-1")
+        org2 = self._create_org(name="org-2", slug="org-2")
+        ca = self._create_ca(name="ca", organization=org1)
+        template = self._create_template(
+            type="cert", ca=ca, organization=org1, config={}
+        )
+        device = self._create_device(organization=org1)
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        dc = DeviceCertificate.objects.get(config=config, template=template)
+        cert = dc.cert
+        cert.organization = org2
+        with self.assertRaises(ValidationError) as ctx:
+            cert.save()
+        self.assertIn("organization", ctx.exception.message_dict)
+        cert.refresh_from_db()
+        self.assertEqual(cert.organization_id, org1.pk)
+
+    def test_bound_cert_dirty_organization_ignored_when_not_updated(self):
+        org1 = self._create_org(name="org-1", slug="org-1")
+        org2 = self._create_org(name="org-2", slug="org-2")
+        ca = self._create_ca(name="ca", organization=org1)
+        template = self._create_template(
+            type="cert", ca=ca, organization=org1, config={}
+        )
+        device = self._create_device(organization=org1)
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        cert = DeviceCertificate.objects.get(config=config, template=template).cert
+        cert.organization = org2
+        cert.name = "renamed"
+        cert.save(update_fields=["name"])
+        db_cert = Cert.objects.get(pk=cert.pk)
+        self.assertEqual(db_cert.name, "renamed")
+        self.assertEqual(db_cert.organization_id, org1.pk)
+        with self.assertRaises(ValidationError):
+            cert.save(update_fields=["organization"])
+        db_cert.refresh_from_db()
+        self.assertEqual(db_cert.organization_id, org1.pk)
+
+    def test_bound_cert_organization_guard_uses_current_snapshot(self):
+        org1 = self._create_org(name="org-1", slug="org-1")
+        org2 = self._create_org(name="org-2", slug="org-2")
+        ca = self._create_ca(name="ca")
+        cert = self._create_cert(name="cert", ca=ca, organization=org1)
+        cert = Cert.objects.get(pk=cert.pk)
+        cert.organization = org2
+        cert.save()
+        template = self._create_template(
+            type="cert", ca=ca, organization=org2, config={}
+        )
+        device = self._create_device(organization=org2)
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        dc = DeviceCertificate.objects.get(config=config, template=template)
+        dc.cert = cert
+        dc.save()
+        cert.organization = org1
+        with self.assertRaises(ValidationError):
+            cert.save()
 
     @mock.patch.object(app_settings, "COMMON_NAME_FORMAT", "{mac_address}-{name}")
     def test_common_name_format_fallback(self):

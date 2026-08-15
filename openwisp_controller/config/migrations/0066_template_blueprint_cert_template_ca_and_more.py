@@ -15,6 +15,8 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("config", "0065_whoisinfo_unreferenced_since"),
+        migrations.swappable_dependency(settings.CONFIG_CONFIG_MODEL),
+        migrations.swappable_dependency(settings.CONFIG_TEMPLATE_MODEL),
         migrations.swappable_dependency(settings.DJANGO_X509_CA_MODEL),
         migrations.swappable_dependency(settings.DJANGO_X509_CERT_MODEL),
     ]
@@ -111,6 +113,8 @@ class Migration(migrations.Migration):
                         blank=True,
                         null=True,
                         on_delete=django.db.models.deletion.RESTRICT,
+                        related_name="device_certificate",
+                        related_query_name="device_certificate",
                         to=settings.DJANGO_X509_CERT_MODEL,
                     ),
                 ),
@@ -118,6 +122,8 @@ class Migration(migrations.Migration):
                     "config",
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
+                        related_name="device_certificate_relations",
+                        related_query_name="device_certificate",
                         to=settings.CONFIG_CONFIG_MODEL,
                     ),
                 ),
@@ -125,6 +131,8 @@ class Migration(migrations.Migration):
                     "template",
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
+                        related_name="device_certificate_relations",
+                        related_query_name="device_certificate",
                         to=settings.CONFIG_TEMPLATE_MODEL,
                     ),
                 ),

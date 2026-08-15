@@ -630,7 +630,7 @@ class TestTemplateTransaction(
             with catch_signal(config_status_changed) as handler:
                 t.config["interfaces"][0]["name"] = "eth2"
                 t.full_clean()
-                with self.assertNumQueries(14):
+                with self.assertNumQueries(13):
                     t.save()
                 c.refresh_from_db()
                 handler.assert_not_called()
@@ -1036,7 +1036,7 @@ class TestTemplateTransaction(
         device = self._create_device(organization=org)
         config = self._create_config(device=device)
         config.templates.add(template)
-        dc = config.devicecertificate_set.first()
+        dc = config.device_certificate_relations.first()
         self.assertIsNotNone(dc)
         config.status = "applied"
         config.save(update_fields=["status"])
@@ -1084,11 +1084,10 @@ class TestTemplateTransaction(
             config.refresh_from_db()
 
             self.assertEqual(
-                config.devicecertificate_set.count(),
+                config.device_certificate_relations.count(),
                 2,
                 "Stale DeviceCertificate row should still exist",
             )
-
             context = config.get_context()
             self.assertIn(f"{keep_prefix}_path", context)
             self.assertNotIn(
@@ -1338,7 +1337,7 @@ class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, Test
         device = self._create_device(organization=org)
         config = self._create_config(device=device)
         config.templates.add(template)
-        dev_cert = config.devicecertificate_set.first()
+        dev_cert = config.device_certificate_relations.first()
         self.assertIsNotNone(dev_cert)
         generated_cert = dev_cert.cert
         self.assertEqual(generated_cert.country_code, "DE")
@@ -1377,7 +1376,7 @@ class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, Test
         device = self._create_device(organization=org)
         config = self._create_config(device=device)
         config.templates.add(template)
-        dev_cert = config.devicecertificate_set.first()
+        dev_cert = config.device_certificate_relations.first()
         self.assertIsNotNone(dev_cert, "DeviceCertificate was not created")
         generated_cert = dev_cert.cert
         with self.subTest("Copies blueprint attributes and sets CN"):
@@ -1419,7 +1418,7 @@ class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, Test
         with self.subTest("Secure Revocation (post_remove)"):
             cert_pk = generated_cert.pk
             config.templates.remove(template)
-            self.assertEqual(config.devicecertificate_set.count(), 0)
+            self.assertEqual(config.device_certificate_relations.count(), 0)
             revoked_cert = Cert.objects.get(pk=cert_pk)
             self.assertTrue(
                 revoked_cert.revoked, "Underlying certificate was not revoked!"
@@ -1443,7 +1442,7 @@ class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, Test
         device = self._create_device(organization=org)
         config = self._create_config(device=device)
         config.templates.add(template)
-        cert = config.devicecertificate_set.get(template=template).cert
+        cert = config.device_certificate_relations.get(template=template).cert
         self.assertEqual(cert.organizational_unit_name, "Network Operations")
 
     def test_device_certificate_autocert_save_is_atomic(self):
@@ -1495,12 +1494,12 @@ class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, Test
         device = self._create_device(organization=org)
         config = self._create_config(device=device)
         config.templates.set([regular_template, cert_template])
-        dev_cert = config.devicecertificate_set.first()
+        dev_cert = config.device_certificate_relations.first()
         self.assertIsNotNone(dev_cert, "DeviceCertificate should be created.")
         original_dev_cert_id = dev_cert.pk
         original_cert_id = dev_cert.cert.pk
         config.templates.set([cert_template, regular_template], clear=True)
-        dev_certs = config.devicecertificate_set.all()
+        dev_certs = config.device_certificate_relations.all()
         self.assertEqual(dev_certs.count(), 1)
         surviving_dev_cert = dev_certs.first()
         self.assertEqual(
@@ -1537,23 +1536,29 @@ class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, Test
         config = self._create_config(device=device)
         config.templates.set([cert_template_1, cert_template_2])
         self.assertEqual(
-            config.devicecertificate_set.count(), 2, "Two certs should be created"
+            config.device_certificate_relations.count(),
+            2,
+            "Two certs should be created",
         )
-        kept_cert_id = config.devicecertificate_set.get(template=cert_template_1).pk
-        removed_dc = config.devicecertificate_set.get(template=cert_template_2)
+        kept_cert_id = config.device_certificate_relations.get(
+            template=cert_template_1
+        ).pk
+        removed_dc = config.device_certificate_relations.get(template=cert_template_2)
         removed_cert_id = removed_dc.pk
         removed_cert_pk = removed_dc.cert_id
         removed_cert = Cert.objects.get(pk=removed_cert_pk)
         config.templates.set([cert_template_1], clear=True)
         self.assertEqual(
-            config.devicecertificate_set.count(), 1, "Only one cert should remain"
+            config.device_certificate_relations.count(),
+            1,
+            "Only one cert should remain",
         )
         self.assertTrue(
-            config.devicecertificate_set.filter(pk=kept_cert_id).exists(),
+            config.device_certificate_relations.filter(pk=kept_cert_id).exists(),
             "The kept template's certificate should have survived.",
         )
         self.assertFalse(
-            config.devicecertificate_set.filter(pk=removed_cert_id).exists(),
+            config.device_certificate_relations.filter(pk=removed_cert_id).exists(),
             "The removed template's certificate should have been deleted.",
         )
         removed_cert.refresh_from_db()
@@ -1564,8 +1569,7 @@ class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, Test
 
     def test_get_unassigned_certs_with_null_device_cert(self):
         """
-        Test that a DeviceCertificate with cert=None does not poison
-        the get_unassigned_certs() SQL query due to NULL semantics.
+        Ensure pending device certificates do not hide available blueprints.
         """
         org = self._get_org()
         ca = self._create_ca(name="Test-CA", organization=org)
@@ -1574,16 +1578,28 @@ class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, Test
         )
         device = self._create_device(name="Test-Device", organization=org)
         config = self._create_config(device=device)
-        template = self._create_template(
-            name="Test-Template", type="cert", ca=ca, organization=org, config={}
+        pending_template = self._create_template(
+            name="Pending-Template", type="cert", ca=ca, organization=org, config={}
         )
-        config.templates.add(template)
-        device_cert = DeviceCertificate.objects.get(config=config, template=template)
-        self.assertIsNotNone(device_cert.cert_id)
+        assigned_template = self._create_template(
+            name="Assigned-Template", type="cert", ca=ca, organization=org, config={}
+        )
+        config.templates.add(pending_template, assigned_template)
+        pending_device_cert = DeviceCertificate.objects.get(
+            config=config, template=pending_template
+        )
+        assigned_cert = DeviceCertificate.objects.get(
+            config=config, template=assigned_template
+        ).cert
+        DeviceCertificate.objects.filter(pk=pending_device_cert.pk).update(cert=None)
+        pending_device_cert.refresh_from_db()
+        self.assertIsNone(pending_device_cert.cert_id)
+        self.assertIsNotNone(assigned_cert)
         choices = get_unassigned_certs()
         queryset = choices.get("pk__in")
         self.assertIsNotNone(queryset)
         self.assertIn(unassigned_cert, queryset)
+        self.assertNotIn(assigned_cert, queryset)
 
     def test_get_value_for_comparison(self):
         self.assertEqual(_get_value_for_comparison({"a": 1}), {"a": 1})
@@ -1680,7 +1696,7 @@ class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, Test
         config.templates.add(template)
         context = config.get_context()
         prefix = f"cert_{template.pk.hex}"
-        device_cert = config.devicecertificate_set.first()
+        device_cert = config.device_certificate_relations.first()
         self.assertIsNotNone(device_cert, "DeviceCertificate was not created")
         cert = device_cert.cert
         self.assertIn(f"{prefix}_path", context)
@@ -1707,7 +1723,7 @@ class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, Test
         device = self._create_device(organization=org)
         config = self._create_config(device=device)
         config.templates.add(template)
-        dev_cert = config.devicecertificate_set.first()
+        dev_cert = config.device_certificate_relations.first()
         cert = dev_cert.cert
         with self.assertRaises(RestrictedError):
             cert.delete()
@@ -1721,7 +1737,7 @@ class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, Test
         device = self._create_device(organization=org)
         config = self._create_config(device=device)
         config.templates.add(template)
-        dev_cert = config.devicecertificate_set.first()
+        dev_cert = config.device_certificate_relations.first()
         cert = dev_cert.cert
         cert_pk = cert.pk
         config.templates.remove(template)
