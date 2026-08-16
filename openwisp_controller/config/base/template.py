@@ -189,8 +189,10 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
                 setattr(self, f"_initial_{field}", getattr(self, field))
 
     def save(self, *args, **kwargs):
-        # update_fields can be passed by name or as the 4th save() argument.
-        # Keep the same style when adding auto_cert below.
+        # Callers may pass update_fields positionally (4th save() argument),
+        # so it is not always in kwargs: without it a partial save would look
+        # like a full one, persisting auto_cert and treating unsaved fields as
+        # saved, which would hide changes from _validate_cert_template_changes().
         update_fields = kwargs.get("update_fields")
         is_positional = False
         if update_fields is None and len(args) > 3:
