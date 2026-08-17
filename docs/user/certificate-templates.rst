@@ -50,9 +50,10 @@ fields.
     device.
 
 :guilabel:`Automatic certificate provisioning` (``auto_cert``)
-    When enabled (which is the default behavior), an X.509 certificate is
-    automatically created and signed by the template's CA the moment the
-    template is assigned to a device configuration.
+    Certificate generator templates always use automatic certificate
+    provisioning. An X.509 certificate is automatically created and signed
+    by the template's CA the moment the template is assigned to a device
+    configuration.
 
 .. _certificate_templates_validation:
 
@@ -84,8 +85,8 @@ actively authorized to use them.
 
 **When assigned to a device:** When a Certificate Template is added to a
 device configuration, a ``DeviceCertificate`` relationship is established.
-If ``auto_cert`` is enabled, an X.509 certificate is generated and signed
-in the same database transaction:
+An X.509 certificate is generated and signed in the same database
+transaction:
 
 - The certificate's subject and extensions are copied from the
   :guilabel:`Blueprint Certificate` (or the CA defaults).
@@ -100,8 +101,7 @@ in the same database transaction:
 **When removed from a device:** When the Certificate Template is
 unassigned from a device configuration, the ``DeviceCertificate``
 relationship is deleted. Crucially, the underlying X.509 certificate is
-**automatically revoked** (provided it was created via
-``auto_cert=True``). This ensures that compromised or decommissioned
+**automatically revoked**. This ensures that compromised or decommissioned
 devices immediately lose their cryptographic access.
 
 **On certificate renewal:** When an administrator triggers renewal of a

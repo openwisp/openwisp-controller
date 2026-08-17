@@ -223,9 +223,7 @@ It allows declaring the *Certificate Authority* and an optional *Blueprint
 Certificate* that will be used to issue an X.509 certificate for each
 device the template is assigned to, without needing a VPN backend.
 
-When :guilabel:`Automatic certificate provisioning` (``auto_cert``) is
-enabled, this template type automatically provisions and revokes X.509
-certificates for assigned devices. Certificates assigned manually (with
-``auto_cert`` disabled) are not managed for you. See the
+This template type automatically provisions and revokes X.509 certificates
+for assigned devices. See the
 :doc:`/controller/user/certificate-templates` documentation for more
 details.
