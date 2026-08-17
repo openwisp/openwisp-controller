@@ -30,6 +30,8 @@ the device to revert to its previous working configuration.
 The device is in the process of being deactivated. The configuration is
 scheduled to be removed from the device.
 
+.. _controller_deactivated_config_status:
+
 ``deactivated``
 ---------------
 
