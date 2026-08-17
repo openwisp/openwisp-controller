@@ -571,6 +571,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, CopyableFieldsAdmin):
         "activate_device",
         "delete_selected",
     ]
+    disabled_organization_action_exclusions = ("deactivate_device",)
     org_position = 1 if not app_settings.HARDWARE_ID_ENABLED else 2
     list_display.insert(org_position, "organization")
     _state_adding = False

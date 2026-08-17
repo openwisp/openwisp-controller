@@ -199,7 +199,7 @@ class TestAdmin(TestPkiMixin, TestAdminMixin, TestOrganizationMixin, TestCase):
         # renewal must also leave its certs untouched
         self.assertEqual(str(cert.serial_number), str(old_cert_serial))
         self.assertContains(
-            response, "1 item belonging to a disabled organization was skipped."
+            response, "Actions cannot modify objects of disabled organizations."
         )
 
     def test_cert_revoke_action_allowed_for_disabled_org(self):
@@ -234,5 +234,5 @@ class TestAdmin(TestPkiMixin, TestAdminMixin, TestOrganizationMixin, TestCase):
         cert.refresh_from_db()
         self.assertEqual(str(cert.serial_number), str(old_serial))
         self.assertContains(
-            response, "1 item belonging to a disabled organization was skipped."
+            response, "Actions cannot modify objects of disabled organizations."
         )

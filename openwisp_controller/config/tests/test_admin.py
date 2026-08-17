@@ -754,7 +754,9 @@ class TestAdmin(
         }
         response = self.client.post(path, post_data, follow=True)
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Selected organization is disabled.")
+        self.assertContains(
+            response, "Actions cannot modify objects of disabled organizations."
+        )
         device.refresh_from_db()
         self.assertIsNone(device.group)
 
@@ -772,8 +774,25 @@ class TestAdmin(
         response = self.client.post(path, data, follow=True)
         self.assertEqual(response.status_code, 200)
         self.assertContains(
-            response, "Cannot activate devices of a disabled organization"
+            response, "Actions cannot modify objects of disabled organizations."
         )
+        device.refresh_from_db()
+        self.assertEqual(device.is_deactivated(), True)
+
+    def test_deactivate_device_action_disabled_org(self):
+        org = self._get_org()
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        device = self._create_device(organization=org)
+        path = reverse(f"admin:{self.app_label}_device_changelist")
+        data = {
+            "_selected_action": [device.pk],
+            "action": "deactivate_device",
+            "csrfmiddlewaretoken": "test",
+        }
+        response = self.client.post(path, data, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "was deactivated successfully")
         device.refresh_from_db()
         self.assertEqual(device.is_deactivated(), True)
 
