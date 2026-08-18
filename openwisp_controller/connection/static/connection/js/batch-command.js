@@ -103,11 +103,6 @@ function updateSkippedDevices($, data) {
       .append($("<br>"))
       .append(document.createTextNode(row.device_name + ": " + row.output));
   });
-  $list.append(
-    $("<p>")
-      .addClass("skipped-devices-note")
-      .text(gettext("Refer to the table below to see what happened to each device.")),
-  );
 }
 
 function handleBatchStateMessage($, data) {

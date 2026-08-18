@@ -117,9 +117,6 @@
 .skipped-devices-list {
   line-height: 1.7;
 }
-.skipped-devices-note {
-  margin: 1em 0 0;
-}
 .field-display_skipped_devices .readonly.readonly {
   padding: 0;
 }
