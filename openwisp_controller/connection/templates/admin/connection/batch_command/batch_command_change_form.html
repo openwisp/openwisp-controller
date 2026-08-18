@@ -19,10 +19,8 @@
 {% block content %}
 {{ block.super }}
 
-<!-- Commands Section -->
 <h1 class="commands-title">{% trans "Commands" %}</h1>
 
-<!-- OpenWISP Filter Section -->
 {% if filter_specs %}
 <div id="ow-changelist-filter">
   <div class="filters-bottom">
@@ -84,7 +82,6 @@
 </div>
 {% endif %}
 
-<!-- Search Bar -->
 <div class="search-section">
   <form method="get" class="search-form">
     <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -102,7 +99,6 @@
   </form>
 </div>
 
-<!-- Results Table -->
 <div class="results-container">
   <table id="result_list" class="results-table"
     data-device-url="{% url 'admin:config_device_change' '00000000-0000-0000-0000-000000000000' %}"
@@ -119,14 +115,14 @@
     </thead>
     <tbody>
       {% for command in commands %}
-      <tr id="batch-command-row-{{ command.device_pk }}"
-          data-device-pk="{{ command.device_pk }}"
+      <tr id="batch-command-row-{{ command.device }}"
+          data-device-pk="{{ command.device }}"
           class="{% cycle 'row1' 'row2' %}">
         <td>
           {% if command.is_skipped %}
           <span class="device-name-disabled">{{ command.device_name }}</span>
           {% else %}
-          <a href="{% url 'admin:config_device_change' command.device_pk %}#command_set-2-group"
+          <a href="{% url 'admin:config_device_change' command.device %}#command_set-2-group"
             class="device-link" aria-label="{% trans 'View recent commands' %} {{ command.device_name }}">
             {{ command.device_name }}
           </a>
@@ -148,7 +144,6 @@
     </tbody>
   </table>
 
-  <!-- Results Count -->
   {% if paginator %}
   <p class="paginator">
     {% blocktrans count counter=paginator.count %}
@@ -158,7 +153,6 @@
   </p>
   {% endif %}
 
-  <!-- Pagination -->
   {% if page_obj.has_other_pages %}
   <div class="pagination">
     <span class="step-links">
@@ -168,7 +162,7 @@
       </a>
       {% endif %}
       <span class="current-page">
-        {% trans 'Page' %} {{ page_obj.number }} {% trans 'of' %} {{ page_obj.paginator.num_pages }}
+        {% blocktrans with current=page_obj.number total=page_obj.paginator.num_pages %}Page {{ current }} of {{ total }}{% endblocktrans %}
       </span>
       {% if page_obj.has_next %}
       <a href="?{% for key,value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value|urlencode }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}">

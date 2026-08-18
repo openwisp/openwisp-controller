@@ -614,7 +614,7 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
             self.assertIn("device", exception.message_dict)
             self.assertEqual(
                 exception.message_dict["device"],
-                ["Device has no credentials assigned."],
+                ["Device has no credentials assigned"],
             )
 
     def test_command_validation_deactivated_device(self):
@@ -646,7 +646,7 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
                 command.clean()
             self.assertIn("device", ctx.exception.message_dict)
             self.assertEqual(
-                ctx.exception.message_dict["device"], ["Device is deactivated."]
+                ctx.exception.message_dict["device"], ["Device is deactivated"]
             )
 
     @tag("skip_prod")
@@ -1141,7 +1141,7 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
             self.assertIn(str(device.pk), batch.skipped_devices)
             self.assertIn(
                 "Device is deactivated",
-                batch.skipped_devices[str(device.pk)][0],
+                batch.skipped_devices[str(device.pk)]["error"],
             )
 
     def test_batch_command_create_commands_no_credentials(self):
@@ -1157,7 +1157,7 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
         self.assertIn(str(device.pk), batch.skipped_devices)
         self.assertIn(
             "Device has no credentials assigned",
-            batch.skipped_devices[str(device.pk)][0],
+            batch.skipped_devices[str(device.pk)]["error"],
         )
 
     def test_batch_command_create_commands_skip_scenarios(self):
@@ -1192,7 +1192,7 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
                 self.assertIn(str(device_b.pk), batch.skipped_devices)
                 self.assertIn(
                     '"custom" command is not available for this organization',
-                    batch.skipped_devices[str(device_b.pk)][0],
+                    batch.skipped_devices[str(device_b.pk)]["error"],
                 )
                 db_batch = BatchCommand.objects.get(pk=batch.pk)
                 self.assertEqual(batch.skipped_devices, db_batch.skipped_devices)
@@ -1238,12 +1238,12 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
             self.assertIn(str(device_no_creds.pk), batch.skipped_devices)
             self.assertIn(
                 "Device has no credentials assigned",
-                batch.skipped_devices[str(device_no_creds.pk)][0],
+                batch.skipped_devices[str(device_no_creds.pk)]["error"],
             )
             self.assertIn(str(device_deactivated.pk), batch.skipped_devices)
             self.assertIn(
                 "Device is deactivated",
-                batch.skipped_devices[str(device_deactivated.pk)][0],
+                batch.skipped_devices[str(device_deactivated.pk)]["error"],
             )
             self.assertNotIn(str(device_ok.pk), batch.skipped_devices)
             db_batch = BatchCommand.objects.get(pk=batch.pk)
@@ -1720,7 +1720,9 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
 
         with self.subTest("all success with skipped shows failed"):
             batch3 = self._create_batch_command(organization=org)
-            batch3.skipped_devices = {str(device.pk): ["no credentials"]}
+            batch3.skipped_devices = {
+                str(device.pk): {"name": device.name, "error": "no credentials"}
+            }
             batch3.save(update_fields=["skipped_devices"])
             Command.objects.create(
                 batch_command=batch3,

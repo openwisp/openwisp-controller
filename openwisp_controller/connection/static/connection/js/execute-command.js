@@ -40,9 +40,18 @@ function initExecuteCommandForm($) {
 
   function handleTypeChange() {
     const selected = $typeSelect.val();
+    let data = null;
+    try {
+      data = $hiddenInput.val() ? JSON.parse($hiddenInput.val()) : null;
+    } catch (error) {
+      data = null;
+    }
     $container.empty();
     if (selected === COMMAND_TYPE_CUSTOM) {
-      renderCustomCommandField($, $container, fieldName);
+      renderCustomCommandField($, $container);
+      if (data && data.command) {
+        $container.find("#id_command").val(data.command);
+      }
       updateCustomCommandInput();
     } else if (selected === COMMAND_TYPE_CHANGE_PASSWORD) {
       renderChangePasswordFields($, $container);
@@ -85,18 +94,9 @@ function initExecuteCommandForm($) {
       return;
     }
     handleTypeChange();
-    let data = null;
-    try {
-      data = $hiddenInput.val() ? JSON.parse($hiddenInput.val()) : null;
-    } catch (error) {
-      data = null;
-    }
-    if (data && data.command) {
-      $container.find("#id_command").val(data.command);
-    }
   });
 
-  $("#review-command-btn").on("click", function () {
+  $form.on("submit", function (event) {
     clearFieldErrors($);
     const type = $typeSelect.val();
     let hasError = false;
@@ -124,8 +124,33 @@ function initExecuteCommandForm($) {
         hasError = true;
       }
     }
-    if (!hasError) {
-      $form.submit();
+    if (type === COMMAND_TYPE_CHANGE_PASSWORD) {
+      const $password = $container.find("#id_password");
+      const $confirmPassword = $container.find("#id_confirm_password");
+      const password = $password.val() || "";
+      const confirmPassword = $confirmPassword.val() || "";
+      if (!password || !confirmPassword) {
+        showFieldError(
+          (password ? $confirmPassword : $password).closest(".form-row"),
+          gettext("This field is required."),
+        );
+        hasError = true;
+      } else if (password.length < 6 || !$.trim(password)) {
+        showFieldError(
+          $password.closest(".form-row"),
+          gettext("Your password must be at least 6 characters long"),
+        );
+        hasError = true;
+      } else if (password !== confirmPassword) {
+        showFieldError(
+          $confirmPassword.closest(".form-row"),
+          gettext("The two password fields didn't match."),
+        );
+        hasError = true;
+      }
+    }
+    if (hasError) {
+      event.preventDefault();
     }
   });
 }
@@ -192,7 +217,6 @@ function initDeviceSelection($) {
   });
 
   $form.on("submit", function () {
-    removeStoredExclusions(storageKey);
     // guards against a double click creating two mass commands
     $button.prop("disabled", true);
   });
@@ -211,15 +235,13 @@ function getHiddenInput($, $form, fieldName) {
   return $hiddenInput;
 }
 
-function renderCustomCommandField($, $container, fieldName) {
+function renderCustomCommandField($, $container) {
   const $row = $('<div class="form-row"></div>');
   const $flexContainer = $('<div class="flex-container"></div>');
   $flexContainer.append(
     '<label for="id_command" class="required">' + gettext("Command") + "</label>",
   );
-  $flexContainer.append(
-    '<input type="text" id="id_command" name="' + fieldName + '" class="vTextField">',
-  );
+  $flexContainer.append('<input type="text" id="id_command" class="vTextField">');
   $row.append($flexContainer);
   $row.append(
     '<div class="help" id="id_command_helptext"><div>' +
@@ -300,14 +322,6 @@ function getStoredExclusions($, storageKey) {
 function setStoredExclusions(storageKey, pks) {
   try {
     window.sessionStorage.setItem(storageKey, JSON.stringify(pks));
-  } catch (error) {
-    // see getStoredExclusions()
-  }
-}
-
-function removeStoredExclusions(storageKey) {
-  try {
-    window.sessionStorage.removeItem(storageKey);
   } catch (error) {
     // see getStoredExclusions()
   }
