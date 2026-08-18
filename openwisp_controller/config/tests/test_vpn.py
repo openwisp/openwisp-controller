@@ -162,6 +162,26 @@ class TestVpn(BaseTestVpn, TestCase):
         self.assertEqual(VpnClient.objects.filter(pk=vpnclient.pk).count(), 0)
         self.assertEqual(Cert.objects.filter(pk=cert_pk).count(), 0)
 
+    def test_vpn_client_cert_extensions_are_independent(self):
+        org = self._get_org()
+        vpn = self._create_vpn()
+        template = self._create_template(
+            name="vpn-test", type="vpn", vpn=vpn, auto_cert=True
+        )
+        config1 = self._create_config(organization=org)
+        device2 = self._create_device(
+            name="test-device-2",
+            mac_address="00:11:22:33:44:56",
+            organization=org,
+        )
+        config2 = self._create_config(device=device2)
+        config1.templates.add(template)
+        config2.templates.add(template)
+        cert1 = config1.vpnclient_set.get().cert
+        cert2 = config2.vpnclient_set.get().cert
+        cert1.extensions[0]["value"] = "mutated"
+        self.assertEqual(cert2.extensions[0]["value"], "client")
+
     def test_vpn_cert_and_ca_mismatch(self):
         ca = self._create_ca()
         different_ca = self._create_ca(common_name="different-ca")

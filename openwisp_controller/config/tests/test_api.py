@@ -1,8 +1,9 @@
 from datetime import timedelta
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from django.contrib.auth.models import Permission
 from django.core.cache import cache
+from django.core.exceptions import ValidationError
 from django.http.response import Http404
 from django.test import TestCase
 from django.test.client import BOUNDARY, MULTIPART_CONTENT, encode_multipart
@@ -1524,27 +1525,70 @@ class TestConfigApi(
         self.assertEqual(r.status_code, 400)
         self.assertIn("type", r.data)
         self.assertIn("already assigned to active devices", str(r.data["type"]))
-
-    def test_template_create_api_org_scoping(self):
-        """Rejects CA or Blueprint from a different organization"""
-        org1 = self._get_org()
         org2 = self._create_org(name="Org2", slug="org2")
-        ca_org2 = self._create_ca(name="CA2", common_name="CA2", organization=org2)
-        path = reverse("config_api:template_list")
-        data = self._template_data
-        data.update(
-            {
-                "name": "Org Scope Template",
-                "type": "cert",
-                "ca": ca_org2.pk,
-                "organization": str(org1.pk),
-                "config": {},
-            }
+        r = self.client.patch(
+            path, {"organization": str(org2.pk)}, content_type="application/json"
         )
-        r = self.client.post(path, data, content_type="application/json")
         self.assertEqual(r.status_code, 400)
         self.assertIn("organization", r.data)
-        self.assertIn("related CA match", str(r.data["organization"]))
+        self.assertIn("already assigned to active devices", str(r.data["organization"]))
+
+    def test_template_create_api_org_scoping(self):
+        """Filters CA and Blueprint by the requesting manager's organizations."""
+        org1 = self._get_org()
+        org2 = self._create_org(name="Org2", slug="org2")
+        user = self._create_operator(organizations=[org1])
+        user.user_permissions.add(*Permission.objects.filter(codename="add_template"))
+        self.client.force_login(user)
+        ca_org2 = self._create_ca(name="CA2", common_name="CA2", organization=org2)
+        shared_ca = self._create_ca(
+            name="Shared CA", common_name="Shared CA", organization=None
+        )
+        blueprint_org2 = self._create_cert(
+            name="BP2",
+            common_name="BP2",
+            ca=shared_ca,
+            organization=org2,
+        )
+        shared_blueprint = self._create_cert(
+            name="Shared BP",
+            common_name="Shared BP",
+            ca=shared_ca,
+            organization=None,
+        )
+        path = reverse("config_api:template_list")
+        data = {
+            **self._template_data,
+            "type": "cert",
+            "organization": str(org1.pk),
+            "config": {},
+        }
+        with self.subTest("Rejects CA from unmanaged organization"):
+            data.update(name="Org Scope CA Template", ca=ca_org2.pk)
+            r = self.client.post(path, data, content_type="application/json")
+            self.assertEqual(r.status_code, 400)
+            self.assertIn("ca", r.data)
+
+        with self.subTest("Rejects blueprint from unmanaged organization"):
+            data.update(
+                name="Org Scope Blueprint Template",
+                ca=shared_ca.pk,
+                blueprint_cert=blueprint_org2.pk,
+            )
+            r = self.client.post(path, data, content_type="application/json")
+            self.assertEqual(r.status_code, 400)
+            self.assertIn("blueprint_cert", r.data)
+
+        with self.subTest("Accepts shared CA and blueprint"):
+            data.update(
+                name="Org Scope Shared Template",
+                ca=shared_ca.pk,
+                blueprint_cert=shared_blueprint.pk,
+            )
+            r = self.client.post(path, data, content_type="application/json")
+            self.assertEqual(r.status_code, 201, r.data)
+            self.assertEqual(r.data["ca"], shared_ca.pk)
+            self.assertEqual(r.data["blueprint_cert"], shared_blueprint.pk)
 
     def test_device_api_cert_template_lifecycle(self):
         """Assigning/removing a cert template triggers DeviceCertificate lifecycle"""
@@ -1583,6 +1627,38 @@ class TestConfigApi(
             self.assertEqual(config.device_certificate_relations.count(), 0)
             generated_cert.refresh_from_db()
             self.assertTrue(generated_cert.revoked)
+
+    def test_device_api_cert_template_generation_error(self):
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        cert_template = self._create_template(
+            name="API Invalid Generated Cert",
+            type="cert",
+            ca=ca,
+            organization=org,
+            config={},
+        )
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        path = reverse("config_api:device_detail", args=[device.pk])
+        data = self._device_data
+        data.update(
+            {
+                "name": device.name,
+                "organization": str(org.pk),
+                "mac_address": device.mac_address,
+            }
+        )
+        data["config"]["templates"] = [str(cert_template.pk)]
+        cert = Mock()
+        cert.full_clean.side_effect = ValidationError("invalid generated certificate")
+        with patch.object(DeviceCertificate, "_build_cert", return_value=cert):
+            response = self.client.put(path, data, content_type="application/json")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("config", response.data)
+        self.assertIn("invalid generated certificate", str(response.data["config"]))
+        self.assertEqual(config.templates.count(), 0)
+        self.assertEqual(config.device_certificate_relations.count(), 0)
 
     def test_device_api_required_cert_template_preserved(self):
         """

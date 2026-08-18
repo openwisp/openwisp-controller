@@ -384,6 +384,35 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
             raise ValidationError("\n".join(str(line) for line in error_lines))
 
     @classmethod
+    def clean_certificate_templates(cls, action, instance, templates):
+        """
+        Validates generated certificates before certificate templates are assigned.
+        """
+        if action != "pre_add":
+            return
+        cert_templates = templates.filter(type="cert").select_related(
+            "ca", "blueprint_cert"
+        )
+        if not cert_templates:
+            return
+        DeviceCertificate = load_model("config", "DeviceCertificate")
+        for template in cert_templates:
+            device_cert = DeviceCertificate(config=instance, template=template)
+            cert = device_cert._build_cert(
+                name=instance.device.name,
+                common_name=device_cert._get_common_name(),
+            )
+            try:
+                cert.full_clean()
+            except ValidationError as e:
+                raise ValidationError(
+                    _(
+                        'Certificate generation for template "{template}" failed: '
+                        "{error}"
+                    ).format(template=template.name, error=" ".join(e.messages))
+                )
+
+    @classmethod
     def clean_templates(cls, action, instance, pk_set, raw_data=None, **kwargs):
         """
         validates resulting configuration of config + templates
@@ -404,6 +433,7 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
         cls.clean_duplicate_vpn_client_templates(
             action, instance, templates, raw_data=raw_data
         )
+        cls.clean_certificate_templates(action, instance, templates)
         backend = instance.get_backend_instance(template_instances=templates)
         try:
             cls.clean_netjsonconfig_backend(backend)
@@ -1101,7 +1131,7 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
                         f"{prefix}_pem": dc.cert.certificate,
                         f"{prefix}_key_path": key_path,
                         f"{prefix}_key": dc.cert.private_key,
-                        f"{prefix}_uuid": str(dc.cert.id),
+                        f"{prefix}_id": str(dc.cert.id),
                     }
                 )
         return cert_context

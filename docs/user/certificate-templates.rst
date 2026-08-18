@@ -49,11 +49,11 @@ fields.
     :guilabel:`Certificate Authority` and must not already be bound to a
     device.
 
-:guilabel:`Automatic certificate provisioning` (``auto_cert``)
-    Certificate generator templates always use automatic certificate
-    provisioning. An X.509 certificate is automatically created and signed
-    by the template's CA the moment the template is assigned to a device
-    configuration.
+Certificate generator templates always use automatic certificate
+provisioning; this behavior is implicit and is not configurable from the
+admin or API. An X.509 certificate is automatically created and signed by
+the template's CA the moment the template is assigned to a device
+configuration.
 
 .. _certificate_templates_validation:
 
@@ -130,13 +130,14 @@ Active Template Mutation Lock
 
 To prevent breaking the cryptographic binding with devices that are
 already using a template, certain destructive changes are blocked while
-the template is assigned to *active* or *activating* device
-configurations.
+the template is assigned to configurations that are not ``deactivating``
+or ``deactivated``.
 
 You **cannot** change the following on an actively used template:
 
 - :guilabel:`Type` (only changing a ``cert`` template to a different type
   is blocked)
+- :guilabel:`Organization`
 - :guilabel:`Certificate Authority`
 - :guilabel:`Blueprint Certificate`
 
@@ -159,8 +160,10 @@ certificate includes two custom ASN.1 Object Identifiers (OIDs):
 - ``1.3.6.1.4.1.65901.2``: Contains the UUID of the device
   (``ASN1:UTF8:string:<device_id>``).
 
-These OIDs are appended securely to the certificate in addition to any
-extensions inherited from the :guilabel:`Blueprint Certificate`.
+These OIDs are added securely to the certificate. If the
+:guilabel:`Blueprint Certificate` already contains either reserved
+OpenWISP hardware OID, the generated certificate uses the device-specific
+value instead of the inherited value.
 
 .. _certificate_templates_context:
 
@@ -181,7 +184,7 @@ context:
 
 - ``{{ cert_<template_uuid_hex>_pem }}``: The public certificate.
 - ``{{ cert_<template_uuid_hex>_key }}``: The private key.
-- ``{{ cert_<template_uuid_hex>_uuid }}``: The UUID of the generated
+- ``{{ cert_<template_uuid_hex>_id }}``: The ID of the generated
   certificate.
 - ``{{ cert_<template_uuid_hex>_path }}``: The file system path where the
   certificate file will be installed on the device.
@@ -266,8 +269,9 @@ defaults of the selected Certificate Authority.
 
 Every auto-generated certificate automatically receives two custom ASN.1
 Object Identifiers that uniquely identify the device (see
-:ref:`certificate_templates_oid_extensions`). These are appended in
-addition to any extensions inherited from the blueprint.
+:ref:`certificate_templates_oid_extensions`). If the blueprint already
+contains either of these reserved OIDs, the inherited value is replaced
+with the value of the device using the template.
 
 **Out of scope**
 

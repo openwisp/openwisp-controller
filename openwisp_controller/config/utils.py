@@ -140,6 +140,8 @@ def get_client_extensions(blueprint=None, hardware_oids=None):
     else:
         extensions = copy.deepcopy(DEFAULT_CLIENT_EXTENSIONS)
     if hardware_oids:
+        oid_values = {ext["oid"] for ext in hardware_oids if ext.get("oid")}
+        extensions = [ext for ext in extensions if ext.get("oid") not in oid_values]
         extensions.extend(hardware_oids)
     return extensions
 

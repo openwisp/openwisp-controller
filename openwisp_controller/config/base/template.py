@@ -150,6 +150,7 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
     _changed_checked_fields = [
         "ca_id",
         "blueprint_cert_id",
+        "organization_id",
         "type",
     ]
 
@@ -212,8 +213,11 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
         self._set_initial_values_for_changed_checked_fields(update_fields=update_fields)
 
     def refresh_from_db(self, *args, **kwargs):
+        fields = kwargs.get("fields")
+        if fields is None and len(args) > 1:
+            fields = args[1]
         super().refresh_from_db(*args, **kwargs)
-        self._set_initial_values_for_changed_checked_fields()
+        self._set_initial_values_for_changed_checked_fields(update_fields=fields)
 
     def _get_initial_value_or_fallback(self, field):
         initial = getattr(self, f"_initial_{field}", None)
@@ -357,10 +361,12 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
         initial_blueprint_cert_id = self._get_initial_value_or_fallback(
             "blueprint_cert_id"
         )
+        initial_organization_id = self._get_initial_value_or_fallback("organization_id")
         initial_type = self._get_initial_value_or_fallback("type")
         changing_protected_fields = (
             initial_ca_id != self.ca_id
             or initial_blueprint_cert_id != self.blueprint_cert_id
+            or initial_organization_id != self.organization_id
             or (initial_type == "cert" and self.type != "cert")
         )
         if not changing_protected_fields:
@@ -385,6 +391,11 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
                 "This template is already assigned to active devices. "
                 "You cannot change the Blueprint Certificate "
                 "on an active template."
+            )
+        if initial_organization_id != self.organization_id:
+            errors["organization"] = _(
+                "This template is already assigned to active devices. "
+                "You cannot change the organization on an active template."
             )
         if initial_type == "cert" and self.type != "cert":
             errors["type"] = _(

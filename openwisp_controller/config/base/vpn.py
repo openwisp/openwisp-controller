@@ -34,9 +34,9 @@ from ..tasks_zerotier import (
     trigger_zerotier_server_update_member,
 )
 from ..utils import (
-    DEFAULT_CLIENT_EXTENSIONS,
     copy_ca_attributes,
     generate_common_name,
+    get_client_extensions,
     revoke_device_cert,
 )
 from .base import BaseConfig, ConfigChecksumCacheMixin
@@ -1038,7 +1038,7 @@ class AbstractVpnClient(models.Model):
             name=name,
             ca=ca,
             common_name=common_name,
-            extensions=list(DEFAULT_CLIENT_EXTENSIONS),
+            extensions=get_client_extensions(),
             **copy_ca_attributes(ca),
         )
         cert = self._auto_create_cert_extra(cert)

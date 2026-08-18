@@ -1248,14 +1248,12 @@ class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, Test
         if assigned to active devices.
         """
         org = self._get_org()
-        ca1 = self._create_ca(name="CA1", common_name="CA1", organization=org)
+        ca1 = self._create_ca(name="Shared CA", common_name="Shared CA")
         ca2 = self._create_ca(name="CA2", common_name="CA2", organization=org)
         blueprint1 = self._create_cert(
-            name="BP1", common_name="BP1_CN", ca=ca1, organization=org
+            name="Shared BP", common_name="Shared BP CN", ca=ca1
         )
-        blueprint2 = self._create_cert(
-            name="BP2", common_name="BP2_CN", ca=ca1, organization=org
-        )
+        blueprint2 = self._create_cert(name="BP2", common_name="BP2_CN", ca=ca1)
         template = self._create_template(
             name="Active Cert Template",
             type="cert",
@@ -1311,6 +1309,47 @@ class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, Test
                 self.fail(
                     "ValidationError not raised for active mutation of template type"
                 )
+
+        with self.subTest("Cannot move active template to another organization"):
+            org2 = self._create_org(name="Org2", slug="org2")
+            template.refresh_from_db()
+            template.organization = org2
+            try:
+                template.full_clean()
+            except ValidationError as err:
+                self.assertIn("organization", err.message_dict)
+                self.assertIn(
+                    "already assigned to active devices",
+                    str(err.message_dict["organization"][0]),
+                )
+            else:
+                self.fail(
+                    "ValidationError not raised for active mutation of organization"
+                )
+
+    def test_active_template_allows_organization_change_when_deactivated(self):
+        org1 = self._get_org()
+        org2 = self._create_org(name="Org2", slug="org2")
+        ca = self._create_ca(name="Shared CA", common_name="Shared CA")
+        blueprint = self._create_cert(
+            name="Shared BP",
+            common_name="Shared BP",
+            ca=ca,
+        )
+        template = self._create_template(
+            name="Inactive Cert Template",
+            type="cert",
+            ca=ca,
+            blueprint_cert=blueprint,
+            organization=org1,
+            config={},
+        )
+        device = self._create_device(organization=org1)
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        config.set_status_deactivated()
+        template.organization = org2
+        template.full_clean()
 
     def test_cert_generation_fallback_to_ca_defaults(self):
         """
@@ -1395,19 +1434,11 @@ class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, Test
             mac_oid = "1.3.6.1.4.1.65901.1"
             uuid_oid = "1.3.6.1.4.1.65901.2"
             mac_ext = next(
-                (
-                    ext
-                    for ext in extensions
-                    if ext.get("oid") == mac_oid or ext.get("name") == mac_oid
-                ),
+                (ext for ext in extensions if ext.get("oid") == mac_oid),
                 None,
             )
             uuid_ext = next(
-                (
-                    ext
-                    for ext in extensions
-                    if ext.get("oid") == uuid_oid or ext.get("name") == uuid_oid
-                ),
+                (ext for ext in extensions if ext.get("oid") == uuid_oid),
                 None,
             )
             self.assertIsNotNone(mac_ext, "MAC OID extension missing")
@@ -1423,6 +1454,71 @@ class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, Test
             self.assertTrue(
                 revoked_cert.revoked, "Underlying certificate was not revoked!"
             )
+
+    def test_blueprint_reserved_hardware_oids_are_replaced(self):
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        mac_oid = "1.3.6.1.4.1.65901.1"
+        uuid_oid = "1.3.6.1.4.1.65901.2"
+        blueprint = self._create_cert(
+            name="Reserved OID Blueprint",
+            ca=ca,
+            organization=org,
+            extensions=[
+                {
+                    "oid": mac_oid,
+                    "value": "ASN1:UTF8:string:00:00:00:00:00:00",
+                    "critical": False,
+                },
+                {
+                    "oid": uuid_oid,
+                    "value": "ASN1:UTF8:string:00000000-0000-0000-0000-000000000000",
+                    "critical": False,
+                },
+            ],
+        )
+        template = self._create_template(
+            name="Reserved OID Template",
+            type="cert",
+            ca=ca,
+            blueprint_cert=blueprint,
+            organization=org,
+            config={},
+        )
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        generated_cert = config.device_certificate_relations.get(template=template).cert
+        extensions = generated_cert.extensions
+        mac_extensions = [ext for ext in extensions if ext.get("oid") == mac_oid]
+        uuid_extensions = [ext for ext in extensions if ext.get("oid") == uuid_oid]
+        self.assertEqual(len(mac_extensions), 1)
+        self.assertEqual(len(uuid_extensions), 1)
+        self.assertIn(device.mac_address, mac_extensions[0]["value"])
+        self.assertIn(str(device.id), uuid_extensions[0]["value"])
+
+    def test_certificate_generation_error_blocks_template_assignment(self):
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        template = self._create_template(
+            name="Invalid Certificate Template",
+            type="cert",
+            ca=ca,
+            organization=org,
+            config={},
+        )
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        cert = mock.Mock()
+        cert.full_clean.side_effect = ValidationError("invalid generated certificate")
+        with mock.patch.object(DeviceCertificate, "_build_cert", return_value=cert):
+            with self.assertRaisesMessage(
+                ValidationError, "invalid generated certificate"
+            ):
+                with transaction.atomic():
+                    config.templates.add(template)
+        self.assertFalse(config.templates.filter(pk=template.pk).exists())
+        self.assertFalse(config.device_certificate_relations.exists())
 
     def test_cert_generation_copies_blueprint_organizational_unit_name(self):
         org = self._get_org()
@@ -1677,10 +1773,29 @@ class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, Test
             template.clean()
         self.assertIn("ca", ctx.exception.error_dict)
 
+    def test_partial_refresh_preserves_protected_field_snapshot(self):
+        org = self._get_org()
+        ca1 = self._create_ca(organization=org)
+        ca2 = self._create_ca(organization=org, name="ca2", common_name="ca2")
+        template = self._create_template(
+            type="cert",
+            ca=ca1,
+            organization=org,
+            config={},
+        )
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        template.ca = ca2
+        template.refresh_from_db(fields=["name"])
+        with self.assertRaises(ValidationError) as ctx:
+            template.clean()
+        self.assertIn("ca", ctx.exception.error_dict)
+
     def test_certificate_template_context_injection(self):
         """
         Verify that Certificate Templates automatically inject their
-        file paths, UUIDs, and PEM payloads into the configuration context.
+        file paths, IDs, and PEM payloads into the configuration context.
         """
         org = self._create_org()
         ca = self._create_ca(organization=org)
@@ -1707,8 +1822,8 @@ class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, Test
         self.assertTrue(
             context[f"{prefix}_key_path"].endswith(f"key-{template.pk.hex}.pem")
         )
-        self.assertIn(f"{prefix}_uuid", context)
-        self.assertEqual(context[f"{prefix}_uuid"], str(cert.id))
+        self.assertIn(f"{prefix}_id", context)
+        self.assertEqual(context[f"{prefix}_id"], str(cert.id))
         self.assertIn(f"{prefix}_pem", context)
         self.assertIn(f"{prefix}_key", context)
         self.assertEqual(context[f"{prefix}_pem"], cert.certificate)

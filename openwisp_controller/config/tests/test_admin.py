@@ -3,7 +3,7 @@ import io
 import json
 import os
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 from uuid import uuid4
 
 import django
@@ -1113,6 +1113,38 @@ class TestAdmin(
         params["config-0-templates"] = ""
         response = self.client.post(path, params)
         self.assertNotContains(response, "errors field-templates", status_code=302)
+
+    def test_change_device_cert_template_generation_error(self):
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        template = self._create_template(
+            name="Invalid Certificate Template",
+            type="cert",
+            ca=ca,
+            organization=org,
+            config={},
+        )
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        path = reverse(f"admin:{self.app_label}_device_change", args=[device.pk])
+        params = self._get_device_params(org=org)
+        params.update(
+            {
+                "name": device.name,
+                "config-0-id": str(config.pk),
+                "config-0-device": str(device.pk),
+                "config-0-templates": str(template.pk),
+                "config-INITIAL_FORMS": 1,
+            }
+        )
+        cert = Mock()
+        cert.full_clean.side_effect = ValidationError("invalid generated certificate")
+        with patch.object(DeviceCertificate, "_build_cert", return_value=cert):
+            response = self.client.post(path, params)
+        self.assertContains(response, "errors field-templates")
+        self.assertContains(response, "invalid generated certificate")
+        self.assertFalse(config.templates.filter(pk=template.pk).exists())
+        self.assertFalse(config.device_certificate_relations.exists())
 
     def test_change_device_required_template(self):
         o = self._get_org()
