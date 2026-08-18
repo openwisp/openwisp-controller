@@ -755,10 +755,8 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
         if len(rows) < len(obj.skipped_devices):
             lines.insert(-1, "\u2026")
         return format_html(
-            '<div class="skipped-devices-list">{}'
-            '<p class="skipped-devices-note">{}</p></div>',
+            '<div class="skipped-devices-list">{}</div>',
             format_html_join(mark_safe("<br>"), "{}", ((line,) for line in lines)),
-            _("Refer to the table below to see what happened to each device."),
         )
 
     display_skipped_devices.short_description = _("skipped devices")
