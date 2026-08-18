@@ -423,7 +423,7 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
         )
         self.assertEqual(response.status_code, 400)
         self.assertIn(
-            "Device has no credentials assigned.",
+            "Device has no credentials assigned",
             response.data["device"][0],
         )
 
@@ -1065,7 +1065,7 @@ class TestBatchCommandsAPI(
                 "devices": [str(d.pk) for d in devices],
             }
             url = reverse("connection_api:batch_command_execute")
-            with self.assertNumQueries(16):
+            with self.assertNumQueries(15):
                 response = self.client.post(
                     url,
                     data=json.dumps(payload),
@@ -1102,7 +1102,7 @@ class TestBatchCommandsAPI(
                 "group": str(group.pk),
             }
             url = reverse("connection_api:batch_command_execute")
-            with self.assertNumQueries(15):
+            with self.assertNumQueries(14):
                 response = self.client.post(
                     url,
                     data=json.dumps(payload),
@@ -1128,7 +1128,7 @@ class TestBatchCommandsAPI(
                 "label": "test-label",
             }
             url = reverse("connection_api:batch_command_execute")
-            with self.assertNumQueries(13):
+            with self.assertNumQueries(12):
                 response = self.client.post(
                     url,
                     data=json.dumps(payload),
@@ -2258,7 +2258,7 @@ class TestBatchCommandsAPITransaction(
             self.assertIn(str(device_b.pk), batch.skipped_devices)
             self.assertIn(
                 '"custom" command is not available for this organization',
-                batch.skipped_devices[str(device_b.pk)][0],
+                batch.skipped_devices[str(device_b.pk)]["error"],
             )
             command_qs = Command.objects.filter(batch_command=batch)
             self.assertTrue(command_qs.filter(device=device_a).exists())
@@ -2318,7 +2318,7 @@ class TestBatchCommandsAPITransaction(
             self.assertIn(str(device.pk), batch.skipped_devices)
             self.assertIn(
                 "Device has no credentials assigned",
-                batch.skipped_devices[str(device.pk)][0],
+                batch.skipped_devices[str(device.pk)]["error"],
             )
             detail_url = reverse(
                 "connection_api:batch_command_detail",
@@ -2360,7 +2360,7 @@ class TestBatchCommandsAPITransaction(
             self.assertIn(str(device.pk), batch.skipped_devices)
             self.assertIn(
                 "Device is deactivated",
-                batch.skipped_devices[str(device.pk)][0],
+                batch.skipped_devices[str(device.pk)]["error"],
             )
             detail_url = reverse(
                 "connection_api:batch_command_detail",

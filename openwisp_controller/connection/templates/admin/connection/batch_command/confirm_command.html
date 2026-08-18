@@ -64,7 +64,7 @@
   <div class="form-row">
     <div class="flex-container">
       <label>{% trans 'Command' %}</label>
-      <div class="readonly"><code>{{ command_description }}</code></div>
+      <div class="readonly">{{ command_description }}</div>
     </div>
   </div>
   {% endif %}
@@ -91,7 +91,7 @@
   <div class="form-row">
     <div class="flex-container">
       <label>{% trans 'Triggered by' %}</label>
-      <div class="readonly">{{ request.user }} &mdash; {% now "F j, Y, P" %}</div>
+      <div class="readonly">{{ request.user }} &mdash; {% now "DATETIME_FORMAT" %}</div>
     </div>
   </div>
 </fieldset>

@@ -78,16 +78,18 @@ class ConnectionConfig(AppConfig):
     def command_save_receiver(cls, sender, created, instance, **kwargs):
         from .api.serializers import CommandSerializer
 
+        if created and not instance.batch_command_id:
+            return
         channel_layer = layers.get_channel_layer()
         serialized_data = CommandSerializer(instance).data
         if not created:
-            # Trigger websocket message only when command status is updated
             async_to_sync(channel_layer.group_send)(
                 f"config.device-{instance.device_id}",
                 {"type": "send.update", "model": "Command", "data": serialized_data},
             )
         if instance.batch_command_id:
-            batch_data = CommandSerializer(instance).data
+            batch_data = dict(serialized_data)
+            batch_data.pop("input", None)
             batch_data["device_name"] = instance.device.name
             batch_data["status_display"] = instance.get_status_display()
             batch_data["output"] = instance.output_preview
@@ -98,7 +100,9 @@ class ConnectionConfig(AppConfig):
             batch = instance.batch_command
             affected_devices = batch.affected_devices
             batch_data["affected_devices"] = affected_devices
-            batch_data["total_rows"] = batch.total_devices
+            batch_data["total_rows"] = affected_devices + len(
+                batch.skipped_devices or {}
+            )
             if created:
                 batch_data["index"] = affected_devices - 1
             async_to_sync(channel_layer.group_send)(
@@ -114,6 +118,12 @@ class ConnectionConfig(AppConfig):
         batch_data = BatchCommandSerializer(instance).data
         batch_data["status_display"] = instance.get_status_display()
         batch_data["type"] = "batch_status"
+        affected_devices = instance.affected_devices
+        skipped_count = len(batch_data.pop("skipped_devices", None) or {})
+        batch_data["affected_devices"] = affected_devices
+        batch_data["total_rows"] = affected_devices + skipped_count
+        batch_data["skipped_count"] = skipped_count
+        batch_data["skipped_preview"] = instance.get_skipped_preview()
         async_to_sync(channel_layer.group_send)(
             f"config.batchcommand-{instance.pk}",
             {"type": "send.update", "data": batch_data},

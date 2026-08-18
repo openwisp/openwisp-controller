@@ -37,7 +37,7 @@
   border-collapse: collapse;
   /* the output column takes whatever these three leave over */
   --device-column: 23%;
-  --status-column: 13%;
+  --status-column: 15%;
   --modified-column: 15%;
 }
 .results-table th:nth-child(1),
@@ -116,6 +116,9 @@
 }
 .skipped-devices-list {
   line-height: 1.7;
+}
+.skipped-devices-note {
+  margin: 1em 0 0;
 }
 .field-display_skipped_devices .readonly.readonly {
   padding: 0;

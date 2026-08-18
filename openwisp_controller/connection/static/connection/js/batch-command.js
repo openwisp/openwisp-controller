@@ -17,7 +17,7 @@ django.jQuery(function ($) {
     if (data.type === "command_update") {
       handleCommandMessage($, data);
     } else if (data.type === "batch_status") {
-      handleBatchStatusMessage($, data);
+      handleBatchStatusMessage($, data, batchCommandWebSocket);
     } else if (data.type === "batch_state") {
       handleBatchStateMessage($, data);
     }
@@ -59,7 +59,7 @@ function handleCommandMessage($, data) {
   renderCommand($, data);
 }
 
-function handleBatchStatusMessage($, data) {
+function handleBatchStatusMessage($, data, websocket) {
   const $status = $(".field-colored_status .readonly .command-status");
   if ($status.length && data.status && data.status_display) {
     $status
@@ -67,15 +67,47 @@ function handleBatchStatusMessage($, data) {
       .addClass("command-status " + data.status)
       .text(data.status_display);
   }
-  if (data.skipped_devices && Object.keys(data.skipped_devices).length) {
-    const $list = $(".field-display_skipped_devices .skipped-devices-list");
-    if ($list.length) {
-      const $first = $list.contents().first();
-      if ($first.length && $first[0].nodeType === 3) {
-        $first[0].textContent = Object.keys(data.skipped_devices).length;
-      }
-    }
+  updateSkippedDevices($, data);
+  updateTotals($, data.affected_devices, data.total_rows);
+  const $table = $("#result_list");
+  if (
+    websocket &&
+    data.skipped_count &&
+    data.skipped_count !== $table.data("skippedCount")
+  ) {
+    $table.data("skippedCount", data.skipped_count);
+    requestCurrentState($, websocket);
   }
+}
+
+function updateSkippedDevices($, data) {
+  if (!data.skipped_count) {
+    return;
+  }
+  let $list = $(".field-display_skipped_devices .skipped-devices-list");
+  if (!$list.length) {
+    const $readonly = $(".field-display_skipped_devices .readonly");
+    if (!$readonly.length) {
+      return;
+    }
+    $list = $("<div>").addClass("skipped-devices-list");
+    $readonly.empty().append($list);
+  }
+  $list.empty().append(document.createTextNode(String(data.skipped_count)));
+  const rows = data.skipped_preview || [];
+  rows.forEach(function (row, index) {
+    if (index === rows.length - 1 && rows.length < data.skipped_count) {
+      $list.append($("<br>")).append(document.createTextNode("\u2026"));
+    }
+    $list
+      .append($("<br>"))
+      .append(document.createTextNode(row.device_name + ": " + row.output));
+  });
+  $list.append(
+    $("<p>")
+      .addClass("skipped-devices-note")
+      .text(gettext("Refer to the table below to see what happened to each device.")),
+  );
 }
 
 function handleBatchStateMessage($, data) {
@@ -154,16 +186,24 @@ function insertRow($, data) {
     "data-device-pk": data.device,
     class: rowClass,
   });
-  $row.append(
-    $("<td>").append(
-      $("<a>")
-        .attr({
-          href: getDeviceChangeUrl($, data.device),
-          class: "device-link",
-        })
-        .text(data.device_name),
-    ),
-  );
+  if (data.is_skipped) {
+    $row.append(
+      $("<td>").append(
+        $("<span>").addClass("device-name-disabled").text(data.device_name),
+      ),
+    );
+  } else {
+    $row.append(
+      $("<td>").append(
+        $("<a>")
+          .attr({
+            href: getDeviceChangeUrl($, data.device),
+            class: "device-link",
+          })
+          .text(data.device_name),
+      ),
+    );
+  }
   $row.append(
     $("<td>").append(
       $("<span>")
@@ -226,7 +266,11 @@ function renderPagination($, totalRows) {
     $("<span>")
       .addClass("current-page")
       .text(
-        gettext("Page") + " " + currentPage + " " + gettext("of") + " " + totalPages,
+        interpolate(
+          gettext("Page %(current)s of %(total)s"),
+          { current: currentPage, total: totalPages },
+          true,
+        ),
       ),
   );
   if (currentPage < totalPages) {

@@ -508,7 +508,7 @@ class AbstractCommand(TimeStampedEditableModel):
 
     def clean(self):
         if self.device.is_fully_deactivated():
-            raise ValidationError({"device": _("Device is deactivated.")})
+            raise ValidationError({"device": _("Device is deactivated")})
         self._verify_command_type_allowed()
         self._verify_connection()
         try:
@@ -519,7 +519,7 @@ class AbstractCommand(TimeStampedEditableModel):
     def _verify_connection(self):
         """Raises validation error if device has no connection and credentials."""
         if self.device and not self.device.deviceconnection_set.exists():
-            raise ValidationError({"device": _("Device has no credentials assigned.")})
+            raise ValidationError({"device": _("Device has no credentials assigned")})
 
     def _verify_command_type_allowed(self):
         """Raises validation error if command type is not allowed."""
@@ -796,8 +796,8 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
         default=dict,
         verbose_name=_("skipped devices"),
         help_text=_(
-            "Maps device UUIDs to validation error messages for devices "
-            "that were skipped during command creation."
+            "Maps device UUIDs to the name of the device and the validation "
+            "error that caused it to be skipped during command creation."
         ),
     )
 
@@ -812,6 +812,27 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
     @property
     def total_devices(self):
         return self.affected_devices + len(self.skipped_devices or {})
+
+    @staticmethod
+    def build_skipped_row(device_pk, skipped):
+        return {
+            "device": str(device_pk),
+            "device_name": skipped["name"],
+            "status": "skipped",
+            "status_display": gettext("skipped"),
+            "output": skipped["error"],
+            "modified": None,
+            "is_skipped": True,
+        }
+
+    def get_skipped_rows(self, start=0, end=None):
+        items = list((self.skipped_devices or {}).items())[start:end]
+        return [self.build_skipped_row(pk, skipped) for pk, skipped in items]
+
+    def get_skipped_preview(self, limit=10):
+        if len(self.skipped_devices or {}) <= limit:
+            return self.get_skipped_rows()
+        return self.get_skipped_rows(end=2) + self.get_skipped_rows(start=-1)
 
     @property
     def affected_devices(self):
@@ -829,18 +850,15 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
     def _validate_device_org(device, organization_id):
         if organization_id and device.organization_id != organization_id:
             raise ValidationError(
-                {
-                    "devices": _(
-                        "All devices must belong to the same "
-                        "organization as the batch command."
-                    )
-                }
+                {"devices": _("All devices must belong to the same organization.")}
             )
 
     @classmethod
     def _validate_devices_org(cls, devices, organization_id):
         if not devices:
             return
+        if not organization_id:
+            organization_id = devices[0].organization_id
         for device in devices:
             cls._validate_device_org(device, organization_id)
 
@@ -849,16 +867,11 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
             return
         self._validate_org_relation("group", field_error="group")
         self._validate_org_relation("location", field_error="location")
-        if self.pk and self.devices.exists():
+        if not self._state.adding and self.devices.exists():
             org_mismatch = self.devices.exclude(organization=self.organization).exists()
             if org_mismatch:
                 raise ValidationError(
-                    {
-                        "devices": _(
-                            "All devices must belong to the same "
-                            "organization as the batch command."
-                        )
-                    }
+                    {"devices": _("All devices must belong to the same organization.")}
                 )
 
     def clean(self):
@@ -919,12 +932,14 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
         with transaction.atomic():
             batch.full_clean()
             batch.save()
-            if devices_list is not None:
+            if devices_list is None:
+                devices_list = list(batch.resolve_devices())
+                batch.devices.set(devices_list)
+            else:
+                cls._validate_devices_org(devices_list, batch.organization_id)
                 batch.devices.set(devices_list)
                 batch._validate_org_relations()
-            else:
-                batch.devices.set(batch.resolve_devices())
-            if not batch.devices.exists():
+            if not devices_list:
                 raise ValidationError(
                     _("No devices match the specified criteria."),
                 )
@@ -971,7 +986,8 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
         )
         if not updated:
             return
-        self.refresh_from_db(fields=["status"])
+        self.status = "in-progress"
+        self.save(update_fields=["status"])
         Command = load_model("connection", "Command")
         Device = load_model("config", "Device")
         self.skipped_devices = {}
@@ -988,9 +1004,12 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
                 command.full_clean()
                 command.save()
             except ValidationError as e:
-                self.skipped_devices[str(device.pk)] = (
-                    e.messages if hasattr(e, "messages") else [str(e)]
-                )
+                self.skipped_devices[str(device.pk)] = {
+                    "name": device.name,
+                    "error": (
+                        ", ".join(e.messages) if hasattr(e, "messages") else str(e)
+                    ),
+                }
                 logger.warning(
                     "Skipping device %s for batch %s: %s",
                     device.pk,

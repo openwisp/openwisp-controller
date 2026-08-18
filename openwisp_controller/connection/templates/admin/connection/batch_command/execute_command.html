@@ -58,92 +58,26 @@
 
     <fieldset class="module aligned">
       <h2>{% trans "Command" %}</h2>
-      <div class="form-row field-type{% if form.type.errors %} errors{% endif %}">
-        {{ form.type.errors }}
-        <div class="flex-container">
-          {{ form.type.label_tag }}
-          {{ form.type }}
-        </div>
-        {% if form.type.help_text %}
-        <div class="help"{% if form.type.id_for_label %} id="{{ form.type.id_for_label }}_helptext"{% endif %}>
-          <div>{{ form.type.help_text }}</div>
-        </div>
-        {% endif %}
-      </div>
+      {% include "admin/connection/batch_command/form_row.html" with field=form.type %}
       <div id="command-input-container"></div>
       {{ form.input }}
       {% if form.input.errors %}
       <div class="form-row errors">{{ form.input.errors }}</div>
       {% endif %}
-      <div class="form-row field-label{% if form.label.errors %} errors{% endif %}">
-        {{ form.label.errors }}
-        <div class="flex-container">
-          {{ form.label.label_tag }}
-          {{ form.label }}
-        </div>
-        {% if form.label.help_text %}
-        <div class="help"{% if form.label.id_for_label %} id="{{ form.label.id_for_label }}_helptext"{% endif %}>
-          <div>{{ form.label.help_text }}</div>
-        </div>
-        {% endif %}
-      </div>
-      <div class="form-row field-notes{% if form.notes.errors %} errors{% endif %}">
-        {{ form.notes.errors }}
-        <div class="flex-container">
-          {{ form.notes.label_tag }}
-          {{ form.notes }}
-        </div>
-        {% if form.notes.help_text %}
-        <div class="help"{% if form.notes.id_for_label %} id="{{ form.notes.id_for_label }}_helptext"{% endif %}>
-          <div>{{ form.notes.help_text }}</div>
-        </div>
-        {% endif %}
-      </div>
+      {% include "admin/connection/batch_command/form_row.html" with field=form.label %}
+      {% include "admin/connection/batch_command/form_row.html" with field=form.notes %}
     </fieldset>
 
     <fieldset class="module aligned">
       <h2>{% trans "Targets" %}</h2>
-      <div class="form-row field-organization{% if form.organization.errors %} errors{% endif %}">
-        {{ form.organization.errors }}
-        <div class="flex-container">
-          {{ form.organization.label_tag }}
-          {{ form.organization }}
-        </div>
-        {% if form.organization.help_text %}
-        <div class="help"{% if form.organization.id_for_label %} id="{{ form.organization.id_for_label }}_helptext"{% endif %}>
-          <div>{{ form.organization.help_text }}</div>
-        </div>
-        {% endif %}
-      </div>
-      <div class="form-row field-location{% if form.location.errors %} errors{% endif %}">
-        {{ form.location.errors }}
-        <div class="flex-container">
-          {{ form.location.label_tag }}
-          {{ form.location }}
-        </div>
-        {% if form.location.help_text %}
-        <div class="help"{% if form.location.id_for_label %} id="{{ form.location.id_for_label }}_helptext"{% endif %}>
-          <div>{{ form.location.help_text }}</div>
-        </div>
-        {% endif %}
-      </div>
-      <div class="form-row field-group{% if form.group.errors %} errors{% endif %}">
-        {{ form.group.errors }}
-        <div class="flex-container">
-          {{ form.group.label_tag }}
-          {{ form.group }}
-        </div>
-        {% if form.group.help_text %}
-        <div class="help"{% if form.group.id_for_label %} id="{{ form.group.id_for_label }}_helptext"{% endif %}>
-          <div>{{ form.group.help_text }}</div>
-        </div>
-        {% endif %}
-      </div>
+      {% include "admin/connection/batch_command/form_row.html" with field=form.organization %}
+      {% include "admin/connection/batch_command/form_row.html" with field=form.location %}
+      {% include "admin/connection/batch_command/form_row.html" with field=form.group %}
     </fieldset>
 
     <div class="submit-row">
       <a class="button cancel-link" href="{% url opts|admin_urlname:'changelist' %}">{% trans "Cancel" %}</a>
-      <button type="button" class="default" id="review-command-btn">{% trans "Review command" %}</button>
+      <button type="submit" class="default" id="review-command-btn">{% trans "Review command" %}</button>
     </div>
   </form>
 </div>

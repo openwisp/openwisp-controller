@@ -51,7 +51,11 @@ class BatchCommandConsumer(BaseDeviceConsumer):
         try:
             content = json.loads(text_data)
         except ValueError:
-            logger.warning("Received a websocket message which is not valid JSON")
+            content = None
+        if not isinstance(content, dict):
+            logger.warning(
+                "Received a websocket message which is not a valid JSON object"
+            )
             return
         message_type = content.get("type")
         if message_type == self.current_state_message:
@@ -70,17 +74,26 @@ class BatchCommandConsumer(BaseDeviceConsumer):
             return
         batch_status = BatchCommandSerializer(batch).data
         batch_status["status_display"] = batch.get_status_display()
-        batch_status["affected_devices"] = batch.affected_devices
+        commands_count = batch.batch_commands.count()
+        batch_status["affected_devices"] = commands_count
+        batch_status["skipped_count"] = len(
+            batch_status.pop("skipped_devices", None) or {}
+        )
+        batch_status["skipped_preview"] = batch.get_skipped_preview()
         try:
             page = max(int(page), 1)
         except (TypeError, ValueError):
             page = 1
         start = (page - 1) * self.per_page
         end = start + self.per_page
-        page_commands = batch.batch_commands.select_related("device")[start:end]
+        commands_end = min(end, commands_count)
+        page_commands = batch.batch_commands.select_related("device")[
+            start:commands_end
+        ]
         commands = []
         for command in page_commands:
             row = CommandSerializer(command).data
+            row.pop("input", None)
             row["device_name"] = command.device.name
             row["status_display"] = command.get_status_display()
             row["output"] = command.output_preview
@@ -88,13 +101,16 @@ class BatchCommandConsumer(BaseDeviceConsumer):
                 localtime(command.modified), "DATETIME_FORMAT"
             )
             commands.append(row)
+        commands += batch.get_skipped_rows(
+            max(0, start - commands_count), max(0, end - commands_count)
+        )
         self.send(
             json.dumps(
                 {
                     "type": "batch_state",
                     "batch_status": batch_status,
                     "commands": commands,
-                    "total_rows": batch.total_devices,
+                    "total_rows": commands_count + batch_status["skipped_count"],
                 }
             )
         )
