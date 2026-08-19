@@ -107,6 +107,7 @@ class TestAdmin(TestPkiMixin, TestAdminMixin, TestOrganizationMixin, TestCase):
             visible=[data["ca1"].name],
             hidden=[data["ca2"].name, data["ca_inactive"].name],
             administrator=True,
+            superuser_hidden=[data["ca_inactive"].name],
         )
 
     def test_cert_changeform_200(self):
@@ -150,7 +151,11 @@ class TestAdmin(TestPkiMixin, TestAdminMixin, TestOrganizationMixin, TestCase):
         ca = self._create_ca(name="disabled-ca", organization=org)
         org.is_active = False
         org.save(update_fields=["is_active"])
-        self._test_disabled_org_admin_crud(ca, change_data={"name": "renamed-ca"})
+        self._test_disabled_org_admin_crud(
+            ca,
+            change_data={"name": "renamed-ca"},
+            create_data={"name": "new-ca", "organization": str(org.pk)},
+        )
 
     def test_ca_disabled_org_admin_org_field_excludes_disabled(self):
         active_org = self._get_org()
@@ -166,7 +171,15 @@ class TestAdmin(TestPkiMixin, TestAdminMixin, TestOrganizationMixin, TestCase):
         cert = self._create_cert(name="disabled-cert", ca=ca, organization=org)
         org.is_active = False
         org.save(update_fields=["is_active"])
-        self._test_disabled_org_admin_crud(cert, change_data={"name": "renamed-cert"})
+        self._test_disabled_org_admin_crud(
+            cert,
+            change_data={"name": "renamed-cert"},
+            create_data={
+                "name": "new-cert",
+                "organization": str(org.pk),
+                "ca": str(ca.pk),
+            },
+        )
 
     def test_cert_disabled_org_admin_org_field_excludes_disabled(self):
         active_org = self._get_org()

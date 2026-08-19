@@ -108,7 +108,14 @@ class TestConnectionAdmin(TestAdminMixin, CreateConnectionsMixin, TestCase):
         org.is_active = False
         org.save(update_fields=["is_active"])
         self._test_disabled_org_admin_crud(
-            credentials, change_data={"name": "renamed-credentials"}
+            credentials,
+            change_data={"name": "renamed-credentials"},
+            create_data={
+                "name": "new-credentials",
+                "organization": str(org.pk),
+                "connector": credentials.connector,
+                "params": credentials.params,
+            },
         )
 
     def test_credentials_disabled_org_admin_org_field_excludes_disabled(self):

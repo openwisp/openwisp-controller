@@ -1101,7 +1101,19 @@ class TestAdmin(
         self._test_disabled_org_admin_crud(
             device,
             change_data={"name": "renamed-device"},
-            operations=("view", "change"),
+            operations=("view", "change", "add"),
+            create_data={
+                "name": "new-device",
+                "organization": str(org.pk),
+                "mac_address": "00:11:22:33:44:66",
+                "key": "w1gwJxKaHcamUw62TQIPgYchwLKn3AA0",
+                "model": "",
+                "os": "",
+                "system": "",
+                "notes": "",
+                "management_ip": "127.0.0.1",
+                "hardware_id": "new-device-hardware-id",
+            },
         )
         with self.subTest("superuser delete, once deactivated"):
             # DeviceAdmin.has_delete_permission additionally requires the
@@ -1123,7 +1135,15 @@ class TestAdmin(
         org.is_active = False
         org.save(update_fields=["is_active"])
         self._test_disabled_org_admin_crud(
-            device_group, change_data={"name": "renamed-group"}
+            device_group,
+            change_data={"name": "renamed-group"},
+            create_data={
+                "name": "new-device-group",
+                "organization": str(org.pk),
+                "description": "",
+                "context": "{}",
+                "meta_data": "{}",
+            },
         )
 
     def test_template_disabled_org_admin_crud(self):
@@ -1132,7 +1152,14 @@ class TestAdmin(
         org.is_active = False
         org.save(update_fields=["is_active"])
         self._test_disabled_org_admin_crud(
-            template, change_data={"name": "renamed-template"}
+            template,
+            change_data={"name": "renamed-template"},
+            create_data={
+                "name": "new-template",
+                "organization": str(org.pk),
+                "backend": "netjsonconfig.OpenWrt",
+                "config": "{}",
+            },
         )
 
     def test_vpn_disabled_org_admin_crud(self):
@@ -1140,7 +1167,19 @@ class TestAdmin(
         vpn = self._create_vpn(name="disabled-vpn", organization=org)
         org.is_active = False
         org.save(update_fields=["is_active"])
-        self._test_disabled_org_admin_crud(vpn, change_data={"name": "renamed-vpn"})
+        self._test_disabled_org_admin_crud(
+            vpn,
+            change_data={"name": "renamed-vpn"},
+            create_data={
+                "name": "new-vpn",
+                "organization": str(org.pk),
+                "host": "vpn2.test.com",
+                "backend": "openwisp_controller.vpn_backends.OpenVpn",
+                "config": "{}",
+                "dh": vpn.dh,
+                "ca": str(vpn.ca.pk),
+            },
+        )
 
     def test_device_disabled_org_admin_inline_readonly(self):
         org = self._create_org(name="disabled-org", slug="disabled-org")

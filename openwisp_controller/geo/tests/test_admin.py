@@ -139,7 +139,13 @@ class TestAdmin(TestAdminMixin, TestGeoMixin, BaseTestAdmin, TestCase):
         org.is_active = False
         org.save()
         self._test_disabled_org_admin_crud(
-            location, change_data={"name": "renamed-location"}
+            location,
+            change_data={"name": "renamed-location"},
+            create_data={
+                "name": "new-location",
+                "organization": str(org.pk),
+                "type": "indoor",
+            },
         )
 
     def test_floorplan_disabled_org_admin_crud(self):
@@ -151,7 +157,10 @@ class TestAdmin(TestAdminMixin, TestGeoMixin, BaseTestAdmin, TestCase):
         org.is_active = False
         org.save()
         self._test_disabled_org_admin_crud(
-            floorplan, change_data={"floor": 2}, unchanged_field="floor"
+            floorplan,
+            change_data={"floor": 2},
+            unchanged_field="floor",
+            create_data={"floor": 3, "location": str(location.pk)},
         )
 
     def test_location_disabled_org_admin_org_field_excludes_disabled(self):
