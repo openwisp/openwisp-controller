@@ -121,7 +121,7 @@ function handleBatchStateMessage($, data) {
     const $row = $("#batch-command-row-" + command.device);
     if ($row.length) {
       updateRow($, $row, command);
-    } else {
+    } else if (!hasActiveFilters()) {
       insertRow($, command);
     }
   });
@@ -143,7 +143,7 @@ function renderCommand($, data) {
 function belongsOnCurrentPage($, data) {
   // with a filter on, the pushed totals are unfiltered and page boundaries
   // cannot be worked out
-  if (getActiveStatusFilter($)) {
+  if (hasActiveFilters()) {
     return false;
   }
   if (data.index == null) {
@@ -223,7 +223,7 @@ function updateTotals($, affectedDevices, totalRows) {
     }
   }
   // counts are filtered server side, the totals pushed here are not
-  if (totalRows == null || getActiveStatusFilter($)) {
+  if (totalRows == null || hasActiveFilters()) {
     return;
   }
   const $paginator = $(".results-container .paginator");
@@ -283,11 +283,20 @@ function getDeviceChangeUrl($, devicePk) {
   if (!template) {
     return "#";
   }
-  return template.replace(DEVICE_URL_PLACEHOLDER, devicePk);
+  return template.replace(DEVICE_URL_PLACEHOLDER, devicePk) + "#command_set-2-group";
 }
 
 function getActiveStatusFilter($) {
   return $("#result_list").attr("data-active-status") || "";
+}
+
+function hasActiveFilters() {
+  const params = new URLSearchParams(window.location.search);
+  return ["q", "status", "location_id", "group_id", "organization_id"].some(
+    function (name) {
+      return !!params.get(name);
+    },
+  );
 }
 
 function getCurrentPage($) {

@@ -1,3 +1,4 @@
+import hashlib
 import logging
 from datetime import timedelta
 from types import SimpleNamespace
@@ -9,7 +10,7 @@ from django import forms
 from django.contrib import admin, messages
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.http import HttpResponseForbidden, JsonResponse
 from django.shortcuts import redirect
 from django.template.response import TemplateResponse
@@ -26,7 +27,12 @@ from ..admin import MultitenantAdminMixin
 from ..config.admin import DeactivatedDeviceReadOnlyMixin, DeviceAdmin
 from .filters import GroupFilter, LocationFilter, TypeFilter
 from .schema import schema
-from .widgets import CommandSchemaWidget, CredentialsSchemaWidget
+from .widgets import (
+    BatchCommandSchemaWidget,
+    CommandSchemaWidget,
+    CredentialsSchemaWidget,
+    OrganizationScopedSelect,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +42,6 @@ Command = swapper.load_model("connection", "Command")
 BatchCommand = swapper.load_model("connection", "BatchCommand")
 Device = swapper.load_model("config", "Device")
 DeviceGroup = swapper.load_model("config", "DeviceGroup")
-DeviceLocation = swapper.load_model("geo", "DeviceLocation")
 Location = swapper.load_model("geo", "Location")
 Organization = swapper.load_model("openwisp_users", "Organization")
 
@@ -68,8 +73,11 @@ class BatchCommandExecutionForm(forms.ModelForm):
             "location",
         ]
         widgets = {
+            "label": forms.TextInput(attrs={"class": "vTextField"}),
             "notes": forms.Textarea(attrs={"rows": 3}),
-            "input": forms.HiddenInput(),
+            "input": BatchCommandSchemaWidget,
+            "group": OrganizationScopedSelect,
+            "location": OrganizationScopedSelect,
         }
 
     class Media:
@@ -155,7 +163,8 @@ class BatchCommandExecutionForm(forms.ModelForm):
             # it a wizard would inherit the devices unselected by a previous
             # one. It has to be issued here rather than by the browser,
             # because the session is shared between tabs and sessionStorage
-            # is not. Not a security token: it only scopes a storage key.
+            # is not. It is also submitted back on execution, which runs
+            # only the wizard the confirm page was rendered with.
             "token": uuid4().hex,
             "type": self.cleaned_data["type"],
             "label": self.cleaned_data["label"],
@@ -465,12 +474,34 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
                 self.admin_site.admin_view(self.confirm_command_view),
                 name=f"{options.app_label}_{options.model_name}_confirm",
             ),
+            path(
+                "ui/schema.json",
+                self.admin_site.admin_view(self.schema_view),
+                name=f"{options.app_label}_{options.model_name}_schema",
+            ),
         ] + super().get_urls()
 
     def _check_add_permission(self, request):
         permission = f"{self.opts.app_label}.add_{self.opts.model_name}"
         if not request.user.has_perm(permission):
             raise PermissionDenied
+
+    def schema_view(self, request):
+        """Returns the schemas of the command types the wizard offers.
+
+        The type choices are the union over the organizations the user
+        manages, so the schemas are too: the editor fetches them once on
+        page load, before an organization has been picked.
+        """
+        self._check_add_permission(request)
+        if request.user.is_superuser:
+            return JsonResponse(Command.get_org_schema())
+        schemas = {}
+        for organization_id in request.user.organizations_managed:
+            schemas.update(
+                Command.get_org_schema(organization_id=organization_id) or {}
+            )
+        return JsonResponse(schemas)
 
     def execute_command_view(self, request):
         """First step of the mass command workflow: collect the details.
@@ -512,6 +543,8 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
         if not wizard:
             return self._restart(request)
         devices = self._resolve_target_queryset(request, wizard)
+        wizard["devices_digest"] = self._devices_digest(devices)
+        request.session[self.session_key] = wizard
         device_admin = self.get_device_admin(devices)
         # changelist_view() assembles the whole changelist context (cl,
         # media, pagination) and renders the change_list_template of the
@@ -535,7 +568,7 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
         device_admin_class = type(
             "BatchCommandDeviceAdmin",
             (BatchCommandDeviceAdminMixin, registered),
-            {},
+            {"readonly_fields": list(registered.readonly_fields)},
         )
         return device_admin_class(Device, self.admin_site, devices=devices)
 
@@ -588,6 +621,13 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
             )
         return devices.distinct().order_by("name")
 
+    def _devices_digest(self, devices):
+        """Identifies the set of devices a confirm page was rendered with,
+        so that only the reviewed set is executed.
+        """
+        pks = sorted(str(pk) for pk in devices.values_list("pk", flat=True))
+        return hashlib.sha256(",".join(pks).encode()).hexdigest()
+
     def _confirm_context(self, request, wizard, devices):
         targets = []
         for model, key in (
@@ -608,21 +648,47 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
             "device_changelist_template": self.get_device_changelist_template(),
             "wizard": wizard,
             "command_type_display": command_types.get(wizard["type"], wizard["type"]),
-            "command_description": (wizard.get("input") or {}).get("command", ""),
+            "command_description": self._describe_input(wizard.get("input")),
             "targets_display": ", ".join(targets) if targets else _("All devices"),
             "device_count": devices.count(),
             "has_view_permission": self.has_view_permission(request),
         }
 
+    def _describe_input(self, command_input):
+        """Renders the submitted input for the review step, so that every
+        registered command type is shown and not only custom ones.
+        """
+        if not isinstance(command_input, dict):
+            return ""
+        if "command" in command_input:
+            return command_input["command"]
+        return ", ".join(
+            f"{key}: {value}"
+            for key, value in command_input.items()
+            if "password" not in key
+        )
+
     def _execute_batch_command(self, request):
         """Applies the device selection and dispatches the mass command.
-        The wizard is popped first, so a double submit cannot create the
-        batch twice: the second request finds nothing and restarts.
+        Only the wizard the confirm page was rendered with is executed, and
+        it is removed before the batch is created, so a double submit finds
+        nothing and restarts.
         """
-        wizard = request.session.pop(self.session_key, None)
-        if not wizard:
+        wizard = request.session.get(self.session_key)
+        if not wizard or request.POST.get("token") != wizard.get("token"):
             return self._restart(request)
+        del request.session[self.session_key]
         devices = self._resolve_target_queryset(request, wizard)
+        if self._devices_digest(devices) != wizard.get("devices_digest"):
+            request.session[self.session_key] = wizard
+            self.message_user(
+                request,
+                _("The targeted devices changed, please review them again."),
+                messages.WARNING,
+            )
+            return redirect(
+                f"admin:{self.opts.app_label}_{self.opts.model_name}_confirm"
+            )
         # The confirm page only lists the devices matched on the execute
         # page, so the selection can only ever remove from that set: the
         # browser never supplies a device to add.
@@ -736,14 +802,6 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
     affected_devices.short_description = _("affected devices")
     affected_devices.admin_order_field = "_affected_devices"
 
-    def _get_skipped_devices(self, obj):
-        if not hasattr(obj, "_skipped_devices_cache"):
-            obj._skipped_devices_cache = {
-                str(device.pk): device
-                for device in Device.objects.filter(pk__in=obj.skipped_devices.keys())
-            }
-        return obj._skipped_devices_cache
-
     def display_skipped_devices(self, obj):
         if not obj.skipped_devices:
             return "-"
@@ -797,13 +855,16 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
 
         filter_specs.append(SimpleNamespace(title=_("status"), choices=status_choices))
 
+        batch_devices = Device.objects.filter(
+            Q(command__batch_command=obj) | Q(pk__in=obj.skipped_devices.keys())
+        )
+
         # Location filter
         location_spec = self._build_related_filter(
             _("location"),
             "location_id",
             current_location or "",
-            Device.objects.filter(command__batch_command=obj)
-            .exclude(devicelocation__location__isnull=True)
+            batch_devices.exclude(devicelocation__location__isnull=True)
             .values_list(
                 "devicelocation__location__id",
                 "devicelocation__location__name",
@@ -819,10 +880,7 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
             _("device group"),
             "group_id",
             current_group or "",
-            Device.objects.filter(
-                command__batch_command=obj,
-                group__isnull=False,
-            )
+            batch_devices.filter(group__isnull=False)
             .values_list("group__id", "group__name")
             .distinct(),
             _make_choice,
@@ -836,9 +894,9 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
                 _("organization"),
                 "organization_id",
                 current_org or "",
-                Device.objects.filter(command__batch_command=obj)
-                .values_list("organization__id", "organization__name")
-                .distinct(),
+                batch_devices.values_list(
+                    "organization__id", "organization__name"
+                ).distinct(),
                 _make_choice,
             )
             if org_spec:
@@ -869,7 +927,7 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
             "is_skipped": False,
         }
 
-    def _paginate_commands(self, commands_qs, skipped_rows, page_param, per_page=None):
+    def _paginate_commands(self, commands_qs, skipped_items, page_param, per_page=None):
         """Returns one page of rows without loading the whole batch in memory.
         Commands keep the ordering of ``AbstractCommand.Meta`` ("created"),
         so the newest is always last and the change page can append results
@@ -878,7 +936,7 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
         """
         per_page = per_page or self.device_commands_per_page
         commands_count = commands_qs.count()
-        total = commands_count + len(skipped_rows)
+        total = commands_count + len(skipped_items)
         paginator = Paginator(range(total), per_page)
         try:
             page_obj = paginator.page(page_param or 1)
@@ -892,7 +950,10 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
         ]
         skipped_start = max(0, start - commands_count)
         skipped_end = max(0, end - commands_count)
-        rows += skipped_rows[skipped_start:skipped_end]
+        rows += [
+            BatchCommand.build_skipped_row(pk, skipped)
+            for pk, skipped in skipped_items[skipped_start:skipped_end]
+        ]
         return page_obj, paginator, rows
 
     def _get_active_filters(self, request):
@@ -921,47 +982,29 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
         return qs
 
     def _get_matching_skipped_devices(self, obj, filters):
-        pks = list(obj.skipped_devices.keys())
-        location_id = filters["location_id"]
-        if location_id:
-            device_locations = {
-                str(pk)
-                for pk in DeviceLocation.objects.filter(
-                    content_object_id__in=pks,
-                    location_id=location_id,
-                ).values_list("content_object_id", flat=True)
-            }
-        else:
-            device_locations = None
-        devices = self._get_skipped_devices(obj)
-        rows = []
-        for pk_str, skipped in obj.skipped_devices.items():
-            device = devices.get(pk_str)
-            if not device:
-                if not any(
-                    (
-                        filters["organization_id"],
-                        filters["group_id"],
-                        location_id,
-                    )
-                ) and (
-                    not filters["q"] or filters["q"].lower() in skipped["name"].lower()
-                ):
-                    rows.append(BatchCommand.build_skipped_row(pk_str, skipped))
-                continue
-            if (
-                filters["organization_id"]
-                and str(device.organization_id) != filters["organization_id"]
-            ):
-                continue
-            if filters["group_id"] and str(device.group_id) != filters["group_id"]:
-                continue
-            if device_locations is not None and pk_str not in device_locations:
-                continue
-            if filters["q"] and filters["q"].lower() not in skipped["name"].lower():
-                continue
-            rows.append(BatchCommand.build_skipped_row(pk_str, skipped))
-        return rows
+        related = (
+            filters["organization_id"],
+            filters["group_id"],
+            filters["location_id"],
+        )
+        matching = None
+        if any(related):
+            organization_id, group_id, location_id = related
+            devices = Device.objects.filter(pk__in=obj.skipped_devices.keys())
+            if organization_id:
+                devices = devices.filter(organization_id=organization_id)
+            if group_id:
+                devices = devices.filter(group_id=group_id)
+            if location_id:
+                devices = devices.filter(devicelocation__location_id=location_id)
+            matching = {str(pk) for pk in devices.values_list("pk", flat=True)}
+        query = filters["q"].lower() if filters["q"] else ""
+        return [
+            (pk, skipped)
+            for pk, skipped in obj.skipped_devices.items()
+            if (matching is None or pk in matching)
+            and (not query or query in skipped["name"].lower())
+        ]
 
     def change_view(self, request, object_id, form_url="", extra_context=None):
         extra_context = extra_context or {}
@@ -970,11 +1013,11 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
             commands_qs = self._get_commands(request, obj)
             filters = self._get_active_filters(request)
             commands_qs = self._apply_command_filters(commands_qs, filters)
-            skipped_rows = []
+            skipped_items = []
             if obj.skipped_devices and filters["status"] in ("", "skipped"):
-                skipped_rows = self._get_matching_skipped_devices(obj, filters)
+                skipped_items = self._get_matching_skipped_devices(obj, filters)
             page_obj, paginator, commands = self._paginate_commands(
-                commands_qs, skipped_rows, request.GET.get("page", 1)
+                commands_qs, skipped_items, request.GET.get("page", 1)
             )
             filter_specs = self._build_filter_specs(
                 request,
