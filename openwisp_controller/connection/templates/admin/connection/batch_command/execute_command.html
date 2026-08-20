@@ -59,11 +59,7 @@
     <fieldset class="module aligned">
       <h2>{% trans "Command" %}</h2>
       {% include "admin/connection/batch_command/form_row.html" with field=form.type %}
-      <div id="command-input-container"></div>
-      {{ form.input }}
-      {% if form.input.errors %}
-      <div class="form-row errors">{{ form.input.errors }}</div>
-      {% endif %}
+      {% include "admin/connection/batch_command/form_row.html" with field=form.input %}
       {% include "admin/connection/batch_command/form_row.html" with field=form.label %}
       {% include "admin/connection/batch_command/form_row.html" with field=form.notes %}
     </fieldset>

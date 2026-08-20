@@ -110,6 +110,7 @@
   data-wizard-token="{{ wizard.token }}">
   {% csrf_token %}
   <input type="hidden" name="excluded" id="id_excluded" value="">
+  <input type="hidden" name="token" value="{{ wizard.token }}">
   <div class="submit-row">
     <a class="button cancel-link" href="{% url batch_opts|admin_urlname:'execute' %}">{% trans 'Back' %}</a>
     <button type="submit" class="default" id="execute-button">

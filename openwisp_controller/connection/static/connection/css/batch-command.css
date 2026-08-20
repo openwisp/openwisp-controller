@@ -250,3 +250,59 @@
   gap: 0.5rem;
   justify-content: flex-end;
 }
+.execute-batch-command .jsoneditor-wrapper > fieldset.module {
+  background: none;
+  border: none;
+  margin: 0;
+  padding: 0;
+}
+.execute-batch-command .jsoneditor-wrapper > fieldset > h2,
+.execute-batch-command .jsoneditor h3 {
+  display: none !important;
+}
+.execute-batch-command.no-command-type .jsoneditor-wrapper {
+  display: none;
+}
+.execute-batch-command #main .jsoneditor-wrapper div.jsoneditor .form-row {
+  display: flex;
+  flex-wrap: wrap;
+  padding: 15px;
+}
+.execute-batch-command .jsoneditor-wrapper div.jsoneditor label {
+  font-weight: bold;
+  margin-left: 0;
+}
+.execute-batch-command .jsoneditor .form-row > .help {
+  flex-basis: 100%;
+}
+.execute-batch-command .jsoneditor .errorlist {
+  display: none;
+}
+.execute-batch-command .jsoneditor.command-errors .errorlist {
+  display: block;
+}
+.execute-batch-command .jsoneditor .form-row.errors input,
+.execute-batch-command .jsoneditor .form-row.errors select,
+.execute-batch-command .jsoneditor .form-row.errors textarea {
+  border-color: var(--border-color);
+}
+.execute-batch-command .jsoneditor.command-errors .form-row.errors input,
+.execute-batch-command .jsoneditor.command-errors .form-row.errors select,
+.execute-batch-command .jsoneditor.command-errors .form-row.errors textarea {
+  border-color: var(--ow-color-danger);
+}
+.execute-batch-command .jsoneditor .form-row > ul.errorlist {
+  order: -1;
+  flex-basis: calc(100% - 160px);
+  margin-left: 160px;
+  padding-left: 10px;
+}
+.execute-batch-command .form-row.field-input {
+  display: none;
+}
+.execute-batch-command .form-row.field-input.errors {
+  display: block !important;
+}
+.execute-batch-command .form-row.field-input.errors .flex-container {
+  display: none;
+}
