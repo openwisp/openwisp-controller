@@ -548,9 +548,13 @@ class AbstractCommand(TimeStampedEditableModel):
         lines = (self.output or "").strip().splitlines()
         if not lines:
             return ""
-        if len(lines) == 1:
-            return lines[0]
-        return "… " + lines[-1]
+        max_length = 100
+        line = lines[-1]
+        truncated = len(lines) > 1
+        if len(line) > max_length:
+            line = line[-max_length:]
+            truncated = True
+        return f"… {line}" if truncated else line
 
     @property
     def is_custom(self):
@@ -992,6 +996,7 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
         Device = load_model("config", "Device")
         self.skipped_devices = {}
         device_pks = []
+        created_count = 0
         for device in self.resolve_devices().iterator():
             device_pks.append(device.pk)
             command = Command(
@@ -1002,7 +1007,9 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
             )
             try:
                 command.full_clean()
+                command._batch_index = created_count
                 command.save()
+                created_count += 1
             except ValidationError as e:
                 self.skipped_devices[str(device.pk)] = {
                     "name": device.name,

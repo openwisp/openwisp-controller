@@ -35,9 +35,10 @@ class BatchCommandConsumer(BaseDeviceConsumer):
         user = self.scope["user"]
         if user.is_superuser:
             return True
-        # a mass command cannot be changed or deleted from the admin
-        if not (
-            user.is_staff and self._user_has_permissions(change=False, delete=False)
+        opts = self.model._meta
+        if not user.is_staff or not any(
+            user.has_perm(f"{opts.app_label}.{action}_{opts.model_name}")
+            for action in ("view", "change")
         ):
             return False
         organization_id = (
