@@ -6,6 +6,7 @@ from uuid import uuid4
 import paramiko
 from django.contrib.auth.models import ContentType
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.test import TestCase, TransactionTestCase, tag
 from django.utils import timezone
 from django.utils.module_loading import import_string
@@ -13,6 +14,7 @@ from swapper import load_model
 
 from openwisp_utils.tests import capture_any_output, catch_signal
 
+from .. import apps
 from .. import settings as app_settings
 from ..commands import (
     COMMANDS,
@@ -525,6 +527,31 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
         command = Command(type="custom", input={"command": "echo test"})
         self.assertTrue(command.is_custom)
 
+    def test_command_output_preview(self):
+        with self.subTest("no output"):
+            self.assertEqual(Command(type="reboot").output_preview, "")
+            self.assertEqual(Command(type="reboot", output="").output_preview, "")
+
+        with self.subTest("single line"):
+            command = Command(type="reboot", output="all good")
+            self.assertEqual(command.output_preview, "all good")
+
+        with self.subTest("single line with trailing newline"):
+            command = Command(type="reboot", output="all good\n")
+            self.assertEqual(command.output_preview, "all good")
+
+        with self.subTest("single long line"):
+            command = Command(type="reboot", output="x" * 120)
+            self.assertEqual(command.output_preview, f"… {'x' * 100}")
+
+        with self.subTest("multiple lines"):
+            command = Command(type="reboot", output="first\nsecond\nlast")
+            self.assertEqual(command.output_preview, "… last")
+
+        with self.subTest("multiple lines with a long last line"):
+            command = Command(type="reboot", output=f"first\n{'y' * 120}")
+            self.assertEqual(command.output_preview, f"… {'y' * 100}")
+
     def test_command_validation(self):
         dc = self._create_device_connection()
         command = Command(
@@ -1028,6 +1055,77 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
             batch.batch_commands.filter(status="failed", device=device1).exists()
         )
 
+    def test_batch_command_skipped_devices(self):
+        org = self._get_org()
+        batch = self._create_batch_command(organization=org)
+        skipped = {
+            str(uuid4()): {"name": f"device{index}", "error": f"error {index}"}
+            for index in range(3)
+        }
+        pks = list(skipped)
+        batch.skipped_devices = skipped
+        batch.save(update_fields=["skipped_devices"])
+
+        with self.subTest("skipped row"):
+            row = BatchCommand.build_skipped_row(pks[0], skipped[pks[0]])
+            self.assertEqual(
+                row,
+                {
+                    "device": pks[0],
+                    "device_name": "device0",
+                    "status": "skipped",
+                    "status_display": "skipped",
+                    "output": "error 0",
+                    "modified": None,
+                    "is_skipped": True,
+                },
+            )
+
+        with self.subTest("all rows"):
+            rows = batch.get_skipped_rows()
+            self.assertEqual([row["device"] for row in rows], pks)
+
+        with self.subTest("sliced rows"):
+            self.assertEqual(
+                [row["device"] for row in batch.get_skipped_rows(end=2)], pks[:2]
+            )
+            self.assertEqual(
+                [row["device"] for row in batch.get_skipped_rows(start=-1)], pks[-1:]
+            )
+
+        with self.subTest("preview within the limit"):
+            self.assertEqual(
+                [row["device"] for row in batch.get_skipped_preview()], pks
+            )
+
+        with self.subTest("preview above the limit"):
+            skipped = {
+                str(uuid4()): {"name": f"device{index}", "error": f"error {index}"}
+                for index in range(11)
+            }
+            pks = list(skipped)
+            batch.skipped_devices = skipped
+            batch.save(update_fields=["skipped_devices"])
+            self.assertEqual(
+                [row["device"] for row in batch.get_skipped_preview()],
+                pks[:2] + pks[-1:],
+            )
+
+        with self.subTest("counts include skipped devices"):
+            device = self._create_device(organization=org)
+            self._create_config(device=device)
+            dc = self._create_device_connection(device=device)
+            Command.objects.create(
+                batch_command=batch,
+                device=device,
+                connection=dc,
+                type=batch.type,
+                input={"command": "echo test"},
+                status="success",
+            )
+            self.assertEqual(batch.affected_devices, 1)
+            self.assertEqual(batch.total_devices, 12)
+
     def test_batch_command_clean_validation(self):
         org = self._get_org()
         org2 = self._create_org(name="org2", slug="org2")
@@ -1236,6 +1334,10 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
             self.assertEqual(command_qs.count(), 1)
             self.assertTrue(command_qs.filter(device=device_ok).exists())
             self.assertIn(str(device_no_creds.pk), batch.skipped_devices)
+            self.assertEqual(
+                batch.skipped_devices[str(device_no_creds.pk)]["name"],
+                device_no_creds.name,
+            )
             self.assertIn(
                 "Device has no credentials assigned",
                 batch.skipped_devices[str(device_no_creds.pk)]["error"],
@@ -1248,6 +1350,19 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
             self.assertNotIn(str(device_ok.pk), batch.skipped_devices)
             db_batch = BatchCommand.objects.get(pk=batch.pk)
             self.assertEqual(batch.skipped_devices, db_batch.skipped_devices)
+
+    def test_batch_command_create_commands_without_explicit_devices(self):
+        org = self._get_org()
+        device = self._create_device(organization=org)
+        self._create_config(device=device)
+        self._create_device_connection(device=device)
+        batch = self._create_batch_command(organization=org)
+        batch.create_commands()
+        batch.refresh_from_db()
+        self.assertEqual(
+            [command.device for command in batch.batch_commands.all()], [device]
+        )
+        self.assertEqual(list(batch.devices.all()), [device])
 
     def test_batch_command_resolve_devices(self):
         org = self._get_org()
@@ -1531,6 +1646,24 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
                 ctx.exception.message_dict["devices"][0],
             )
 
+        with self.subTest("devices of different organizations without organization"):
+            device_org1 = self._create_device(
+                name="exec-mm-dev-org1",
+                mac_address="00:11:22:33:44:97",
+            )
+            with self.assertRaises(ValidationError) as ctx:
+                BatchCommand.execute(
+                    type="custom",
+                    input={"command": "echo test"},
+                    label="test-label",
+                    devices=[device_org1, device_org2],
+                )
+            self.assertIn("devices", ctx.exception.message_dict)
+            self.assertIn(
+                "must belong to the same organization",
+                ctx.exception.message_dict["devices"][0],
+            )
+
         with self.subTest("group org mismatch"):
             group_org2 = DeviceGroup.objects.create(
                 name="exec-mm-group",
@@ -1587,6 +1720,19 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
                     organization=org,
                     devices=[device_org2],
                 )
+            self.assertIn("devices", ctx.exception.message_dict)
+            self.assertIn(
+                "must belong to the same organization",
+                ctx.exception.message_dict["devices"][0],
+            )
+
+        with self.subTest("devices of different organizations without organization"):
+            device_org1 = self._create_device(
+                name="dry-mm-dev-org1",
+                mac_address="00:11:22:33:44:97",
+            )
+            with self.assertRaises(ValidationError) as ctx:
+                BatchCommand.dry_run(devices=[device_org1, device_org2])
             self.assertIn("devices", ctx.exception.message_dict)
             self.assertIn(
                 "must belong to the same organization",
@@ -2072,3 +2218,32 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
                 credential = self._create_credentials(
                     name="Mocked Credential", auto_add=True, organization=org
                 )
+
+    def test_batch_command_broadcast_deferred_to_commit(self):
+        org = self._get_org()
+        device = self._create_device(organization=org)
+        self._create_config(device=device)
+        dc = self._create_device_connection(device=device)
+        batch = self._create_batch_command(organization=org)
+        command_opts = dict(
+            batch_command=batch,
+            device=device,
+            connection=dc,
+            type=batch.type,
+            input={"command": "echo test"},
+        )
+        with mock.patch.object(Command, "_schedule_command"):
+            with self.subTest("nothing is sent before the transaction commits"):
+                with mock.patch.object(apps.layers, "get_channel_layer") as layer:
+                    with transaction.atomic():
+                        Command.objects.create(**command_opts)
+                        layer.assert_not_called()
+                    layer.assert_called()
+            with self.subTest("a rolled back command is never broadcast"):
+                with mock.patch.object(apps.layers, "get_channel_layer") as layer:
+                    with self.assertRaises(ValueError):
+                        with transaction.atomic():
+                            Command.objects.create(**command_opts)
+                            raise ValueError()
+                    layer.assert_not_called()
+        self.assertEqual(batch.batch_commands.count(), 1)
