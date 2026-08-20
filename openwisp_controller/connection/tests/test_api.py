@@ -1254,14 +1254,33 @@ class TestBatchCommandsAPI(
                         "type": "custom",
                         "input": {"command": "echo test"},
                         "label": "test-label",
-                        "devices": [str(device1.pk), str(device2.pk)],
+                        "devices": [str(device1.pk)],
                     }
                 ),
                 content_type="application/json",
             )
             self.assertEqual(response.status_code, 201)
             batch = BatchCommand.objects.get(pk=response.data["batch"])
-            self.assertEqual(batch.devices.count(), 2)
+            self.assertEqual(batch.devices.count(), 1)
+
+        with self.subTest("execute with devices of different organizations"):
+            response = self.client.post(
+                url,
+                data=json.dumps(
+                    {
+                        "type": "custom",
+                        "input": {"command": "echo test"},
+                        "label": "test-label",
+                        "devices": [str(device1.pk), str(device2.pk)],
+                    }
+                ),
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 400)
+            self.assertIn(
+                "must belong to the same organization",
+                response.data["devices"][0],
+            )
 
         with self.subTest("dry-run targets all devices"):
             response = self.client.get(url)
@@ -1270,12 +1289,19 @@ class TestBatchCommandsAPI(
             self.assertIn(str(device2.pk), response.data["devices"])
 
         with self.subTest("dry-run with explicit devices"):
+            response = self.client.get(f"{url}?devices={str(device1.pk)}")
+            self.assertEqual(response.status_code, 200)
+            self.assertIn(str(device1.pk), response.data["devices"])
+
+        with self.subTest("dry-run with devices of different organizations"):
             response = self.client.get(
                 f"{url}?devices={str(device1.pk)}&devices={str(device2.pk)}"
             )
-            self.assertEqual(response.status_code, 200)
-            self.assertIn(str(device1.pk), response.data["devices"])
-            self.assertIn(str(device2.pk), response.data["devices"])
+            self.assertEqual(response.status_code, 400)
+            self.assertIn(
+                "must belong to the same organization",
+                response.data["devices"][0],
+            )
 
     def test_superuser_org_auto_set_from_group_and_location(self):
         org = self._get_org()
@@ -1781,12 +1807,7 @@ class TestBatchCommandsAPI(
             self.assertEqual(response.status_code, 400)
             self.assertEqual(
                 response.data,
-                {
-                    "devices": [
-                        "All devices must belong to the same "
-                        "organization as the batch command."
-                    ]
-                },
+                {"devices": ["All devices must belong to the same organization."]},
             )
 
         with self.subTest("group org mismatch"):
@@ -1872,12 +1893,7 @@ class TestBatchCommandsAPI(
             self.assertEqual(response.status_code, 400)
             self.assertEqual(
                 response.data,
-                {
-                    "devices": [
-                        "All devices must belong to the same "
-                        "organization as the batch command."
-                    ]
-                },
+                {"devices": ["All devices must belong to the same organization."]},
             )
 
         with self.subTest("group org mismatch"):
@@ -2245,7 +2261,6 @@ class TestBatchCommandsAPITransaction(
                 "type": "custom",
                 "input": {"command": "echo test"},
                 "label": "test-label",
-                "devices": [str(device_a.pk), str(device_b.pk)],
             }
             response = self.client.post(
                 execute_url,
