@@ -233,18 +233,11 @@ class AbstractDeviceCertificate(TimeStampedEditableModel):
         revoke_device_cert(instance)
 
     @classmethod
-    def validate_bound_cert_organization(
-        cls, sender, instance, update_fields=None, **kwargs
-    ):
+    def validate_cert_bound_organization(cls, instance):
         """
         Prevent moving a certificate to another organization while assigned.
         """
         if instance._state.adding or not instance.pk:
-            return
-        if update_fields is not None and not {
-            "organization",
-            "organization_id",
-        }.intersection(update_fields):
             return
         initial_org_id = getattr(
             instance,
@@ -253,8 +246,10 @@ class AbstractDeviceCertificate(TimeStampedEditableModel):
         )
         if initial_org_id is models.DEFERRED:
             try:
-                old = sender._default_manager.only("organization").get(pk=instance.pk)
-            except sender.DoesNotExist:
+                old = instance.__class__._default_manager.only("organization").get(
+                    pk=instance.pk
+                )
+            except instance.__class__.DoesNotExist:
                 return
             initial_org_id = old.organization_id
         if initial_org_id == instance.organization_id:
@@ -268,6 +263,20 @@ class AbstractDeviceCertificate(TimeStampedEditableModel):
                     )
                 }
             )
+
+    @classmethod
+    def validate_bound_cert_organization(
+        cls, sender, instance, update_fields=None, **kwargs
+    ):
+        """
+        Guards direct ORM saves which skip validation.
+        """
+        if update_fields is not None and not {
+            "organization",
+            "organization_id",
+        }.intersection(update_fields):
+            return
+        cls.validate_cert_bound_organization(instance)
 
     @classmethod
     def regenerate_certificates(cls, device_id, expected_cert_ids=None):

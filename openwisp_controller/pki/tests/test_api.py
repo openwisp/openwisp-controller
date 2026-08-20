@@ -4,6 +4,10 @@ from packaging.version import parse as parse_version
 from rest_framework import VERSION as REST_FRAMEWORK_VERSION
 from swapper import load_model
 
+from openwisp_controller.config.tests.utils import (
+    CreateConfigMixin,
+    CreateTemplateMixin,
+)
 from openwisp_controller.tests.utils import TestAdminMixin
 from openwisp_users.tests.test_api import AuthenticationMixin
 from openwisp_users.tests.utils import TestOrganizationMixin
@@ -13,12 +17,15 @@ from .utils import TestPkiMixin
 
 Ca = load_model("django_x509", "Ca")
 Cert = load_model("django_x509", "Cert")
+DeviceCertificate = load_model("config", "DeviceCertificate")
 
 
 class TestPkiApi(
     AssertNumQueriesSubTestMixin,
     TestAdminMixin,
     TestPkiMixin,
+    CreateConfigMixin,
+    CreateTemplateMixin,
     TestOrganizationMixin,
     AuthenticationMixin,
     TestCase,
@@ -253,7 +260,7 @@ class TestPkiApi(
             "organization": org2.pk,
             "notes": "new-notes",
         }
-        with self.assertNumQueries(11):
+        with self.assertNumQueries(12):
             r = self.client.put(path, data, content_type="application/json")
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data["name"], "cert1-change")
@@ -268,6 +275,32 @@ class TestPkiApi(
             r = self.client.patch(path, data, content_type="application/json")
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data["name"], "cert1-change")
+
+    def test_patch_bound_cert_organization_api(self):
+        org1 = self._create_org(name="org1", slug="org1")
+        org2 = self._create_org(name="org2", slug="org2")
+        ca = self._create_ca(name="ca")
+        template = self._create_template(
+            name="cert-template", type="cert", ca=ca, organization=org1, config={}
+        )
+        device = self._create_device(organization=org1, name="bound-cert-device")
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        cert = DeviceCertificate.objects.get(config=config, template=template).cert
+        path = reverse("pki_api:cert_detail", args=[cert.pk])
+        r = self.client.patch(
+            path,
+            data={"organization": str(org2.pk)},
+            content_type="application/json",
+        )
+        self.assertEqual(r.status_code, 400)
+        self.assertIn(
+            "The organization of a certificate assigned to a device "
+            "cannot be changed.",
+            r.data["organization"],
+        )
+        cert.refresh_from_db()
+        self.assertEqual(cert.organization_id, org1.pk)
 
     def test_cert_delete_api(self):
         cert1 = self._create_cert(name="cert1")
@@ -391,7 +424,7 @@ class TestTransactionPkiApi(
             "organization": org2.pk,
             "notes": "new-notes",
         }
-        with self.assertNumQueries(12):
+        with self.assertNumQueries(13):
             r = self.client.put(path, data, content_type="application/json")
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data["name"], "cert1-change")

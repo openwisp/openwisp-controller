@@ -2,6 +2,10 @@ from django.test import TestCase
 from django.urls import reverse
 from swapper import load_model
 
+from openwisp_controller.config.tests.utils import (
+    CreateConfigMixin,
+    CreateTemplateMixin,
+)
 from openwisp_users.tests.utils import TestOrganizationMixin
 
 from ...tests.utils import TestAdminMixin
@@ -9,9 +13,17 @@ from .utils import TestPkiMixin
 
 Ca = load_model("django_x509", "Ca")
 Cert = load_model("django_x509", "Cert")
+DeviceCertificate = load_model("config", "DeviceCertificate")
 
 
-class TestAdmin(TestPkiMixin, TestAdminMixin, TestOrganizationMixin, TestCase):
+class TestAdmin(
+    TestPkiMixin,
+    TestAdminMixin,
+    CreateConfigMixin,
+    CreateTemplateMixin,
+    TestOrganizationMixin,
+    TestCase,
+):
     app_label = "pki"
 
     def _create_multitenancy_test_env(self, cert=False):
@@ -118,6 +130,33 @@ class TestAdmin(TestPkiMixin, TestAdminMixin, TestOrganizationMixin, TestCase):
         url = reverse(f"admin:{self.app_label}_cert_change", args=[cert.pk])
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
+
+    def test_change_bound_cert_organization_admin(self):
+        org1 = self._create_org(name="org1", slug="org1")
+        org2 = self._create_org(name="org2", slug="org2")
+        ca = self._create_ca(name="ca")
+        template = self._create_template(
+            name="cert-template", type="cert", ca=ca, organization=org1, config={}
+        )
+        device = self._create_device(organization=org1, name="bound-cert-device")
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        cert = DeviceCertificate.objects.get(config=config, template=template).cert
+        self._login()
+        url = reverse(f"admin:{self.app_label}_cert_change", args=[cert.pk])
+        params = {
+            "name": cert.name,
+            "organization": str(org2.pk),
+            "ca": str(cert.ca.pk),
+            "notes": cert.notes,
+            "operation_type": "-",
+        }
+        response = self.client.post(url, params)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "errorlist")
+        self.assertContains(response, "cannot be changed")
+        cert.refresh_from_db()
+        self.assertEqual(cert.organization_id, org1.pk)
 
     def test_changelist_recover_deleted_button(self):
         self._create_multitenancy_test_env()
