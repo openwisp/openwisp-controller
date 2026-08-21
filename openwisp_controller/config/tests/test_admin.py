@@ -562,6 +562,7 @@ class TestAdmin(
             url=self._get_autocomplete_view_path(self.app_label, "template", "vpn"),
             visible=[data["vpn1"].name],
             hidden=[data["vpn2"].name, data["vpn_inactive"].name],
+            superuser_hidden=[data["vpn_inactive"].name],
         )
 
     def test_vpn_queryset(self):
