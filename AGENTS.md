@@ -78,6 +78,8 @@ If instructions conflict (please let us know!), repository config and CI workflo
 
 - Watch for cross-organization data leaks, command execution issues, unsafe file paths, unsafe redirects, insecure credentials, and secrets.
 - Preserve validation around templates, VPN/PKI material, SSH credentials, device commands, uploaded files, URLs, and subnet/IP data.
+- Objects belonging to a disabled organization must be readable and deletable; creation and updates must be blocked across all relevant write paths. This applies to objects with either a direct or chained/nested relationship to the organization. No other operations should be permitted, except for ordinary cleanup operations.
+- Operations on deactivated devices must be blocked, except for read-only access and cleanup operations required to maintain consistency. Creation, updates, provisioning, configuration, and other mutating operations must not be performed for deactivated devices.
 
 ## Troubleshooting
 
