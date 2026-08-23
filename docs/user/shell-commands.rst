@@ -194,24 +194,83 @@ useful for rebooting all devices in a group, changing passwords across
 multiple devices, or running diagnostics on all devices in an
 organization.
 
-**Targeting options:**
+Sending a Mass Command
+~~~~~~~~~~~~~~~~~~~~~~
 
-- ``organization``: All devices in an organization.
-- ``devices``: Explicit list of device UUIDs.
-- ``group``: Device group UUID.
-- ``location``: Location UUID.
+Open *Network Operations* > *Mass command execute* from the menu. The
+first step asks for:
 
-If ``devices`` is provided, ``group`` and ``location`` are ignored.
-Otherwise, ``group`` and ``location`` can be used together to narrow the
-target set within the organization.
+- the **command type** and its inputs, which change with the type
+  selected;
+- a **label** to identify the mass command later, and optional **notes**;
+- the **targets**: organization, device group and location.
 
-If no targeting options are provided, the command targets all devices in
-the organization. Superusers can omit ``organization`` to target all
-devices across organizations.
+The targets decide which devices are matched. Using more than one narrows
+the selection: a group and a location together match only the devices
+which are in that group *and* at that location.
 
-For superusers, ``organization`` is set automatically when ``group`` or
-``location`` is provided.
+Superusers can leave every target empty to run the command on all the
+devices of the system. Other users must choose at least one target, and
+only see the command types enabled for their organizations (see
+:ref:`openwisp_controller_organization_enabled_commands`).
 
-Refer to the :ref:`Batch Command API <controller_batch_command_api>`
-documentation for the available endpoints, request parameters, and
-examples.
+Reviewing the Devices
+~~~~~~~~~~~~~~~~~~~~~
+
+The second step shows a summary of the command and the list of the devices
+it matched.
+
+Devices can be left out by unchecking them: the counter and the *Execute
+on N devices* button follow the selection, which is kept while paging
+through the list. *Back* returns to the first step with the form still
+filled in.
+
+The mass command starts when the *Execute* button is clicked.
+
+Following the Results
+~~~~~~~~~~~~~~~~~~~~~
+
+After executing, the mass command page opens. It shows the status of the
+mass command, how many devices are affected, the devices which were
+skipped, and one row per device with its status and output.
+
+The rows are updated in real time, so the page does not need to be
+reloaded to follow the progress. The table can be searched by device name
+and filtered by status, device group and location (and by organization for
+superusers).
+
+.. note::
+
+    Commands are executed in the background, one device at a time, so a
+    mass command sent to many devices keeps updating for a while after the
+    page is opened.
+
+Finding Past Mass Commands
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+*Network Operations* > *Mass command admin* lists the mass commands which
+were sent, most recent first.
+
+The list can be searched by label, notes, organization, device, location
+and group name, and filtered by organization, status, type, group and
+location. Clicking a mass command opens the page described above.
+
+Skipped Devices
+~~~~~~~~~~~~~~~
+
+A device is skipped when the command cannot be created for it, for example
+when the device has no access credentials, or when the command type is not
+enabled for its organization.
+
+Skipped devices are not executed, but they are shown: the **Skipped
+devices** field summarizes how many there are and why, and each one is
+listed in the results table with the *skipped* status and the reason as
+its output. They can be found with the status filter.
+
+Using the API
+~~~~~~~~~~~~~
+
+The same operations are available over the REST API, which also accepts an
+explicit list of devices instead of the targets described above. Refer to
+the :ref:`Batch Command API <controller_batch_command_api>` documentation
+for the available endpoints, request parameters and examples.
