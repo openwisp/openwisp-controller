@@ -17,6 +17,8 @@ All endpoints:
   shown in JavaScript-style notation with inline comments for readability.
 - Push real-time updates after the connection is established.
 - Do not accept client messages: any data sent from the client is ignored.
+  The only exception is the mass command endpoint, which accepts the
+  single request documented below.
 
 Authentication and Authorization
 --------------------------------
@@ -161,3 +163,92 @@ After the connection is established, the server pushes a message every
 time the geometry of any mobile location in a subscribed organization is
 updated. The payload is identical to the one documented for the `2. Single
 Location Updates`_ endpoint.
+
+4. Mass Command Updates
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Connection URL:
+
+::
+
+    wss://<host>/ws/controller/batch-command/<batch_command_id>
+
+Scope
++++++
+
+Progress of a single mass command: its status and the result of every
+device it runs on. See :ref:`mass_commands`.
+
+Authorization
++++++++++++++
+
+A user is authorized if:
+
+- The user is a superuser, OR
+- The user is marked as staff AND has the ``connection.view_batchcommand``
+  or ``connection.change_batchcommand`` permission AND manages the
+  organization of the mass command.
+
+Real-time Updates
++++++++++++++++++
+
+The server pushes a message every time the mass command or one of its
+commands changes. The ``type`` field tells the two apart.
+
+When the mass command itself changes, for example when it moves from
+``idle`` to ``in-progress``:
+
+.. code-block:: javascript
+
+    {
+        "type": "batch_status",
+        "id": "<uuid>",                  // Mass command identifier
+        "label": "<string>",             // Label given when it was sent
+        "status": "<string>",            // "idle", "in-progress", "success" or "failed"
+        "status_display": "<string>",    // Status as shown in the user interface
+        "affected_devices": <integer>,   // Number of devices the command runs on
+        "skipped_count": <integer>,      // Number of devices which were skipped
+        "skipped_preview": [ /* ... */], // First and last skipped devices, with the reason
+        "total_rows": <integer>          // Affected plus skipped devices
+    }
+
+When the command of one device changes:
+
+.. code-block:: javascript
+
+    {
+        "type": "command_update",
+        "id": "<uuid>",                  // Command identifier
+        "device": "<uuid>",              // Device identifier
+        "device_name": "<string>",       // Device name
+        "status": "<string>",            // "in-progress", "success" or "failed"
+        "status_display": "<string>",    // Status as shown in the user interface
+        "output": "<string>",            // Output collected so far
+        "modified": "<string>",          // Last modification, formatted for display
+        "index": <integer>,              // Position of the row, sent only for new commands
+        "total_rows": <integer>          // Affected plus skipped devices, sent with "index"
+    }
+
+Requesting the Current State
+++++++++++++++++++++++++++++
+
+A client which connects while the mass command is already running can ask
+for the results it missed:
+
+.. code-block:: javascript
+
+    {
+        "type": "request_current_state",
+        "page": 1                        // Page of results, 20 rows per page
+    }
+
+The server replies with one message holding that page:
+
+.. code-block:: javascript
+
+    {
+        "type": "batch_state",
+        "batch_status": { /* ... */ },   // Same fields as the "batch_status" message
+        "commands": [ /* ... */ ],       // Rows of the requested page
+        "total_rows": <integer>          // Affected plus skipped devices
+    }
