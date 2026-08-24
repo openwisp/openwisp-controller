@@ -1,4 +1,3 @@
-from django.apps import apps
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django_x509.base.models import AbstractCa as BaseCa
@@ -68,7 +67,7 @@ class AbstractCert(ShareableOrgMixin, UnqiueCommonNameMixin, BaseCert):
         Defers to ``config.DeviceCertificate`` to prevent moving a
         certificate to another organization while it is assigned to a device.
         """
-        if not apps.is_installed("openwisp_controller.config"):
+        DeviceCertificate = load_model("config", "DeviceCertificate", required=False)
+        if DeviceCertificate is None:
             return
-        DeviceCertificate = load_model("config", "DeviceCertificate")
         DeviceCertificate.validate_cert_bound_organization(self)
