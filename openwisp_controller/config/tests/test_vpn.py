@@ -179,7 +179,11 @@ class TestVpn(BaseTestVpn, TestCase):
         config2.templates.add(template)
         cert1 = config1.vpnclient_set.get().cert
         cert2 = config2.vpnclient_set.get().cert
+        self.assertNotEqual(cert1.pk, cert2.pk)
         cert1.extensions[0]["value"] = "mutated"
+        cert1.full_clean()
+        cert1.save()
+        cert2.refresh_from_db()
         self.assertEqual(cert2.extensions[0]["value"], "client")
 
     def test_vpn_cert_and_ca_mismatch(self):

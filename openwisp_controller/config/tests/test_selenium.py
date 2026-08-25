@@ -23,7 +23,6 @@ Device = load_model("config", "Device")
 DeviceGroup = load_model("config", "DeviceGroup")
 Cert = load_model("django_x509", "Cert")
 DeviceCertificate = load_model("config", "DeviceCertificate")
-Notification = load_model("openwisp_notifications", "Notification")
 
 
 class SeleniumTestMixin(BaseSeleniumTestMixin):

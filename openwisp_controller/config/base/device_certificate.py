@@ -145,9 +145,9 @@ class AbstractDeviceCertificate(TimeStampedEditableModel):
 
     def save(self, *args, **kwargs):
         with transaction.atomic():
+            self.full_clean(validate_unique=False)
             if not self.cert:
                 self._auto_x509()
-            self.full_clean(validate_unique=False)
             super().save(*args, **kwargs)
 
     def _auto_x509(self):

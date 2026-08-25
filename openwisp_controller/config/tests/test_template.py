@@ -1572,6 +1572,26 @@ class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, Test
 
         self.assertEqual(Cert.objects.count(), cert_count)
 
+    def test_device_certificate_rejects_non_cert_template(self):
+        """
+        Creating a DeviceCertificate bound to a non-certificate template
+        raises a ValidationError instead of an unhandled exception.
+        """
+        org = self._get_org()
+        vpn = self._create_vpn()
+        template = self._create_template(
+            name="VPN Template",
+            type="vpn",
+            vpn=vpn,
+            organization=org,
+        )
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        with self.assertRaises(ValidationError) as ctx:
+            DeviceCertificate.objects.create(config=config, template=template)
+        self.assertIn("template", ctx.exception.message_dict)
+
     def test_cert_template_reorder_does_not_revoke(self):
         """
         Verify that reordering templates or performing bulk .set() updates
