@@ -12,7 +12,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.utils import free_port
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import Select, WebDriverWait
+from selenium.webdriver.support.ui import Select
 from swapper import load_model
 
 from openwisp_utils.tests import SeleniumTestMixin as BaseSeleniumTestMixin
@@ -92,7 +92,7 @@ class TestDeviceAdmin(
             'document.querySelector("#ow-user-tools").style.display="none"'
         )
         self.find_element(by=By.NAME, value="_save").click()
-        self.wait_for_presence(By.CSS_SELECTOR, ".messagelist .success", timeout=5)
+        self.wait_for_admin_success_message()
 
     def test_create_new_device(self):
         required_template = self._create_template(name="Required", required=True)
@@ -121,22 +121,13 @@ class TestDeviceAdmin(
             by=By.XPATH, value='//*[@id="config-group"]/fieldset/div[2]/a'
         ).click()
         try:
-            WebDriverWait(self.web_driver, 2).until(
-                # This WebDriverWait ensures that Selenium waits until the
-                # "config-0-templates" input field on the page gets updated
-                # with the IDs of the default and required templates after
-                # the user clicks on the "Add another config" link. This update
-                # is essential because it signifies that the logic in
-                # relevant_template.js has executed successfully, selecting
-                # the appropriate default and required templates. This logic
-                # also changes the ordering of the templates.
-                # Failing to wait for this update could lead to
-                # StaleElementReferenceException like in
-                # https://github.com/openwisp/openwisp-controller/issues/834
+            # Wait for relevant_template.js to select and order the templates.
+            # This avoids StaleElementReferenceException: issue #834.
+            self.wait_until(
                 EC.text_to_be_present_in_element_value(
                     (By.CSS_SELECTOR, 'input[name="config-0-templates"]'),
                     f"{required_template.id},{default_template.id}",
-                )
+                ),
             )
         except TimeoutException:
             self.fail("Relevant templates logic was not executed")
@@ -155,7 +146,7 @@ class TestDeviceAdmin(
             'document.querySelector("#ow-user-tools").style.display="none"'
         )
         self.find_element(by=By.NAME, value="_save").click()
-        self.wait_for_presence(By.CSS_SELECTOR, ".messagelist .success", timeout=5)
+        self.wait_for_admin_success_message()
         self.assertEqual(
             self.find_elements(by=By.CLASS_NAME, value="success")[0].text,
             "The Device “11:22:33:44:55:66” was added successfully.",
@@ -484,7 +475,7 @@ class TestDeviceAdmin(
             # Scroll to the top of the page to ensure the save button is visible
             self.web_driver.execute_script("window.scrollTo(0, 0);")
             self.find_element(by=By.NAME, value="_save").click()
-            self.wait_for_presence(By.CSS_SELECTOR, ".messagelist .success", timeout=5)
+            self.wait_for_admin_success_message()
 
 
 @tag("selenium_tests")
@@ -700,14 +691,14 @@ class TestDeviceAdminUnsavedChanges(
         )
         self.hide_loading_overlay()
         try:
-            WebDriverWait(self.web_driver, 2).until(
+            self.wait_until(
                 EC.text_to_be_present_in_element_value(
                     (
                         By.XPATH,
                         '//*[@id="flat-json-config-0-context"]/div[2]/div/div/input[1]',
                     ),
                     "vni",
-                )
+                ),
             )
         except TimeoutException:
             self.fail("Timed out waiting for configuration variables to get loaded")

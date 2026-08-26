@@ -1255,7 +1255,7 @@ class TestWHOISSelenium(CreateWHOISMixin, SeleniumTestMixin, StaticLiveServerTes
     @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
     def test_device_admin(self):
         def _assert_no_js_errors():
-            self.assertEqual(self.get_browser_errors(), [])
+            self.assert_no_browser_errors()
 
         whois_obj = self._create_whois_info()
         device = self._create_device(last_ip=whois_obj.ip_address)

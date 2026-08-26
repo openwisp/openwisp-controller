@@ -47,7 +47,7 @@ class TestDeviceAdmin(
         self.hide_loading_overlay()
         # Send reboot command to the device
         self.find_element(
-            by=By.CSS_SELECTOR, value="ul.object-tools a#send-command", timeout=5
+            by=By.CSS_SELECTOR, value="ul.object-tools a#send-command"
         ).click()
         self.find_element(
             by=By.CSS_SELECTOR, value='button.ow-command-btn[data-command="reboot"]'
