@@ -32,8 +32,10 @@ then redirects to the confirm page
 
 {% block content %}
 <div id="content-main">
-  <form method="post" novalidate class="execute-form">
+  {# the action renders this page from the device changelist, so the target is explicit #}
+  <form method="post" novalidate action="{% url opts|admin_urlname:'execute' %}">
     {% csrf_token %}
+    {{ form.devices }}
     <nav class="stepper" aria-label="{% trans 'Execution progress' %}">
       <div class="stepper-step active" aria-current="step">
         <span class="stepper-badge">1</span>
@@ -65,6 +67,13 @@ then redirects to the confirm page
     the markup of the admin, so the page is styled like any other admin form
     {% endcomment %}
     {% for title, fields in form.fieldsets %}
+    {% if forloop.last and device_count %}
+    <ul class="messagelist selected-devices-message">
+      <li class="warning">
+        {% blocktrans count counter=device_count %}The command will run on the device you selected.{% plural %}The command will run on the {{ counter }} devices you selected.{% endblocktrans %}
+      </li>
+    </ul>
+    {% endif %}
     <fieldset class="module aligned">
       <h2>{{ title }}</h2>
       {% for field in fields %}
