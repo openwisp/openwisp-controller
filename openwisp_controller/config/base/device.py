@@ -17,6 +17,7 @@ from ..signals import (
     device_group_changed,
     device_name_changed,
     management_ip_changed,
+    organization_changed,
 )
 from ..validators import device_name_validator, mac_address_validator
 from ..whois.service import WHOISService
@@ -239,9 +240,9 @@ class AbstractDevice(OrgMixin, BaseModel):
             return KeyField.default_callable()
 
     def _validate_org_device_limit(self):
-        if not self._state.adding and not self._check_organization_id_changed():
+        if not self._state.adding and not self._has_organization_id_changed():
             # This check is only executed when a new device
-            # is created.
+            # is created or when organization is changed.
             return
         if (
             not hasattr(self, "organization")
@@ -383,7 +384,7 @@ class AbstractDevice(OrgMixin, BaseModel):
 
         self._initial_management_ip = self.management_ip
 
-    def _check_organization_id_changed(self):
+    def _has_organization_id_changed(self):
         """
         Returns "True" if the device's organization has changed.
         """
@@ -391,6 +392,18 @@ class AbstractDevice(OrgMixin, BaseModel):
             self._initial_organization_id != models.DEFERRED
             and self.organization_id != self._initial_organization_id
         )
+
+    def _check_organization_id_changed(self):
+        if self._initial_organization_id == models.DEFERRED:
+            return
+        if self.organization_id != self._initial_organization_id:
+            organization_changed.send(
+                sender=self.__class__,
+                instance=self,
+                old_organization_id=self._initial_organization_id,
+                organization_id=self.organization_id,
+            )
+            self._initial_organization_id = self.organization_id
 
     @classmethod
     def _send_device_group_changed_signal(cls, instance, group_id, old_group_id):

@@ -22,6 +22,7 @@ from .signals import (
     device_group_changed,
     device_name_changed,
     group_templates_changed,
+    organization_changed,
     vpn_peers_changed,
     vpn_server_modified,
 )
@@ -368,9 +369,15 @@ class ConfigConfig(AppConfig):
         * refreshing the configs of a VPN server's clients when the server
           changes. ``vpn_server_change_handler`` recomputes each client's
           checksum and emits ``config_modified`` for it, but only when that
-          checksum actually changed.
+          checksum actually changed;
+        * reconciling config templates when a device's organization changes
+          (``device_organization_changed_handler``).
         """
-        from .handlers import devicegroup_change_handler, vpn_server_change_handler
+        from .handlers import (
+            device_organization_changed_handler,
+            devicegroup_change_handler,
+            vpn_server_change_handler,
+        )
 
         config_deactivated.connect(
             self.device_model.config_deactivated_clear_management_ip,
@@ -385,6 +392,11 @@ class ConfigConfig(AppConfig):
             vpn_server_change_handler,
             sender=self.vpn_model,
             dispatch_uid="vpn.invalidate_checksum_cache",
+        )
+        organization_changed.connect(
+            device_organization_changed_handler,
+            sender=self.device_model,
+            dispatch_uid="device_organization_changed_reconcile",
         )
 
     def register_dashboard_charts(self):

@@ -16,9 +16,15 @@ from ..signals import (
     device_group_changed,
     device_name_changed,
     management_ip_changed,
+    organization_changed,
 )
 from ..validators import device_name_validator, mac_address_validator
-from .utils import CreateConfigTemplateMixin, CreateDeviceGroupMixin
+from ...pki.tests.utils import TestPkiMixin
+from .utils import (
+    CreateConfigTemplateMixin,
+    CreateDeviceGroupMixin,
+    CreateVpnMixin,
+)
 
 TEST_ORG_SHARED_SECRET = "functional_testing_secret"
 
@@ -30,9 +36,11 @@ _original_context = app_settings.CONTEXT.copy()
 
 
 class TestDevice(
+    TestPkiMixin,
     CreateConfigTemplateMixin,
     AssertNumQueriesSubTestMixin,
     CreateDeviceGroupMixin,
+    CreateVpnMixin,
     TestCase,
 ):
     """
@@ -583,6 +591,77 @@ class TestDevice(
         self.assertEqual(device.config.context, {"ssid": "test"})
         self.assertEqual(device.config.config, {"general": {}})
 
+    def test_organization_changed_signal_emitted(self):
+        org1 = self._get_org()
+        org2 = self._create_org(name="org2")
+        device = self._create_device(organization=org1)
+
+        with catch_signal(organization_changed) as mocked_signal:
+            device.name = "new-name"
+            device.save()
+            mocked_signal.assert_not_called()
+
+        with catch_signal(organization_changed) as mocked_signal:
+            device.organization = org2
+            device.save()
+            mocked_signal.assert_called_once_with(
+                sender=Device,
+                instance=device,
+                old_organization_id=org1.pk,
+                organization_id=org2.pk,
+                signal=organization_changed,
+            )
+
+    def test_organization_changed_reconciles_templates_and_credentials(self):
+        org1 = self._get_org()
+        org2 = self._create_org(name="org2")
+        org1_template = self._create_template(
+            name="org1-template", organization=org1, config={"interfaces": []}
+        )
+        shared_generic_template = self._create_template(
+            name="shared-generic", organization=None, type="generic", config={"general": {}}
+        )
+        shared_vpn = self._create_vpn(name="shared-vpn", organization=None)
+        shared_vpn_template = self._create_template(
+            name="shared-vpn-template",
+            type="vpn",
+            vpn=shared_vpn,
+            organization=None,
+            auto_cert=True,
+            config={},
+        )
+        org2_required_template = self._create_template(
+            name="org2-required", organization=org2, required=True, config={"general": {}}
+        )
+
+        device = self._create_device(organization=org1)
+        config = self._create_config(device=device)
+        config.templates.add(org1_template, shared_generic_template, shared_vpn_template)
+
+        self.assertEqual(config.templates.count(), 3)
+        self.assertEqual(config.vpnclient_set.count(), 1)
+        vpn_client = config.vpnclient_set.first()
+        cert = vpn_client.cert
+        self.assertIsNotNone(cert)
+        self.assertFalse(cert.revoked)
+        self.assertNotEqual(config.get_vpn_context(), {})
+
+        device.organization = org2
+        device.full_clean()
+        device.save()
+
+        config.refresh_from_db()
+        assigned_template_ids = set(config.templates.values_list("id", flat=True))
+        self.assertEqual(
+            assigned_template_ids,
+            {shared_generic_template.pk, org2_required_template.pk},
+        )
+        self.assertEqual(config.vpnclient_set.count(), 0)
+        cert.refresh_from_db()
+        self.assertTrue(cert.revoked)
+        self.assertEqual(config.get_vpn_context(), {})
+        self.assertEqual(config.status, "modified")
+
 
 class TestTransactionDevice(
     CreateConfigTemplateMixin,
@@ -735,3 +814,4 @@ class TestTransactionDevice(
         device.refresh_from_db()
         self.assertEqual(device._has_config(), False)
         self.assertEqual(device.is_deactivated(), False)
+

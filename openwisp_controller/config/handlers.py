@@ -1,4 +1,4 @@
-from django.db import transaction
+from django.db import models, transaction
 from django.dispatch import receiver
 from django.utils.translation import gettext_lazy as _
 from openwisp_notifications.signals import notify
@@ -12,6 +12,38 @@ Device = load_model("config", "Device")
 DeviceGroup = load_model("config", "DeviceGroup")
 Organization = load_model("openwisp_users", "Organization")
 Cert = load_model("django_x509", "Cert")
+
+
+def device_organization_changed_handler(
+    sender, instance, old_organization_id, organization_id, **kwargs
+):
+    """Reconcile Config templates when a Device changes organization.
+
+    Removes templates that belong to other organizations, removes shared VPN/client
+    templates (type != 'generic'), and adds required templates for the new
+    organization.
+    """
+    if not hasattr(instance, "config"):
+        return
+    config = instance.config
+    # 1. Templates owned by a different organization.
+    # 2. Shared templates (organization is None) that are not generic.
+    to_remove = config.templates.filter(
+        (models.Q(organization__isnull=False) & ~models.Q(organization_id=organization_id))
+        | (models.Q(organization__isnull=True) & ~models.Q(type="generic"))
+    )
+    if to_remove.exists():
+        config.templates.remove(*to_remove)
+    # Add required templates for the destination organization.
+    Template = load_model("config", "Template")
+    required_templates = Template.objects.filter(
+        required=True,
+        backend=config.backend,
+    ).filter(
+        models.Q(organization_id=organization_id) | models.Q(organization__isnull=True)
+    )
+    if required_templates.exists():
+        config.templates.add(*required_templates)
 
 
 @receiver(

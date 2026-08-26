@@ -1,5 +1,13 @@
 from django.dispatch import Signal
 
+try:
+    from openwisp_users.signals import organization_changed
+except ImportError:
+    organization_changed = Signal()
+    organization_changed.__doc__ = """
+    Providing arguments: ['instance', 'old_organization_id', 'organization_id']
+    """
+
 checksum_requested = Signal()
 checksum_requested.__doc__ = """
 Providing arguments: ['instance', 'request']

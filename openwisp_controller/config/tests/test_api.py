@@ -543,6 +543,51 @@ class TestConfigApi(
         self.assertEqual(config.templates.count(), 1)
         self.assertEqual(config.templates.first(), org2_template)
 
+    def test_device_change_organization_reconciles_templates_and_vpn(self):
+        org1 = self._create_org(name="org1")
+        org2 = self._create_org(name="org2")
+        org1_template = self._create_template(
+            name="org1-template", organization=org1, config={"interfaces": []}
+        )
+        shared_generic = self._create_template(
+            name="shared-generic", organization=None, type="generic", config={"general": {}}
+        )
+        shared_vpn = self._create_vpn(name="shared-vpn", organization=None)
+        shared_vpn_template = self._create_template(
+            name="shared-vpn-template",
+            type="vpn",
+            vpn=shared_vpn,
+            organization=None,
+            auto_cert=True,
+            config={},
+        )
+        org2_template = self._create_template(
+            name="org2-template", organization=org2, required=True
+        )
+        device = self._create_device(organization=org1)
+        config = self._create_config(device=device)
+        config.templates.add(org1_template, shared_generic, shared_vpn_template)
+        self.assertEqual(config.templates.count(), 3)
+        self.assertEqual(config.vpnclient_set.count(), 1)
+        cert = config.vpnclient_set.first().cert
+        self.assertFalse(cert.revoked)
+
+        path = reverse("config_api:device_detail", args=[device.pk])
+        data = {"organization": org2.pk}
+        response = self.client.patch(path, data=data, content_type="application/json")
+        self.assertEqual(response.status_code, 200)
+        device.refresh_from_db()
+        config.refresh_from_db()
+        self.assertEqual(device.organization, org2)
+        self.assertEqual(
+            set(config.templates.values_list("id", flat=True)),
+            {shared_generic.pk, org2_template.pk},
+        )
+        self.assertEqual(config.vpnclient_set.count(), 0)
+        cert.refresh_from_db()
+        self.assertTrue(cert.revoked)
+        self.assertEqual(config.get_vpn_context(), {})
+
     def test_device_patch_api(self):
         d1 = self._create_device(name="test-device")
         path = reverse("config_api:device_detail", args=[d1.pk])

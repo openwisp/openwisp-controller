@@ -563,10 +563,16 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
             return
         raw_data = raw_data or {}
         template_query = models.Q(required=True, backend=instance.backend)
-        # trying to remove a required template will raise PermissionDenied
         if action == "pre_remove":
+            organization = raw_data.get("organization", instance.device.organization)
             templates = cls._get_templates_from_pk_set(pk_set)
-            if templates.filter(template_query).exists():
+            if (
+                templates.filter(template_query)
+                .filter(
+                    models.Q(organization=organization) | models.Q(organization=None)
+                )
+                .exists()
+            ):
                 raise PermissionDenied(
                     _("Required templates cannot be removed from the configuration")
                 )
@@ -983,7 +989,9 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
 
     def get_vpn_context(self):
         context = {}
-        for vpnclient in self.vpnclient_set.all().select_related("vpn", "cert"):
+        for vpnclient in self.vpnclient_set.filter(
+            template__in=self.templates.all()
+        ).select_related("vpn", "cert"):
             vpn = vpnclient.vpn
             vpn_id = vpn.pk.hex
             context.update(vpn.get_vpn_server_context())

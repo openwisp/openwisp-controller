@@ -318,29 +318,8 @@ class DeviceDetailSerializer(WHOISMixin, DeviceConfigSerializer):
 
     def update(self, instance, validated_data):
         config_data = validated_data.pop("config", {})
-        raw_data_for_signal_handlers = {
-            "organization": validated_data.get("organization", instance.organization)
-        }
         if config_data:
             self._update_config(instance, config_data)
-
-        elif instance._has_config() and validated_data.get("organization"):
-            if instance.organization != validated_data.get("organization"):
-                # config.device.organization is used for validating
-                # the organization of templates. It is also used for adding
-                # default and required templates configured for an organization.
-                # The value of the organization field is set here to
-                # prevent access of the old value stored in the database
-                # while performing above operations.
-                instance.config.device.organization = validated_data.get("organization")
-                instance.config.templates.clear()
-                Config.enforce_required_templates(
-                    action="post_clear",
-                    instance=instance.config,
-                    sender=instance.config.templates,
-                    pk_set=None,
-                    raw_data=raw_data_for_signal_handlers,
-                )
         return super().update(instance, validated_data)
 
 
