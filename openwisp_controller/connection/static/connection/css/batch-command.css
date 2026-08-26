@@ -306,6 +306,10 @@
 .execute-batch-command .form-row.field-input.errors .flex-container {
   display: none;
 }
+.execute-batch-command ul.selected-devices-message li {
+  padding: 15px 10px 15px 42px !important;
+  background-position: 15px 17px !important;
+}
 #main .form-row .ow-text-field {
   width: 320px;
 }

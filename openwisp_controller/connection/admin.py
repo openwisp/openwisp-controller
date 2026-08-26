@@ -11,7 +11,12 @@ from django.contrib import admin, messages
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.db.models import Count, Q
-from django.http import HttpResponseForbidden, HttpResponseNotAllowed, JsonResponse
+from django.http import (
+    HttpResponseForbidden,
+    HttpResponseNotAllowed,
+    HttpResponseRedirect,
+    JsonResponse,
+)
 from django.shortcuts import redirect
 from django.template.response import TemplateResponse
 from django.urls import path, resolve
@@ -19,6 +24,7 @@ from django.utils.html import format_html, format_html_join
 from django.utils.safestring import mark_safe
 from django.utils.timezone import localtime
 from django.utils.translation import gettext_lazy as _
+from django.utils.translation import ngettext
 
 from openwisp_users.multitenancy import MultitenantOrgFilter
 from openwisp_utils.admin import ReadOnlyAdmin, TimeReadonlyAdminMixin
@@ -61,6 +67,7 @@ class CommandForm(forms.ModelForm):
 
 class BatchCommandExecutionForm(forms.ModelForm):
     required_css_class = "required"
+    devices = forms.CharField(widget=forms.HiddenInput, required=False)
 
     class Meta:
         model = BatchCommand
@@ -95,9 +102,15 @@ class BatchCommandExecutionForm(forms.ModelForm):
             ]
         }
 
-    def __init__(self, *args, request=None, **kwargs):
+    def __init__(self, *args, request=None, device_ids=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.request = request
+        self.device_ids = self._scope_devices(device_ids)
+        if self.device_ids:
+            self.fields["devices"].initial = ",".join(self.device_ids)
+            for field_name in ("organization", "group", "location"):
+                self.fields[field_name].disabled = True
+            self.fields["organization"].initial = self._selected_organization_id()
         if request is None or request.user.is_superuser:
             return
         organization_ids = request.user.organizations_managed
@@ -118,8 +131,39 @@ class BatchCommandExecutionForm(forms.ModelForm):
         ]
         self.fields["type"].choices = empty_choices + list(allowed_commands.items())
 
+    def _scope_devices(self, device_ids):
+        self._organization_ids = set()
+        self._dropped_devices = False
+        if not device_ids:
+            return []
+        devices = Device.objects.filter(pk__in=device_ids)
+        if self.request is not None and not self.request.user.is_superuser:
+            devices = devices.filter(
+                organization_id__in=self.request.user.organizations_managed
+            )
+        rows = list(devices.values_list("pk", "organization_id"))
+        self._organization_ids = {row[1] for row in rows}
+        self._dropped_devices = len(rows) != len(set(device_ids))
+        return [str(row[0]) for row in rows]
+
+    def _selected_organization_id(self):
+        if len(self._organization_ids) != 1:
+            return None
+        return str(next(iter(self._organization_ids)))
+
     def clean(self):
         cleaned_data = super().clean()
+        if self._dropped_devices:
+            raise ValidationError(
+                _("Some of the selected devices are no longer available.")
+            )
+        if len(self._organization_ids) > 1:
+            raise ValidationError(
+                _(
+                    "All devices must belong to the same organization,"
+                    " unless it is a system wide command."
+                )
+            )
         if self.request is None or self.request.user.is_superuser:
             return cleaned_data
         organization = cleaned_data.get("organization")
@@ -127,7 +171,7 @@ class BatchCommandExecutionForm(forms.ModelForm):
         location = cleaned_data.get("location")
         # a batch without any target would run on every device of the
         # deployment, which only superusers are allowed to do
-        if not any([organization, group, location]):
+        if not self.device_ids and not any([organization, group, location]):
             raise ValidationError(
                 _(
                     "Please select at least one of: organization, device group,"
@@ -174,6 +218,7 @@ class BatchCommandExecutionForm(forms.ModelForm):
             "organization_id": _pk(self.cleaned_data.get("organization")),
             "group_id": _pk(self.cleaned_data.get("group")),
             "location_id": _pk(self.cleaned_data.get("location")),
+            "device_ids": self.device_ids,
         }
 
 
@@ -527,7 +572,11 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
             return HttpResponseNotAllowed(["GET", "POST"])
         self._check_add_permission(request)
         if request.method == "POST":
-            form = BatchCommandExecutionForm(request.POST, request=request)
+            form = BatchCommandExecutionForm(
+                request.POST,
+                request=request,
+                device_ids=self._get_pk_list(request.POST, "devices"),
+            )
             if form.is_valid():
                 request.session[self.session_key] = form.to_session()
                 return redirect(
@@ -542,6 +591,9 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
             else:
                 request.session.pop(self.session_key, None)
                 form = BatchCommandExecutionForm(request=request)
+        return self._render_execute_page(request, form)
+
+    def _render_execute_page(self, request, form):
         context = {
             **self.admin_site.each_context(request),
             "title": _("Execute mass command"),
@@ -549,6 +601,7 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
             "form": form,
             "media": form.media,
             "has_view_permission": self.has_view_permission(request),
+            "device_count": len(form.device_ids),
         }
         return TemplateResponse(request, self.execute_command_template, context)
 
@@ -617,27 +670,31 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
         return redirect(f"admin:{self.opts.app_label}_{self.opts.model_name}_execute")
 
     def _resolve_target_queryset(self, request, wizard):
-        """Devices matched by the organization, group and location chosen.
-        The targeting rule lives on the model so this page and the execution
-        cannot drift apart; the multitenancy scope and the ordering the
-        pagination needs are admin concerns, applied on top.
+        """Devices picked one by one, or matched by the organization, group
+        and location chosen. The targeting rule lives on the model so this
+        page and the execution cannot drift apart; the multitenancy scope and
+        the ordering the pagination needs are admin concerns, applied on top.
         """
-        try:
-            devices = BatchCommand.dry_run(
-                organization_id=wizard.get("organization_id"),
-                group_id=wizard.get("group_id"),
-                location_id=wizard.get("location_id"),
-            )["devices"]
-        except (ObjectDoesNotExist, ValidationError) as error:
-            logger.warning(
-                "Failed to resolve devices for mass command wizard"
-                " (organization_id=%s, group_id=%s, location_id=%s): %s",
-                wizard.get("organization_id"),
-                wizard.get("group_id"),
-                wizard.get("location_id"),
-                error,
-            )
-            return Device.objects.none()
+        device_ids = wizard.get("device_ids")
+        if device_ids:
+            devices = Device.objects.filter(pk__in=device_ids)
+        else:
+            try:
+                devices = BatchCommand.dry_run(
+                    organization_id=wizard.get("organization_id"),
+                    group_id=wizard.get("group_id"),
+                    location_id=wizard.get("location_id"),
+                )["devices"]
+            except (ObjectDoesNotExist, ValidationError) as error:
+                logger.warning(
+                    "Failed to resolve devices for mass command wizard"
+                    " (organization_id=%s, group_id=%s, location_id=%s): %s",
+                    wizard.get("organization_id"),
+                    wizard.get("group_id"),
+                    wizard.get("location_id"),
+                    error,
+                )
+                return Device.objects.none()
         if not request.user.is_superuser:
             devices = devices.filter(
                 organization_id__in=request.user.organizations_managed
@@ -652,6 +709,7 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
         return hashlib.sha256(",".join(pks).encode()).hexdigest()
 
     def _confirm_context(self, request, wizard, devices):
+        device_count = devices.count()
         targets = []
         for model, key in (
             (Organization, "organization_id"),
@@ -672,10 +730,17 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
             "wizard": wizard,
             "command_type_display": command_types.get(wizard["type"], wizard["type"]),
             "command_description": self._describe_input(wizard.get("input")),
-            "targets_display": ", ".join(targets) if targets else _("All devices"),
-            "device_count": devices.count(),
+            "targets_display": self._targets_display(wizard, targets, device_count),
+            "device_count": device_count,
             "has_view_permission": self.has_view_permission(request),
         }
+
+    def _targets_display(self, wizard, targets, device_count):
+        if wizard.get("device_ids"):
+            return ngettext(
+                "%(count)d selected device", "%(count)d selected devices", device_count
+            ) % {"count": device_count}
+        return ", ".join(targets) if targets else _("All devices")
 
     def _describe_input(self, command_input):
         """Renders the submitted input for the review step, so that every
@@ -1053,3 +1118,44 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
 
 
 admin.site.register(BatchCommand, BatchCommandAdmin)
+
+
+@admin.action(
+    description=_("Execute mass command"),
+    permissions=["execute_mass_command"],
+)
+def execute_mass_command(modeladmin, request, queryset):
+    """Second entry point of the mass command workflow: the devices are
+    picked one by one instead of being matched by organization, group or
+    location. The selection travels in the form rather than in the session,
+    so it cannot outlive the wizard it belongs to.
+    """
+    # TODO: replace _registry with get_model_admin once Django 4.2 is dropped
+    batch_admin = modeladmin.admin_site._registry[BatchCommand]
+    batch_admin._check_add_permission(request)
+    organization_ids = set(queryset.values_list("organization_id", flat=True))
+    if len(organization_ids) > 1:
+        modeladmin.message_user(
+            request,
+            _(
+                "All devices must belong to the same organization,"
+                " unless it is a system wide command."
+            ),
+            messages.ERROR,
+        )
+        return HttpResponseRedirect(request.get_full_path())
+    form = BatchCommandExecutionForm(
+        request=request,
+        device_ids=[str(pk) for pk in queryset.values_list("pk", flat=True)],
+    )
+    return batch_admin._render_execute_page(request, form)
+
+
+def has_execute_mass_command_permission(self, request):
+    options = BatchCommand._meta
+    return request.user.has_perm(f"{options.app_label}.add_{options.model_name}")
+
+
+DeviceAdmin.execute_mass_command = execute_mass_command
+DeviceAdmin.has_execute_mass_command_permission = has_execute_mass_command_permission
+DeviceAdmin.actions += ["execute_mass_command"]
