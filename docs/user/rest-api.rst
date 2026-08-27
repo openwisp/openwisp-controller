@@ -1401,6 +1401,12 @@ Delete Cert
 
     DELETE /api/v1/controller/cert/{id}/
 
+.. note::
+
+    Deleting a certificate used by a device certificate relation or as a
+    blueprint certificate returns ``400 Bad Request`` and preserves the
+    referenced certificate.
+
 Renew Cert
 ~~~~~~~~~~
 

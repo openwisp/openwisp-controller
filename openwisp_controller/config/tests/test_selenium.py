@@ -877,3 +877,21 @@ class TestTemplateAdmin(
 
             self.wait_for_invisibility(By.CLASS_NAME, "field-ca")
             self.wait_for_invisibility(By.CLASS_NAME, "field-blueprint_cert")
+
+    def test_auto_cert_value_preserved_when_switching_template_type(self):
+        self.login()
+        self.open(reverse(f"admin:{self.config_app_label}_template_add"))
+        self.wait_for_presence(By.ID, "id_type")
+        type_select = Select(self.find_element(by=By.ID, value="id_type"))
+        type_select.select_by_value("vpn")
+        self.wait_for_visibility(By.CLASS_NAME, "field-auto_cert")
+        auto_cert = self.find_element(by=By.ID, value="id_auto_cert")
+        if auto_cert.is_selected():
+            auto_cert.click()
+        type_select.select_by_value("cert")
+        self.wait_for_invisibility(By.CLASS_NAME, "field-auto_cert")
+        type_select.select_by_value("vpn")
+        self.wait_for_visibility(By.CLASS_NAME, "field-auto_cert")
+        self.assertFalse(
+            self.find_element(by=By.ID, value="id_auto_cert").is_selected()
+        )

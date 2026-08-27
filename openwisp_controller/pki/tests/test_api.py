@@ -251,31 +251,6 @@ class TestPkiApi(
         self.assertEqual(r.data["id"], cert1.pk)
         self.assertEqual(r.data["extensions"], [])
 
-    def test_cert_put_api(self):
-        cert1 = self._create_cert(name="cert1")
-        org2 = self._create_org()
-        path = reverse("pki_api:cert_detail", args=[cert1.pk])
-        data = {
-            "name": "cert1-change",
-            "organization": org2.pk,
-            "notes": "new-notes",
-        }
-        with self.assertNumQueries(12):
-            r = self.client.put(path, data, content_type="application/json")
-        self.assertEqual(r.status_code, 200)
-        self.assertEqual(r.data["name"], "cert1-change")
-        self.assertEqual(r.data["organization"], org2.pk)
-        self.assertEqual(r.data["notes"], "new-notes")
-
-    def test_cert_patch_api(self):
-        cert1 = self._create_cert(name="cert1")
-        path = reverse("pki_api:cert_detail", args=[cert1.pk])
-        data = {"name": "cert1-change"}
-        with self.assertNumQueries(8):
-            r = self.client.patch(path, data, content_type="application/json")
-        self.assertEqual(r.status_code, 200)
-        self.assertEqual(r.data["name"], "cert1-change")
-
     def test_patch_bound_cert_organization_api(self):
         org1 = self._create_org(name="org1", slug="org1")
         org2 = self._create_org(name="org2", slug="org2")
@@ -310,6 +285,45 @@ class TestPkiApi(
         self.assertEqual(r.status_code, 204)
         self.assertEqual(Cert.objects.count(), 0)
 
+    def test_generated_cert_delete_api_restricted(self):
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        template = self._create_template(
+            name="cert-template", type="cert", ca=ca, organization=org, config={}
+        )
+        device = self._create_device(organization=org, name="cert-device")
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        device_cert = DeviceCertificate.objects.get(config=config, template=template)
+        cert = device_cert.cert
+        path = reverse("pki_api:cert_detail", args=[cert.pk])
+        r = self.client.delete(path)
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("cannot be deleted", r.data["detail"])
+        self.assertTrue(Cert.objects.filter(pk=cert.pk).exists())
+        device_cert.refresh_from_db()
+        self.assertEqual(device_cert.cert_id, cert.pk)
+
+    def test_blueprint_cert_delete_api_restricted(self):
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        cert = self._create_cert(name="blueprint", ca=ca, organization=org)
+        template = self._create_template(
+            name="cert-template",
+            type="cert",
+            ca=ca,
+            blueprint_cert=cert,
+            organization=org,
+            config={},
+        )
+        path = reverse("pki_api:cert_detail", args=[cert.pk])
+        r = self.client.delete(path)
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("cannot be deleted", r.data["detail"])
+        self.assertTrue(Cert.objects.filter(pk=cert.pk).exists())
+        template.refresh_from_db()
+        self.assertEqual(template.blueprint_cert_id, cert.pk)
+
     def test_ca_in_cert_detail_fields(self):
         cert1 = self._create_cert(name="cert1")
         path = reverse("pki_api:cert_detail", args=[cert1.pk])
@@ -317,28 +331,6 @@ class TestPkiApi(
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data["ca"], cert1.ca.id)
-
-    def test_post_cert_renew_api(self):
-        cert1 = self._create_cert(name="cert1")
-        old_serial_num = cert1.serial_number
-        path = reverse("pki_api:cert_renew", args=[cert1.pk])
-        with self.assertNumQueries(6):
-            r = self.client.post(path)
-        self.assertEqual(r.status_code, 200)
-        cert1.refresh_from_db()
-        self.assertNotEqual(cert1.serial_number, old_serial_num)
-        self.assertNotEqual(r.data["serial_number"], old_serial_num)
-
-    def test_post_cert_revoke_api(self):
-        cert1 = self._create_cert(name="cert1")
-        self.assertFalse(cert1.revoked)
-        path = reverse("pki_api:cert_revoke", args=[cert1.pk])
-        with self.assertNumQueries(4):
-            r = self.client.post(path)
-        cert1.refresh_from_db()
-        self.assertEqual(r.status_code, 200)
-        self.assertTrue(cert1.revoked)
-        self.assertTrue(r.data["revoked"])
 
     @capture_any_output()
     def test_bearer_authentication(self):

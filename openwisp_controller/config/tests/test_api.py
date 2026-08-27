@@ -1537,8 +1537,7 @@ class TestConfigApi(
         """Filters CA and Blueprint by the requesting manager's organizations."""
         org1 = self._get_org()
         org2 = self._create_org(name="Org2", slug="org2")
-        user = self._create_operator(organizations=[org1])
-        user.user_permissions.add(*Permission.objects.filter(codename="add_template"))
+        user = self._create_administrator(organizations=[org1])
         self.client.force_login(user)
         ca_org2 = self._create_ca(name="CA2", common_name="CA2", organization=org2)
         shared_ca = self._create_ca(

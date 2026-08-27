@@ -3,7 +3,11 @@ import logging
 from collections import OrderedDict
 from copy import copy
 
-from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from django.core.exceptions import (
+    FieldDoesNotExist,
+    ObjectDoesNotExist,
+    ValidationError,
+)
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models, transaction
 from django.db.models import JSONField, Prefetch
@@ -166,8 +170,6 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
         Expands ``update_fields`` so both the relation name (e.g. ``ca``) and
         the column attname (e.g. ``ca_id``) are recognized.
         """
-        from django.core.exceptions import FieldDoesNotExist
-
         expanded = set(update_fields)
         for name in update_fields:
             try:
@@ -363,11 +365,13 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
         )
         initial_organization_id = self._get_initial_value_or_fallback("organization_id")
         initial_type = self._get_initial_value_or_fallback("type")
+        if initial_type != "cert" and self.type != "cert":
+            return
         changing_protected_fields = (
             initial_ca_id != self.ca_id
             or initial_blueprint_cert_id != self.blueprint_cert_id
             or initial_organization_id != self.organization_id
-            or (initial_type == "cert" and self.type != "cert")
+            or initial_type != self.type
         )
         if not changing_protected_fields:
             return
@@ -397,10 +401,10 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
                 "This template is already assigned to active devices. "
                 "You cannot change the organization on an active template."
             )
-        if initial_type == "cert" and self.type != "cert":
+        if initial_type != self.type:
             errors["type"] = _(
                 "This template is already assigned to active devices. "
-                "You cannot change the template type from certificate "
+                "You cannot change the template type to or from certificate "
                 "on an active template."
             )
         if errors:

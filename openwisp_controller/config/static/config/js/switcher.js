@@ -49,9 +49,6 @@ django.jQuery(function ($) {
         auto_cert_label.text(gettext("Automatic tunnel provisioning"));
       } else {
         auto_cert_field.hide();
-        if (val === "cert") {
-          $("#id_auto_cert").prop("checked", true);
-        }
       }
     };
   type_select.on("change", function () {

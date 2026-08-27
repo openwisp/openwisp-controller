@@ -297,7 +297,7 @@ class AbstractDeviceCertificate(TimeStampedEditableModel):
             except Device.DoesNotExist:
                 return
 
-            qs = cls.active_auto_certs_for(device).select_for_update()
+            qs = cls.active_auto_certs_for(device).select_for_update(of=("self",))
             if expected_cert_ids:
                 valid_cert_ids = [cert_id for _dc_id, cert_id in expected_cert_ids]
                 qs = qs.filter(cert_id__in=valid_cert_ids)

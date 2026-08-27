@@ -5,9 +5,10 @@ from unittest import mock
 from celery.exceptions import SoftTimeLimitExceeded
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, connection, transaction
 from django.db.models.deletion import RestrictedError
 from django.test import TestCase, TransactionTestCase
+from django.test.utils import CaptureQueriesContext
 from netjsonconfig import OpenWrt
 from netjsonconfig.exceptions import ValidationError as NetjsonconfigValidationError
 from swapper import load_model
@@ -1047,6 +1048,46 @@ class TestTemplateTransaction(
             dc.cert.renew()
             mocked_update.assert_called_once()
 
+    def test_update_related_config_status_prefetches_certificates(self):
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        cert_template = self._create_template(
+            name="cert-template",
+            type="cert",
+            ca=ca,
+            auto_cert=True,
+            organization=org,
+            config={},
+        )
+        template = self._create_template(name="related-template", organization=org)
+        for index in range(2):
+            device = self._create_device(
+                name=f"test-prefetch-{index}",
+                mac_address=f"00:11:22:33:44:6{index}",
+                organization=org,
+            )
+            config = self._create_config(device=device)
+            config.templates.add(cert_template, template)
+            config.checksum_db = config.checksum
+            config.status = "applied"
+            config.save(update_fields=["checksum_db", "status"])
+        template.config["interfaces"][0]["name"] = "eth1"
+        template.full_clean()
+        with CaptureQueriesContext(connection) as ctx:
+            template._update_related_config_status()
+        device_cert_table = DeviceCertificate._meta.db_table
+        device_cert_queries = [
+            query["sql"]
+            for query in ctx.captured_queries
+            if device_cert_table in query["sql"]
+        ]
+        self.assertEqual(
+            len(device_cert_queries),
+            1,
+            "Device certificates should be prefetched once for all related configs. "
+            f"Queries: {device_cert_queries}",
+        )
+
     def test_get_cert_context_excludes_unassigned_templates(self):
         org = self._get_org()
         ca = self._create_ca(organization=org)
@@ -1310,6 +1351,32 @@ class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, Test
                     "ValidationError not raised for active mutation of template type"
                 )
 
+        with self.subTest("Cannot change type to cert on active template"):
+            generic_template = self._create_template(
+                name="Active Generic Template", organization=org
+            )
+            generic_config = self._create_config(
+                device=self._create_device(
+                    name="generic-device",
+                    mac_address="00:11:22:33:44:66",
+                    organization=org,
+                )
+            )
+            generic_config.templates.add(generic_template)
+            generic_template.type = "cert"
+            try:
+                generic_template.full_clean()
+            except ValidationError as err:
+                self.assertIn("type", err.message_dict)
+                self.assertIn(
+                    "already assigned to active devices",
+                    str(err.message_dict["type"][0]),
+                )
+            else:
+                self.fail(
+                    "ValidationError not raised for active mutation of template type"
+                )
+
         with self.subTest("Cannot move active template to another organization"):
             org2 = self._create_org(name="Org2", slug="org2")
             template.refresh_from_db()
@@ -1326,6 +1393,36 @@ class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, Test
                 self.fail(
                     "ValidationError not raised for active mutation of organization"
                 )
+
+    def test_active_generic_template_allows_organization_change(self):
+        org1 = self._get_org()
+        org2 = self._create_org(name="Org2", slug="org2")
+        template = self._create_template(
+            name="Active Generic Template", organization=org1
+        )
+        device = self._create_device(organization=org1)
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        template.organization = org2
+        template.full_clean()
+        self.assertEqual(template.organization, org2)
+
+    def test_active_vpn_template_allows_organization_change(self):
+        org1 = self._get_org()
+        org2 = self._create_org(name="Org2", slug="org2")
+        vpn = self._create_vpn(name="Shared VPN")
+        template = self._create_template(
+            name="Active VPN Template",
+            type="vpn",
+            vpn=vpn,
+            organization=org1,
+        )
+        device = self._create_device(organization=org1)
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        template.organization = org2
+        template.full_clean()
+        self.assertEqual(template.organization, org2)
 
     def test_active_template_allows_organization_change_when_deactivated(self):
         org1 = self._get_org()
@@ -1614,7 +1711,8 @@ class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, Test
         self.assertIsNotNone(dev_cert, "DeviceCertificate should be created.")
         original_dev_cert_id = dev_cert.pk
         original_cert_id = dev_cert.cert.pk
-        config.templates.set([cert_template, regular_template], clear=True)
+        with self.captureOnCommitCallbacks(execute=True):
+            config.templates.set([cert_template, regular_template], clear=True)
         dev_certs = config.device_certificate_relations.all()
         self.assertEqual(dev_certs.count(), 1)
         surviving_dev_cert = dev_certs.first()

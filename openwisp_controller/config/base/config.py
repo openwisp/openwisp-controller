@@ -1117,7 +1117,7 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
         cert_template_ids = [t.id for t in self.templates.all() if t.type == "cert"]
         if not cert_template_ids:
             return cert_context
-        for dc in self.device_certificate_relations.select_related("cert").all():
+        for dc in self.device_certificate_relations.all():
             if dc.cert and not dc.cert.revoked and dc.template_id in cert_template_ids:
                 template_hex = dc.template_id.hex
                 prefix = f"cert_{template_hex}"

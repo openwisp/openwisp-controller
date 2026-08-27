@@ -1091,6 +1091,7 @@ class TestConfig(
                 }
             ]
         }
+        cert_template.full_clean()
         cert_template.save()
         device = self._create_device(organization=org)
         config = self._create_config(device=device)

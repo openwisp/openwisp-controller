@@ -305,12 +305,12 @@ levels of OpenWISP, see `netjsonconfig context: configuration variables
 **default**: ``True``
 ============ ========
 
-The default value of the ``auto_cert`` field for new ``Template`` objects.
+The default value of the ``auto_cert`` field for new VPN ``Template``
+objects.
 
-The ``auto_cert`` field is valid only for templates which have ``type``
-set to ``VPN`` or ``cert`` and indicates whether configuration regarding
-the VPN tunnel (or the x509 certificate) is provisioned automatically to
-each device using the template, e.g.:
+The ``auto_cert`` field indicates whether configuration regarding the VPN
+tunnel is provisioned automatically to each device using the template,
+e.g.:
 
 - when using OpenVPN, new `x509 <https://tools.ietf.org/html/rfc5280>`_
   certificates will be generated automatically using the same CA assigned
@@ -329,6 +329,10 @@ template variables.
 The objects that are automatically created will also be removed when they
 are not needed anymore (e.g.: when the VPN template is removed from a
 configuration object).
+
+Certificate generator templates always provision X.509 certificates
+automatically. Their ``auto_cert`` value is always set to ``True``,
+regardless of this setting.
 
 .. _openwisp_controller_regenerate_certs_on_hardware_change:
 
