@@ -214,6 +214,24 @@ devices of the system. Other users must choose at least one target, and
 only see the command types enabled for their organizations (see
 :ref:`openwisp_controller_organization_enabled_commands`).
 
+Sending a Mass Command to Selected Devices
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A mass command can also be started from the device list: select the
+devices with their checkboxes, choose *Execute mass command* from the
+actions dropdown and click *Go*.
+
+The first step opens with the selection already applied: the devices it
+will run on are shown above the targets, and the organization is filled in
+and cannot be changed, while device group and location are not asked for,
+since the devices are already known.
+
+The selected devices must belong to the same organization, otherwise the
+action refuses to start.
+
+The rest of the workflow is the same as described below: the devices can
+still be reviewed and left out before executing.
+
 Reviewing the Devices
 ~~~~~~~~~~~~~~~~~~~~~
 
