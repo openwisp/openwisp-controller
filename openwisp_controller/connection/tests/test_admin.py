@@ -6,7 +6,7 @@ from django.contrib import admin
 from django.contrib.auth.models import Permission
 from django.core.exceptions import ValidationError
 from django.db import connection as db_connection
-from django.test import TestCase, override_settings
+from django.test import RequestFactory, TestCase, override_settings
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from swapper import load_model
@@ -300,12 +300,16 @@ class TestCommandInlines(TestAdminMixin, CreateConnectionsMixin, TestCase):
 
 class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
     app_label = "connection"
+    config_app_label = "config"
 
     def setUp(self):
         self._create_admin()
         self.execute_url = reverse(f"admin:{self.app_label}_batchcommand_execute")
         self.confirm_url = reverse(f"admin:{self.app_label}_batchcommand_confirm")
         self.changelist_url = reverse(f"admin:{self.app_label}_batchcommand_changelist")
+        self.device_changelist_url = reverse(
+            f"admin:{self.config_app_label}_device_changelist"
+        )
 
     def test_wizard_permissions_and_tenant_isolation(self):
         org = self._get_org()
@@ -815,6 +819,110 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
             )
             self.assertFalse(BatchCommand.objects.exists())
             self.assertIn(BatchCommandAdmin.session_key, self.client.session)
+
+    def test_device_action_selection(self):
+        org = self._get_org()
+        org2 = self._create_org(name="org2", slug="org2")
+        devices = [
+            self._create_device(
+                name=f"device{index}",
+                mac_address=f"00:11:22:33:44:0{index}",
+                organization=org,
+            )
+            for index in range(2)
+        ]
+        device_org2 = self._create_device(
+            name="device-org2", mac_address="00:11:22:33:44:09", organization=org2
+        )
+        self._login()
+        with self.subTest("the selection prefills the form"):
+            response = self._post_device_action(devices)
+            self.assertEqual(response.status_code, 200)
+            form = response.context["form"]
+            self.assertEqual(response.context["device_count"], 2)
+            self.assertEqual(
+                set(form.device_ids), {str(device.pk) for device in devices}
+            )
+            self.assertEqual(form.fields["devices"].initial, ",".join(form.device_ids))
+            self.assertEqual(form.fields["organization"].initial, str(org.pk))
+            for field_name in ("organization", "group", "location"):
+                self.assertTrue(form.fields[field_name].disabled)
+        with self.subTest("the selection is announced and the wider targets hidden"):
+            self.assertContains(
+                response, "The command will run on the 2 devices you selected."
+            )
+            self.assertContains(response, 'name="devices"')
+            self.assertNotContains(response, 'name="group"')
+            self.assertNotContains(response, 'name="location"')
+        with self.subTest("devices of different organizations are refused"):
+            response = self._post_device_action(devices + [device_org2])
+            self.assertRedirects(response, self.device_changelist_url)
+            self.assertIn(
+                "All devices must belong to the same organization",
+                " ".join(self._messages(response)),
+            )
+        with self.subTest("the selection travels to the review step"):
+            response = self._post_execute(devices=self._pk_list(devices))
+            self.assertEqual(response.status_code, 302)
+            wizard = self.client.session[BatchCommandAdmin.session_key]
+            self.assertEqual(
+                set(wizard["device_ids"]), {str(device.pk) for device in devices}
+            )
+            response = self.client.get(self.confirm_url)
+            self.assertEqual(response.context["device_count"], 2)
+            self.assertEqual(response.context["targets_display"], "2 selected devices")
+            self.assertEqual(set(response.context["cl"].queryset), set(devices))
+        with self.subTest("only the selected devices are executed"):
+            self._post_confirm(wizard["token"])
+            batch = BatchCommand.objects.get()
+            self.assertEqual(set(batch.devices.all()), set(devices))
+
+    def test_device_action_permissions_and_scope(self):
+        org = self._get_org()
+        org2 = self._create_org(name="org2", slug="org2")
+        device = self._create_device(organization=org)
+        device2 = self._create_device(
+            name="device2", mac_address="00:11:22:33:44:02", organization=org2
+        )
+        device_admin = admin.site._registry[Device]
+        request = RequestFactory().get(self.device_changelist_url)
+        with self.subTest("the add permission is required"):
+            viewer = self._create_operator(
+                organizations=[org], username="viewer", email="viewer@test.com"
+            )
+            viewer.groups.clear()
+            viewer.user_permissions.set(
+                Permission.objects.filter(codename="view_batchcommand")
+            )
+            request.user = viewer
+            self.assertFalse(device_admin.has_execute_mass_command_permission(request))
+            self.assertNotIn("execute_mass_command", device_admin.get_actions(request))
+        with self.subTest("the operator group can use the action"):
+            operator = self._create_operator(organizations=[org])
+            request.user = operator
+            self.assertTrue(device_admin.has_execute_mass_command_permission(request))
+            self.assertIn("execute_mass_command", device_admin.get_actions(request))
+        with self.subTest("devices of unmanaged organizations are dropped"):
+            self.client.force_login(operator)
+            response = self._post_execute(devices=self._pk_list([device, device2]))
+            form = response.context["form"]
+            self.assertEqual(form.device_ids, [str(device.pk)])
+            self.assertIn(
+                "Some of the selected devices are no longer available.",
+                form.errors["__all__"],
+            )
+        with self.subTest("devices which disappeared are dropped"):
+            self._login()
+            response = self._post_execute(devices=f"{device.pk},{uuid4()}")
+            self.assertEqual(response.context["form"].device_ids, [str(device.pk)])
+        with self.subTest("mixed organizations are refused by the form"):
+            response = self._post_execute(devices=self._pk_list([device, device2]))
+            form = response.context["form"]
+            self.assertIsNone(form.fields["organization"].initial)
+            self.assertIn(
+                "All devices must belong to the same organization",
+                " ".join(form.errors["__all__"]),
+            )
 
     def test_changelist_multitenancy(self):
         org = self._get_org()
