@@ -1,5 +1,6 @@
 import os
 
+from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
 from django.contrib.messages import get_messages
 from mockssh import Server
 from swapper import load_model
@@ -155,6 +156,19 @@ class CreateCommandMixin(CreateConnectionsMixin):
 
 
 class BatchCommandMixin(TestAdminMixin, CreateConnectionsMixin):
+    @staticmethod
+    def _pk_list(devices):
+        return ",".join(str(device.pk) for device in devices)
+
+    def _post_device_action(self, devices, action="execute_mass_command"):
+        return self.client.post(
+            self.device_changelist_url,
+            {
+                "action": action,
+                ACTION_CHECKBOX_NAME: [str(device.pk) for device in devices],
+            },
+        )
+
     def _post_execute(self, **overrides):
         data = {
             "type": "custom",
