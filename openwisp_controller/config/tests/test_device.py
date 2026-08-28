@@ -30,6 +30,7 @@ Config = load_model("config", "Config")
 Device = load_model("config", "Device")
 DeviceGroup = load_model("config", "DeviceGroup")
 DeviceCertificate = load_model("config", "DeviceCertificate")
+Template = load_model("config", "Template")
 Cert = load_model("django_x509", "Cert")
 Ca = load_model("django_x509", "Ca")
 OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
@@ -1047,6 +1048,31 @@ class TestDeviceCertificateRegenerationTask(
         device_cert.refresh_from_db()
         self.assertEqual(device_cert.cert_id, original_cert_id)
         self.assertFalse(device_cert.cert.revoked)
+
+    @mock.patch(
+        "openwisp_controller.config.tasks.regenerate_device_certificates_task.delay"
+    )
+    def test_regeneration_locks_template_before_rebuild(self, mocked_delay):
+        org = self._create_org()
+        device = self._create_device(organization=org)
+        ca = self._create_ca(name="test-ca", organization=org)
+        template = self._create_template(
+            organization=org, type="cert", ca=ca, auto_cert=True
+        )
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        device.name = "new-name"
+        device.save()
+
+        with mock.patch.object(
+            Template,
+            "lock_for_certificate_assignment",
+            wraps=Template.lock_for_certificate_assignment,
+        ) as lock:
+            regenerate_device_certificates_task(str(device.id))
+
+        lock.assert_has_calls([mock.call(template.pk), mock.call(template.pk)])
+        self.assertEqual(lock.call_count, 2)
 
     def test_device_does_not_exist(self):
         regenerate_device_certificates_task(str(uuid.uuid4()))

@@ -192,14 +192,29 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
                 setattr(self, f"_initial_{field}", getattr(self, field))
 
     def save(self, *args, **kwargs):
+        update_fields = self._get_update_fields(args, kwargs, expand=True)
+        if self._requires_protected_field_lock(update_fields):
+            with transaction.atomic():
+                self._validate_cert_template_changes(lock=True)
+                return self._save(*args, **kwargs)
+        return self._save(*args, **kwargs)
+
+    def _get_update_fields(self, args, kwargs, expand=False):
+        update_fields = kwargs.get("update_fields")
+        if update_fields is None and len(args) > 3:
+            update_fields = args[3]
+        if update_fields is not None and expand:
+            update_fields = self._expand_update_field_attnames(update_fields)
+        return update_fields
+
+    def _save(self, *args, **kwargs):
         # Callers may pass update_fields positionally (4th save() argument),
         # so it is not always in kwargs: without it a partial save would look
         # like a full one, persisting auto_cert and treating unsaved fields as
         # saved, which would hide changes from _validate_cert_template_changes().
-        update_fields = kwargs.get("update_fields")
+        update_fields = self._get_update_fields(args, kwargs)
         is_positional = False
-        if update_fields is None and len(args) > 3:
-            update_fields = args[3]
+        if update_fields is not None and len(args) > 3:
             is_positional = True
         if self.type == "cert":
             self.auto_cert = True
@@ -235,6 +250,49 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
             except self.__class__.DoesNotExist:
                 return None
         return initial
+
+    def _get_cert_template_protected_changes(self):
+        if self._state.adding:
+            return {}
+        initial_type = self._get_initial_value_or_fallback("type")
+        if initial_type != "cert" and self.type != "cert":
+            return {}
+        changes = {}
+        fields = {
+            "ca_id": "ca",
+            "blueprint_cert_id": "blueprint_cert",
+            "organization_id": "organization",
+            "type": "type",
+        }
+        for field, name in fields.items():
+            if self._get_initial_value_or_fallback(field) != getattr(self, field):
+                changes[name] = field
+        return changes
+
+    def _requires_protected_field_lock(self, update_fields=None):
+        if self._state.adding:
+            return False
+        if update_fields is None:
+            initial_type = self._get_initial_value_or_fallback("type")
+            return initial_type == "cert" or self.type == "cert"
+        return bool(update_fields.intersection(self._changed_checked_fields))
+
+    def _lock_protected_fields(self):
+        try:
+            current = (
+                self.__class__.objects.select_for_update()
+                .only("ca", "blueprint_cert", "organization", "type")
+                .get(pk=self.pk)
+            )
+        except self.__class__.DoesNotExist:
+            return False
+        for field in self._changed_checked_fields:
+            setattr(self, f"_initial_{field}", getattr(current, field))
+        return True
+
+    @classmethod
+    def lock_for_certificate_assignment(cls, template_id):
+        return cls.objects.select_for_update().get(pk=template_id)
 
     __template__ = True
 
@@ -352,56 +410,46 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
                         f"config {config.pk}: {e}"
                     )
 
-    def _validate_cert_template_changes(self):
+    def _validate_cert_template_changes(self, lock=False):
         """
         Prevents changing cert-specific settings of a certificate template
         if it is already assigned to active devices.
         """
-        if self._state.adding:
+        changes = self._get_cert_template_protected_changes()
+        if not changes and not lock:
             return
-        initial_ca_id = self._get_initial_value_or_fallback("ca_id")
-        initial_blueprint_cert_id = self._get_initial_value_or_fallback(
-            "blueprint_cert_id"
-        )
-        initial_organization_id = self._get_initial_value_or_fallback("organization_id")
-        initial_type = self._get_initial_value_or_fallback("type")
-        if initial_type != "cert" and self.type != "cert":
-            return
-        changing_protected_fields = (
-            initial_ca_id != self.ca_id
-            or initial_blueprint_cert_id != self.blueprint_cert_id
-            or initial_organization_id != self.organization_id
-            or initial_type != self.type
-        )
-        if not changing_protected_fields:
-            return
-
         Config = load_model("config", "Config")
-        if not (
-            Config.objects.filter(templates=self)
-            .exclude(status__in=["deactivating", "deactivated"])
-            .exists()
-        ):
-            return
+        with transaction.atomic():
+            if not self._lock_protected_fields():
+                return
+            changes = self._get_cert_template_protected_changes()
+            if not changes:
+                return
+            if not (
+                Config.objects.filter(templates=self)
+                .exclude(status__in=["deactivating", "deactivated"])
+                .exists()
+            ):
+                return
 
         errors = {}
-        if initial_ca_id != self.ca_id:
+        if "ca" in changes:
             errors["ca"] = _(
                 "This template is already assigned to active devices. "
                 "You cannot change the CA on an active template."
             )
-        if initial_blueprint_cert_id != self.blueprint_cert_id:
+        if "blueprint_cert" in changes:
             errors["blueprint_cert"] = _(
                 "This template is already assigned to active devices. "
                 "You cannot change the Blueprint Certificate "
                 "on an active template."
             )
-        if initial_organization_id != self.organization_id:
+        if "organization" in changes:
             errors["organization"] = _(
                 "This template is already assigned to active devices. "
                 "You cannot change the organization on an active template."
             )
-        if initial_type != self.type:
+        if "type" in changes:
             errors["type"] = _(
                 "This template is already assigned to active devices. "
                 "You cannot change the template type to or from certificate "

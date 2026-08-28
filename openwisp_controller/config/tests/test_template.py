@@ -1,11 +1,12 @@
 import uuid
 from collections import OrderedDict
+from threading import Event, Thread
 from unittest import mock
 
 from celery.exceptions import SoftTimeLimitExceeded
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db import IntegrityError, connection, transaction
+from django.db import IntegrityError, close_old_connections, connection, transaction
 from django.db.models.deletion import RestrictedError
 from django.test import TestCase, TransactionTestCase
 from django.test.utils import CaptureQueriesContext
@@ -636,6 +637,94 @@ class TestTemplateTransaction(
                 c.refresh_from_db()
                 handler.assert_not_called()
                 self.assertEqual(c.status, "modified")
+
+    def test_concurrent_assignment_and_cert_template_mutation(self):
+        org = self._get_org()
+        ca1 = self._create_ca(organization=org)
+        ca2 = self._create_ca(organization=org, name="ca2", common_name="ca2")
+        template = self._create_template(
+            type="cert",
+            ca=ca1,
+            organization=org,
+            config={},
+        )
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        cleaned = Event()
+        assigned = Event()
+        mutation_errors = []
+        assignment_errors = []
+
+        def mutate_template_ca():
+            close_old_connections()
+            try:
+                pending = Template.objects.get(pk=template.pk)
+                pending.ca = ca2
+                pending.full_clean()
+                cleaned.set()
+                assigned.wait(timeout=5)
+                pending.save(update_fields=["ca"])
+            except ValidationError as e:
+                mutation_errors.append(e)
+            except Exception as e:
+                assignment_errors.append(e)
+            finally:
+                close_old_connections()
+
+        def assign_template():
+            close_old_connections()
+            try:
+                if not cleaned.wait(timeout=5):
+                    assignment_errors.append(AssertionError("template was not cleaned"))
+                    return
+                config.templates.add(template)
+            except Exception as e:
+                assignment_errors.append(e)
+            finally:
+                assigned.set()
+                close_old_connections()
+
+        mutation = Thread(target=mutate_template_ca)
+        assignment = Thread(target=assign_template)
+        mutation.start()
+        assignment.start()
+        mutation.join(timeout=5)
+        assignment.join(timeout=5)
+
+        self.assertFalse(mutation.is_alive())
+        self.assertFalse(assignment.is_alive())
+        self.assertEqual(assignment_errors, [])
+        self.assertEqual(len(mutation_errors), 1)
+        self.assertIn("ca", mutation_errors[0].error_dict)
+        template.refresh_from_db()
+        device_cert = config.device_certificate_relations.get(template=template)
+        self.assertEqual(template.ca_id, ca1.pk)
+        self.assertEqual(device_cert.cert.ca_id, template.ca_id)
+
+    def test_cert_template_save_refreshes_stale_protected_snapshot(self):
+        org = self._get_org()
+        ca1 = self._create_ca(organization=org)
+        ca2 = self._create_ca(organization=org, name="ca2", common_name="ca2")
+        template = self._create_template(
+            type="cert",
+            ca=ca1,
+            organization=org,
+            config={},
+        )
+        stale_template = Template.objects.get(pk=template.pk)
+        Template.objects.filter(pk=template.pk).update(ca=ca2)
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        config.templates.add(template)
+
+        with self.assertRaises(ValidationError) as ctx:
+            stale_template.save(update_fields=["ca"])
+
+        self.assertIn("ca", ctx.exception.error_dict)
+        template.refresh_from_db()
+        device_cert = config.device_certificate_relations.get(template=template)
+        self.assertEqual(template.ca_id, ca2.pk)
+        self.assertEqual(device_cert.cert.ca_id, template.ca_id)
 
     def test_config_modified_signal(self):
         conf = self._create_config(device=self._create_device(name="test-status"))

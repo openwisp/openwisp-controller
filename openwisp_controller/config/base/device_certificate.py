@@ -145,6 +145,11 @@ class AbstractDeviceCertificate(TimeStampedEditableModel):
 
     def save(self, *args, **kwargs):
         with transaction.atomic():
+            if self.template_id:
+                Template = load_model("config", "Template")
+                self.template = Template.lock_for_certificate_assignment(
+                    self.template_id
+                )
             self.full_clean(validate_unique=False)
             if not self.cert:
                 self._auto_x509()
@@ -287,6 +292,7 @@ class AbstractDeviceCertificate(TimeStampedEditableModel):
         if not app_settings.REGENERATE_CERTS_ON_HARDWARE_CHANGE:
             return
         Device = load_model("config", "Device")
+        Template = load_model("config", "Template")
 
         configs_to_update = set()
         certs_regenerated = 0
@@ -313,6 +319,7 @@ class AbstractDeviceCertificate(TimeStampedEditableModel):
                 expected_cert_id = expected_map.get(str(dc.id))
                 if expected_cert_id is not None and str(dc.cert_id) != expected_cert_id:
                     continue
+                dc.template = Template.lock_for_certificate_assignment(dc.template_id)
                 old_cert = dc.cert
                 old_cert.revoke()
                 new_cert = dc._build_cert(
