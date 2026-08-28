@@ -13,23 +13,6 @@ address allocation and more.
 
 For a full introduction please refer to :doc:`user/intro`.
 
-The following diagram illustrates the role of the Controller module within
-the OpenWISP architecture.
-
-.. figure:: images/architecture-v2-openwisp-controller.png
-    :target: ../_images/architecture-v2-openwisp-controller.png
-    :align: center
-    :alt: OpenWISP Architecture: Controller module
-
-    **OpenWISP Architecture: highlighted controller module**
-
-.. important::
-
-    For an enhanced viewing experience, open the image above in a new
-    browser tab.
-
-    Refer to :doc:`/general/architecture` for more information.
-
 .. toctree::
     :caption: Controller Module Usage Docs
     :maxdepth: 1
