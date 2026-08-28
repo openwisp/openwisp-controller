@@ -1,5 +1,7 @@
-from django.test import TestCase
-from django.urls import reverse
+from django.contrib import admin
+from django.contrib.auth.models import Permission
+from django.test import RequestFactory, TestCase
+from django.urls import resolve, reverse
 from swapper import load_model
 
 from openwisp_controller.config.tests.utils import (
@@ -14,6 +16,7 @@ from .utils import TestPkiMixin
 Ca = load_model("django_x509", "Ca")
 Cert = load_model("django_x509", "Cert")
 DeviceCertificate = load_model("config", "DeviceCertificate")
+OrganizationUser = load_model("openwisp_users", "OrganizationUser")
 
 
 class TestAdmin(
@@ -157,6 +160,120 @@ class TestAdmin(
         self.assertContains(response, "cannot be changed")
         cert.refresh_from_db()
         self.assertEqual(cert.organization_id, org1.pk)
+
+    def test_ca_changelist_ignores_forged_shared_relation_params(self):
+        data = self._create_multitenancy_test_env()
+        self._login(username="administrator", password="tester")
+        ca_admin = admin.site._registry[Ca]
+        params = (
+            "app_label=config&model_name=template&field_name=ca",
+            "app_label=pki&model_name=cert&field_name=ca",
+        )
+        for param in params:
+            with self.subTest(param):
+                url = f'{reverse("admin:pki_ca_changelist")}?{param}'
+                request = RequestFactory().get(url)
+                request.resolver_match = resolve(url)
+                request.user = data["administrator"]
+                qs = ca_admin.get_queryset(request)
+                self.assertIn(data["ca1"], qs)
+                self.assertNotIn(data["ca_shared"], qs)
+
+    def test_ca_change_view_ignores_forged_shared_relation_params(self):
+        data = self._create_multitenancy_test_env()
+        self._login(username="administrator", password="tester")
+        params = (
+            "app_label=config&model_name=template&field_name=ca",
+            "app_label=pki&model_name=cert&field_name=ca",
+        )
+        for param in params:
+            with self.subTest(param):
+                url = (
+                    f'{reverse("admin:pki_ca_change", args=[data["ca_shared"].pk])}'
+                    f"?{param}"
+                )
+                response = self.client.get(url)
+                self.assertEqual(response.status_code, 302)
+                self.assertEqual(response.url, reverse("admin:index"))
+
+    def test_ca_delete_view_ignores_forged_shared_relation_params(self):
+        data = self._create_multitenancy_test_env()
+        self._login(username="administrator", password="tester")
+        params = (
+            "app_label=config&model_name=template&field_name=ca",
+            "app_label=pki&model_name=cert&field_name=ca",
+        )
+        for param in params:
+            with self.subTest(param):
+                url = (
+                    f'{reverse("admin:pki_ca_delete", args=[data["ca_shared"].pk])}'
+                    f"?{param}"
+                )
+                response = self.client.post(url, {"post": "yes"})
+                self.assertEqual(response.status_code, 302)
+                self.assertEqual(response.url, reverse("admin:index"))
+                self.assertTrue(Ca.objects.filter(pk=data["ca_shared"].pk).exists())
+
+    def test_cert_changelist_ignores_forged_shared_relation_params(self):
+        data = self._create_multitenancy_test_env(cert=True)
+        self._login(username="administrator", password="tester")
+        url = (
+            f'{reverse("admin:pki_cert_changelist")}'
+            "?app_label=config&model_name=template&field_name=blueprint_cert"
+        )
+        request = RequestFactory().get(url)
+        request.resolver_match = resolve(url)
+        request.user = data["administrator"]
+        cert_admin = admin.site._registry[Cert]
+        qs = cert_admin.get_queryset(request)
+        self.assertIn(data["cert1"], qs)
+        self.assertNotIn(data["cert_shared"], qs)
+
+    def test_cert_change_view_ignores_forged_shared_relation_params(self):
+        data = self._create_multitenancy_test_env(cert=True)
+        self._login(username="administrator", password="tester")
+        params = "?app_label=config&model_name=template&field_name=blueprint_cert"
+        url = reverse("admin:pki_cert_change", args=[data["cert_shared"].pk]) + params
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("admin:index"))
+
+    def test_cert_delete_view_ignores_forged_shared_relation_params(self):
+        data = self._create_multitenancy_test_env(cert=True)
+        self._login(username="administrator", password="tester")
+        params = "?app_label=config&model_name=template&field_name=blueprint_cert"
+        url = reverse("admin:pki_cert_delete", args=[data["cert_shared"].pk]) + params
+        response = self.client.post(url, {"post": "yes"})
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("admin:index"))
+        self.assertTrue(Cert.objects.filter(pk=data["cert_shared"].pk).exists())
+
+    def test_autocomplete_requires_source_admin_permission(self):
+        data = self._create_multitenancy_test_env()
+        user = self._create_user(
+            username="ca-only",
+            password="tester",
+            email="ca-only@test.com",
+            is_staff=True,
+        )
+        user.user_permissions.add(
+            Permission.objects.get(codename="change_ca", content_type__app_label="pki")
+        )
+        OrganizationUser.objects.create(
+            user=user,
+            organization=data["org1"],
+            is_admin=True,
+        )
+        user.organizations_dict
+        self.client.force_login(user)
+        url = (
+            f'{reverse("admin:autocomplete")}'
+            "?app_label=config&model_name=template&field_name=ca"
+        )
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, data["ca1"].name)
+        self.assertNotContains(response, data["ca_shared"].name)
 
     def test_changelist_recover_deleted_button(self):
         self._create_multitenancy_test_env()

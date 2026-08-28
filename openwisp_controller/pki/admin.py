@@ -16,6 +16,9 @@ Cert = load_model("django_x509", "Cert")
 
 class SharedRelationAutocompleteMixin:
     def _source_allows_shared_relation(self, request):
+        match = getattr(request, "resolver_match", None)
+        if getattr(match, "view_name", None) != "admin:autocomplete":
+            return False
         app_label = request.GET.get("app_label")
         model_name = request.GET.get("model_name")
         field_name = request.GET.get("field_name")
@@ -29,6 +32,8 @@ class SharedRelationAutocompleteMixin:
         if getattr(source_field.remote_field, "model", None) != self.model:
             return False
         source_admin = self.admin_site._registry.get(source_model)
+        if not source_admin or not source_admin.has_view_permission(request):
+            return False
         if field_name not in getattr(source_admin, "autocomplete_fields", ()):
             return False
         shared_relations = getattr(source_admin, "multitenant_shared_relations", ())
