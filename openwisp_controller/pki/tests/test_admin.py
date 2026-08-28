@@ -171,9 +171,10 @@ class TestAdmin(
         )
         for param in params:
             with self.subTest(param):
-                url = f'{reverse("admin:pki_ca_changelist")}?{param}'
+                path = reverse("admin:pki_ca_changelist")
+                url = f"{path}?{param}"
                 request = RequestFactory().get(url)
-                request.resolver_match = resolve(url)
+                request.resolver_match = resolve(path)
                 request.user = data["administrator"]
                 qs = ca_admin.get_queryset(request)
                 self.assertIn(data["ca1"], qs)
@@ -222,7 +223,7 @@ class TestAdmin(
             "?app_label=config&model_name=template&field_name=blueprint_cert"
         )
         request = RequestFactory().get(url)
-        request.resolver_match = resolve(url)
+        request.resolver_match = resolve(reverse("admin:pki_cert_changelist"))
         request.user = data["administrator"]
         cert_admin = admin.site._registry[Cert]
         qs = cert_admin.get_queryset(request)
@@ -249,6 +250,9 @@ class TestAdmin(
         self.assertTrue(Cert.objects.filter(pk=data["cert_shared"].pk).exists())
 
     def test_autocomplete_requires_source_admin_permission(self):
+        """
+        Default groups include template permissions, so use custom permissions.
+        """
         data = self._create_multitenancy_test_env()
         user = self._create_user(
             username="ca-only",
