@@ -7,7 +7,7 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import django
-from django.contrib import admin
+from django.contrib import admin as django_admin
 from django.contrib.admin.models import LogEntry
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
@@ -56,6 +56,7 @@ User = get_user_model()
 Location = load_model("geo", "Location")
 DeviceLocation = load_model("geo", "DeviceLocation")
 Group = load_model("openwisp_users", "Group")
+Organization = load_model("openwisp_users", "Organization")
 
 
 class TestImportExportMixin:
@@ -118,6 +119,25 @@ class TestImportExportMixin:
         self.assertNotContains(response, "errorlist")
         self.assertNotContains(response, "Errors")
         self.assertContains(response, "Confirm import")
+
+    def test_device_import_disabled_organization_rejected(self):
+        org = self._get_org()
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        contents = (
+            "organization_id,name,mac_address\n"
+            f"{org.pk},TestImportDisabled,00:11:22:09:44:55"
+        )
+        csv = ContentFile(contents)
+        response = self.client.post(
+            reverse(f"admin:{self.app_label}_device_import"),
+            {"format": "0", "import_file": csv},
+        )
+        self.assertNotIn("confirm_form", response.context)
+        self.assertContains(response, "Cannot import rows for disabled organizations.")
+        self.assertEqual(
+            Device.objects.filter(name="TestImportDisabled").exists(), False
+        )
 
     def test_device_import_empty_config(self):
         org = self._get_org(org_name="default")
@@ -263,6 +283,56 @@ class TestAdmin(
     def tearDownClass(cls):
         super().tearDownClass()
         devnull.close()
+
+    def test_disabled_organization_inlines_write_protected(self):
+        # When an organization is disabled, the inlines that openwisp-controller
+        # attaches to the organization admin (configuration settings, shared
+        # object limits, and geographic settings) must become read-only. The
+        # guard is inherited from openwisp-users' OrganizationAdmin, so this
+        # verifies the downstream inlines are covered without re-implementing
+        # it. The guard only denies add and change; it leaves each inline's own
+        # delete decision alone, so inlines that normally allow deletion keep
+        # allowing it (deletion of a disabled organization's data stays
+        # possible).
+        request = RequestFactory().get("/")
+        request.user = self._get_admin()
+        org_admin = django_admin.site._registry[Organization]
+        disabled_org = self._create_org(name="disabled-inline-org", is_active=False)
+        inlines = org_admin.get_inline_instances(request, disabled_org)
+        inlines_by_name = {type(inline).__name__: inline for inline in inlines}
+        for expected in (
+            "ConfigSettingsInline",
+            "OrganizationLimitsInline",
+            "GeoSettingsInline",
+        ):
+            self.assertIn(expected, inlines_by_name)
+        for name, inline in inlines_by_name.items():
+            with self.subTest(inline=name):
+                self.assertEqual(
+                    inline.has_add_permission(request, disabled_org), False
+                )
+                self.assertEqual(
+                    inline.has_change_permission(request, disabled_org), False
+                )
+        # inlines that normally permit deletion still do, proving the guard did
+        # not block deleting the disabled organization's related objects
+        for name in ("ConfigSettingsInline", "GeoSettingsInline"):
+            with self.subTest(inline=name):
+                self.assertEqual(
+                    inlines_by_name[name].has_delete_permission(request, disabled_org),
+                    True,
+                )
+
+    def test_active_organization_inlines_writable(self):
+        request = RequestFactory().get("/")
+        request.user = self._get_admin()
+        org_admin = django_admin.site._registry[Organization]
+        active_org = self._create_org(name="active-inline-org")
+        for inline in org_admin.get_inline_instances(request, active_org):
+            with self.subTest(inline=type(inline).__name__):
+                self.assertEqual(
+                    inline.has_change_permission(request, active_org), True
+                )
 
     def test_device_and_template_different_organization(self):
         org1 = self._get_org()
@@ -492,6 +562,7 @@ class TestAdmin(
             url=self._get_autocomplete_view_path(self.app_label, "template", "vpn"),
             visible=[data["vpn1"].name],
             hidden=[data["vpn2"].name, data["vpn_inactive"].name],
+            superuser_hidden=[data["vpn_inactive"].name],
         )
 
     def test_vpn_queryset(self):
@@ -525,14 +596,16 @@ class TestAdmin(
             hidden=[data["vpn2"].ca.name, data["vpn_inactive"].ca.name],
             select_widget=True,
             administrator=True,
+            superuser_hidden=[data["vpn_inactive"].ca.name],
         )
 
     def test_vpn_cert_fk_queryset(self):
         data = self._create_multitenancy_test_env(vpn=True)
+        self.assertIsNone(data["vpn_inactive"].cert)
         self._test_multitenant_admin(
             url=reverse(f"admin:{self.app_label}_vpn_add"),
             visible=[data["vpn1"].cert.name, data["vpn_shared"].cert.name],
-            hidden=[data["vpn2"].cert.name, data["vpn_inactive"].cert.name],
+            hidden=[data["vpn2"].cert.name],
             select_widget=True,
             administrator=True,
         )
@@ -665,6 +738,64 @@ class TestAdmin(
         self.assertEqual(response.status_code, 200)
         device.refresh_from_db()
         self.assertIsNone(device.group)
+
+    def test_change_group_action_disabled_org(self):
+        path = reverse(f"admin:{self.app_label}_device_changelist")
+        org = self._get_org(org_name="default")
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        group = self._create_device_group(name="test-group", organization=org)
+        device = self._create_device(organization=org)
+        post_data = {
+            "_selected_action": [device.pk],
+            "action": "change_group",
+            "csrfmiddlewaretoken": "test",
+            "apply": True,
+            "device_group": group.pk,
+        }
+        response = self.client.post(path, post_data, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response, "Actions cannot modify objects of disabled organizations."
+        )
+        device.refresh_from_db()
+        self.assertIsNone(device.group)
+
+    def test_activate_device_action_disabled_org(self):
+        org = self._get_org()
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        device = self._create_device(organization=org, _is_deactivated=True)
+        path = reverse(f"admin:{self.app_label}_device_changelist")
+        data = {
+            "_selected_action": [device.pk],
+            "action": "activate_device",
+            "csrfmiddlewaretoken": "test",
+        }
+        response = self.client.post(path, data, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response, "Actions cannot modify objects of disabled organizations."
+        )
+        device.refresh_from_db()
+        self.assertEqual(device.is_deactivated(), True)
+
+    def test_deactivate_device_action_disabled_org(self):
+        org = self._get_org()
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        device = self._create_device(organization=org)
+        path = reverse(f"admin:{self.app_label}_device_changelist")
+        data = {
+            "_selected_action": [device.pk],
+            "action": "deactivate_device",
+            "csrfmiddlewaretoken": "test",
+        }
+        response = self.client.post(path, data, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "was deactivated successfully")
+        device.refresh_from_db()
+        self.assertEqual(device.is_deactivated(), True)
 
     def test_device_import_with_group_apply_templates(self):
         org = self._get_org(org_name="default")
@@ -944,6 +1075,141 @@ class TestAdmin(
         self.assertContains(response, "Successfully cloned selected templates")
         self.assertNotContains(response, "<h1>Clone templates</h1>", html=True)
         self.assertEqual(Template.objects.count(), count + 1)
+
+    def test_clone_templates_disabled_target_org(self):
+        path = reverse(f"admin:{self.app_label}_template_changelist")
+        template = self._create_template(organization=self._get_org())
+        disabled_org = self._create_org(name="disabled-org", is_active=False)
+        self._get_org("org_2")
+        post_data = self._get_clone_template_post_data(template)
+        post_data["organization"] = str(disabled_org.id)
+        count = Template.objects.count()
+        response = self.client.post(path, post_data, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Successfully cloned selected templates")
+        self.assertContains(
+            response,
+            "Cannot clone templates: the selected organization does not exist"
+            " or is disabled.",
+        )
+        self.assertEqual(Template.objects.count(), count)
+
+    def test_device_disabled_org_admin_crud(self):
+        org = self._create_org(name="disabled-org", slug="disabled-org")
+        device = self._create_device(organization=org, name="disabled-device")
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        self._test_disabled_org_admin_crud(
+            device,
+            change_data={"name": "renamed-device"},
+            operations=("view", "change", "add"),
+            create_data={
+                "name": "new-device",
+                "organization": str(org.pk),
+                "mac_address": "00:11:22:33:44:66",
+                "key": "w1gwJxKaHcamUw62TQIPgYchwLKn3AA0",
+                "model": "",
+                "os": "",
+                "system": "",
+                "notes": "",
+                "management_ip": "127.0.0.1",
+                "hardware_id": "new-device-hardware-id",
+            },
+        )
+        with self.subTest("superuser delete, once deactivated"):
+            # DeviceAdmin.has_delete_permission additionally requires the
+            # device to be deactivated first, a precondition unrelated to
+            # the disabled-org policy; satisfy it here to isolate and
+            # confirm that a disabled organization's device stays deletable.
+            device._is_deactivated = True
+            device.save(update_fields=["_is_deactivated"])
+            urls = self._get_disabled_org_admin_urls(device)
+            self.client.force_login(self._get_admin())
+            self._test_disabled_org_admin_delete(urls["delete"], Device, device.pk)
+            self.client.logout()
+
+    def test_devicegroup_disabled_org_admin_crud(self):
+        org = self._create_org(name="disabled-org", slug="disabled-org")
+        device_group = self._create_device_group(
+            name="disabled-group", organization=org
+        )
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        self._test_disabled_org_admin_crud(
+            device_group,
+            change_data={"name": "renamed-group"},
+            create_data={
+                "name": "new-device-group",
+                "organization": str(org.pk),
+                "description": "",
+                "context": "{}",
+                "meta_data": "{}",
+            },
+        )
+
+    def test_template_disabled_org_admin_crud(self):
+        org = self._create_org(name="disabled-org", slug="disabled-org")
+        template = self._create_template(name="disabled-template", organization=org)
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        self._test_disabled_org_admin_crud(
+            template,
+            change_data={"name": "renamed-template"},
+            create_data={
+                "name": "new-template",
+                "organization": str(org.pk),
+                "backend": "netjsonconfig.OpenWrt",
+                "config": "{}",
+            },
+        )
+
+    def test_vpn_disabled_org_admin_crud(self):
+        org = self._create_org(name="disabled-org", slug="disabled-org")
+        vpn = self._create_vpn(name="disabled-vpn", organization=org)
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        self._test_disabled_org_admin_crud(
+            vpn,
+            change_data={"name": "renamed-vpn"},
+            create_data={
+                "name": "new-vpn",
+                "organization": str(org.pk),
+                "host": "vpn2.test.com",
+                "backend": "openwisp_controller.vpn_backends.OpenVpn",
+                "config": "{}",
+                "dh": vpn.dh,
+                "ca": str(vpn.ca.pk),
+            },
+        )
+
+    def test_device_disabled_org_admin_inline_readonly(self):
+        org = self._create_org(name="disabled-org", slug="disabled-org")
+        device = self._create_device(organization=org, name="disabled-device")
+        active_device = self._create_device(
+            name="active-device", mac_address="00:11:22:09:44:71"
+        )
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        model_admin = django_admin.site._registry[Device]
+        self._test_disabled_org_admin_inline_readonly(
+            model_admin, device, active_obj=active_device
+        )
+
+    def test_device_disabled_org_admin_org_field_excludes_disabled(self):
+        active_org = self._get_org(org_name="default")
+        disabled_org = self._create_org(name="disabled-org", is_active=False)
+        add_url = reverse(f"admin:{self.app_label}_device_add")
+        self._test_disabled_org_admin_org_field_excludes_disabled(
+            add_url, disabled_org, organization=active_org
+        )
+
+    def test_template_disabled_org_admin_org_field_excludes_disabled(self):
+        active_org = self._get_org(org_name="default")
+        disabled_org = self._create_org(name="disabled-org", is_active=False)
+        add_url = reverse(f"admin:{self.app_label}_template_add")
+        self._test_disabled_org_admin_org_field_excludes_disabled(
+            add_url, disabled_org, organization=active_org
+        )
 
     def test_clone_templates_validation_error(self):
         path = reverse(f"admin:{self.app_label}_template_changelist")
@@ -2289,7 +2555,7 @@ class TestAdmin(
         path = reverse(f"admin:{self.app_label}_device_change", args=[config.device.pk])
         for i in range(count):
             self._create_template(name=f"template-{i}")
-        expected_count = 22
+        expected_count = 23
         if django.VERSION < (5, 2):
             # In django version < 5.2, there is an extra SAVEPOINT query
             # leading to extra RELEASE SAVEPOINT query, thus 2 extra queries
@@ -2920,9 +3186,11 @@ class TestTransactionAdmin(
         request.resolver_match = resolve(url)
         request.user = user
         # TODO: replace _registry with get_model_admin once Django 4.2 is dropped
-        device_admin = admin.site._registry[Device]
+        device_admin = django_admin.site._registry[Device]
         admin_site = SimpleNamespace(
-            _registry={first_org.__class__: admin.site._registry[first_org.__class__]}
+            _registry={
+                first_org.__class__: django_admin.site._registry[first_org.__class__]
+            }
         )
         with (
             patch.object(device_admin, "admin_site", admin_site),
@@ -2950,7 +3218,7 @@ class TestTransactionAdmin(
         request = RequestFactory().get(url)
         request.resolver_match = resolve(url)
         # TODO: replace _registry with get_model_admin once Django 4.2 is dropped
-        device_admin = admin.site._registry[Device]
+        device_admin = django_admin.site._registry[Device]
         with patch.object(
             Device.objects, "filter", wraps=Device.objects.filter
         ) as filter_:

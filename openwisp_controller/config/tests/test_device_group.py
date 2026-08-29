@@ -11,6 +11,7 @@ from .. import settings as app_settings
 from ..signals import group_templates_changed
 from .utils import CreateDeviceGroupMixin, CreateTemplateMixin
 
+Device = load_model("config", "Device")
 DeviceGroup = load_model("config", "DeviceGroup")
 
 
@@ -61,3 +62,21 @@ class TestDeviceGroup(CreateDeviceGroupMixin, CreateTemplateMixin, TestCase):
                 raw=False,
                 using="default",
             )
+
+    def test_manage_group_templates_skips_disabled_org(self):
+        org = self._get_org()
+        template = self._create_template(name="new-template", organization=org)
+        device_group = self._create_device_group(organization=org)
+        device = Device(
+            name="test-device",
+            organization=org,
+            mac_address="00:11:22:33:44:55",
+            group=device_group,
+        )
+        device.full_clean()
+        device.save()
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        DeviceGroup.manage_group_templates(device_group.pk, [], [template.pk])
+        device = Device.objects.get(pk=device.pk)
+        self.assertEqual(hasattr(device, "config"), False)

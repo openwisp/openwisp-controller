@@ -21,7 +21,13 @@ class ValidatedDeviceFieldSerializer(ValidatedModelSerializer):
         return super().validate(data)
 
 
-class CommandSerializer(ValidatedDeviceFieldSerializer):
+class CommandSerializer(FilterSerializerByOrgManaged, ValidatedDeviceFieldSerializer):
+    # ``Command`` has no direct ``organization`` field (only ``device``),
+    # and ``connection``'s queryset (``DeviceConnection``) doesn't either;
+    # this tells ``FilterSerializerByOrganization.filter_fields`` how to
+    # reach it, mirroring ``DeviceConnectionSerializer`` below.
+    organization_field = "device__organization"
+
     input = serializers.JSONField(
         allow_null=True,
         help_text=mark_safe(

@@ -381,6 +381,14 @@ class AbstractDeviceConnection(ConnectorMixin, TimeStampedEditableModel):
             # through so the final cleared configuration can still be pushed.
             if self.device.is_fully_deactivated():
                 raise RuntimeError(_("Device is deactivated"))
+            # Refuse devices of a disabled organization, unless deactivation is
+            # already in progress (device.is_deactivated() True): that case must
+            # stay allowed so the final cleared configuration can still be pushed.
+            if (
+                not self.device.organization.is_active
+                and not self.device.is_deactivated()
+            ):
+                raise RuntimeError(_("Organization is disabled"))
             self.connector_instance.connect()
         except Exception as e:
             self.is_working = False
@@ -592,7 +600,10 @@ class AbstractCommand(TimeStampedEditableModel):
         # is still pending.
         if self.device.is_fully_deactivated():
             self.status = "failed"
-            self._add_output("Device is deactivated.")
+            self._add_output(_("Device is deactivated."))
+        elif not self.device.organization.is_active:
+            self.status = "failed"
+            self._add_output(_("Organization is disabled."))
         else:
             exit_code = self._exec_command()
             # if output is None, the commands couldn't execute

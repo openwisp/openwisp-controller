@@ -3,6 +3,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import F, Q
 from django.http import Http404
 from django.urls.base import reverse
+from django.utils.translation import gettext_lazy as _
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import serializers, status
 from rest_framework.generics import (
@@ -98,7 +99,7 @@ class DeviceDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
     """
 
     serializer_class = DeviceDetailSerializer
-    queryset = Device.objects.select_related("config", "group", "organization")
+    queryset = Device.objects.select_related("config", "group")
     permission_classes = ProtectedAPIMixin.permission_classes + (DevicePermission,)
 
     def perform_destroy(self, instance):
@@ -124,6 +125,11 @@ class DeviceActivateView(ProtectedAPIMixin, GenericAPIView):
 
     def post(self, request, *args, **kwargs):
         device = self.get_object()
+        if not device.organization.is_active:
+            return Response(
+                {"detail": _("Cannot activate a device of a disabled organization.")},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         device.activate()
         serializer = DeviceDetailSerializer(
             device, context=self.get_serializer_context()
@@ -134,6 +140,10 @@ class DeviceActivateView(ProtectedAPIMixin, GenericAPIView):
 class DeviceDeactivateView(ProtectedAPIMixin, GenericAPIView):
     serializer_class = serializers.Serializer
     queryset = Device.objects.filter(_is_deactivated=False)
+    # Deactivation stays allowed even when the organization is disabled:
+    # it's the remediation an operator needs if the org-wide deactivation
+    # task failed for this device (see deactivate_organization_devices).
+    allow_disabled_organization_writes = True
 
     def post(self, request, *args, **kwargs):
         device = self.get_object()
@@ -154,7 +164,7 @@ class DeviceGroupListCreateView(ProtectedAPIMixin, ListCreateAPIView):
 
 class DeviceGroupDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
     serializer_class = DeviceGroupSerializer
-    queryset = DeviceGroup.objects.select_related("organization").order_by("-created")
+    queryset = DeviceGroup.objects.order_by("-created")
 
 
 def get_cached_devicegroup_args_rewrite(cls, org_slugs, common_name):
@@ -168,7 +178,7 @@ def get_cached_devicegroup_args_rewrite(cls, org_slugs, common_name):
 
 class DeviceGroupCommonName(ProtectedAPIMixin, RetrieveAPIView):
     serializer_class = DeviceGroupSerializer
-    queryset = DeviceGroup.objects.select_related("organization").order_by("-created")
+    queryset = DeviceGroup.objects.order_by("-created")
     # Not setting lookup_field makes DRF raise error. but it is not used
     lookup_field = "pk"
 
@@ -190,7 +200,7 @@ class DeviceGroupCommonName(ProtectedAPIMixin, RetrieveAPIView):
             )
             vpnclient = VpnClient.objects.only("config_id").get(cert_id=cert.id)
             group = (
-                Device.objects.select_related("group")
+                Device.objects.select_related("group", "group__organization")
                 .only("group")
                 .get(config=vpnclient.config_id)
                 .group

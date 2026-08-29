@@ -1060,6 +1060,18 @@ class TestWHOISTransaction(
 
     @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
     @mock.patch(_WHOIS_GEOIP_CLIENT)
+    def test_fetch_details_skips_when_org_disabled(self, mock_client):
+        whois_obj = self._create_whois_info(ip_address="8.8.8.8")
+        device = self._create_device(last_ip=whois_obj.ip_address)
+        device.organization.is_active = False
+        device.organization.save(update_fields=["is_active"])
+        fetch_whois_details(
+            device_pk=device.pk, initial_ip_address=whois_obj.ip_address
+        )
+        mock_client.assert_not_called()
+
+    @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
+    @mock.patch(_WHOIS_GEOIP_CLIENT)
     def test_fetch_details_record_already_exists(self, mock_client):
         whois_obj = self._create_whois_info()
         device = self._create_device(last_ip=whois_obj.ip_address)

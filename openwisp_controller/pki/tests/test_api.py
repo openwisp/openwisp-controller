@@ -5,7 +5,7 @@ from rest_framework import VERSION as REST_FRAMEWORK_VERSION
 from swapper import load_model
 
 from openwisp_controller.tests.utils import TestAdminMixin
-from openwisp_users.tests.test_api import AuthenticationMixin
+from openwisp_users.tests.test_api import AuthenticationMixin, TestDisabledOrgApiMixin
 from openwisp_users.tests.utils import TestOrganizationMixin
 from openwisp_utils.tests import AssertNumQueriesSubTestMixin, capture_any_output
 
@@ -19,7 +19,7 @@ class TestPkiApi(
     AssertNumQueriesSubTestMixin,
     TestAdminMixin,
     TestPkiMixin,
-    TestOrganizationMixin,
+    TestDisabledOrgApiMixin,
     AuthenticationMixin,
     TestCase,
 ):
@@ -137,7 +137,7 @@ class TestPkiApi(
         data = {
             "name": "change-ca1",
         }
-        with self.assertNumQueries(6):
+        with self.assertNumQueries(5):
             r = self.client.patch(path, data, content_type="application/json")
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data["name"], "change-ca1")
@@ -167,6 +167,42 @@ class TestPkiApi(
         self.assertEqual(r.status_code, 200)
         self.assertNotEqual(ca1.serial_number, old_serial_num)
         self.assertNotEqual(r.data["serial_number"], old_serial_num)
+
+    def test_ca_post_renew_api_disabled_org(self):
+        org = self._get_org()
+        ca1 = self._create_ca(name="ca1", organization=org)
+        old_serial_num = ca1.serial_number
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        path = reverse("pki_api:ca_renew", args=[ca1.pk])
+        r = self.client.post(path)
+        ca1.refresh_from_db()
+        self.assertEqual(r.status_code, 403)
+        self.assertEqual(str(ca1.serial_number), str(old_serial_num))
+
+    def test_ca_disabled_org_api_crud(self):
+        org = self._create_org(name="disabled-org", slug="disabled-org")
+        ca = self._create_ca(name="disabled-ca", organization=org)
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        create_payload = self._ca_data
+        create_payload["organization"] = str(org.pk)
+        self._test_disabled_org_api_crud(
+            ca,
+            detail_url=reverse("pki_api:ca_detail", args=[ca.pk]),
+            list_url=reverse("pki_api:ca_list"),
+            create_payload=create_payload,
+            update_payload={"name": "renamed-ca"},
+        )
+
+    def test_crl_download_disabled_org(self):
+        org = self._create_org(name="disabled-org", slug="disabled-org")
+        ca = self._create_ca(name="disabled-ca", organization=org)
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        path = reverse("pki_api:crl_download", args=[ca.pk])
+        r = self.client.get(path)
+        self.assertEqual(r.status_code, 200)
 
     def test_cert_post_api(self):
         path = reverse("pki_api:cert_list")
@@ -210,6 +246,51 @@ class TestPkiApi(
         self.assertEqual(r.status_code, 201)
         self.assertEqual(Cert.objects.count(), 1)
         self.assertEqual(r.data["extensions"], [])
+
+    def test_cert_revoke_api_allowed_for_disabled_org(self):
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        cert = self._create_cert(ca=ca, organization=org)
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        revoke_path = reverse("pki_api:cert_revoke", args=[cert.pk])
+        revoke_response = self.client.post(revoke_path)
+        self.assertEqual(revoke_response.status_code, 200)
+        cert.refresh_from_db()
+        self.assertEqual(cert.revoked, True)
+        self.assertIn(cert, list(ca.get_revoked_certs()))
+
+    def test_cert_renew_api_disabled_org(self):
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        cert = self._create_cert(ca=ca, organization=org)
+        serial_number = str(cert.serial_number)
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        renew_path = reverse("pki_api:cert_renew", args=[cert.pk])
+        renew_response = self.client.post(renew_path)
+        self.assertEqual(renew_response.status_code, 403)
+        cert.refresh_from_db()
+        self.assertEqual(cert.revoked, False)
+        self.assertEqual(cert.serial_number, serial_number)
+        self.assertEqual(Cert.objects.count(), 1)
+
+    def test_cert_disabled_org_api_crud(self):
+        org = self._create_org(name="disabled-org", slug="disabled-org")
+        ca = self._create_ca(name="disabled-ca", organization=org)
+        cert = self._create_cert(name="disabled-cert", ca=ca, organization=org)
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        create_payload = self._cert_data
+        create_payload["organization"] = str(org.pk)
+        create_payload["ca"] = ca.pk
+        self._test_disabled_org_api_crud(
+            cert,
+            detail_url=reverse("pki_api:cert_detail", args=[cert.pk]),
+            list_url=reverse("pki_api:cert_list"),
+            create_payload=create_payload,
+            update_payload={"name": "renamed-cert"},
+        )
 
     def test_cert_post_with_date_none(self):
         path = reverse("pki_api:cert_list")

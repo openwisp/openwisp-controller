@@ -476,6 +476,19 @@ class TestConfig(
         config.templates.set((template1, template2))
         self.assertEqual(config.vpnclient_set.count(), 2)
 
+    def test_manage_vpn_clients_skips_disabled_org(self):
+        org = self._get_org()
+        vpn = self._create_vpn(organization=org)
+        template = self._create_template(
+            name="test-network", type="vpn", vpn=vpn, organization=org
+        )
+        config = self._create_config(device=self._create_device(organization=org))
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        config.templates.add(template)
+        config.save()
+        self.assertEqual(config.vpnclient_set.count(), 0)
+
     def test_create_cert(self):
         vpn = self._create_vpn()
         t = self._create_template(

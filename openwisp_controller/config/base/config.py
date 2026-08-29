@@ -486,6 +486,10 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
             ).delete()
 
         if action == "post_add":
+            if not instance.device.organization.is_active:
+                # Do not create VPN clients (and their certs) for a
+                # disabled organization
+                return
             # A single template change can trigger multiple m2m_changed events.
             # Use the full current template set instead of this event's pk_set so
             # every attached VPN template has its VpnClient.
