@@ -539,7 +539,7 @@ class TestAdmin(
         data = self._create_multitenancy_test_env(vpn=True)
         self._test_multitenant_admin(
             url=(
-                f'{reverse("admin:autocomplete")}?app_label={self.app_label}'
+                f'{reverse("admin:autocomplete")}?app_label={Template._meta.app_label}'
                 "&model_name=template&field_name=ca"
             ),
             visible=[data["vpn1"].ca.name, data["vpn_shared"].ca.name],
@@ -551,7 +551,7 @@ class TestAdmin(
         data = self._create_multitenancy_test_env(cert=True)
         self._test_multitenant_admin(
             url=(
-                f'{reverse("admin:autocomplete")}?app_label={self.app_label}'
+                f'{reverse("admin:autocomplete")}?app_label={Template._meta.app_label}'
                 "&model_name=template&field_name=blueprint_cert"
             ),
             visible=[data["cert1"].name, data["cert_shared"].name],

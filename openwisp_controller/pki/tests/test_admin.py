@@ -1,5 +1,6 @@
+from unittest import mock
+
 from django.contrib import admin
-from django.contrib.auth.models import Permission
 from django.test import RequestFactory, TestCase
 from django.urls import resolve, reverse
 from swapper import load_model
@@ -16,7 +17,7 @@ from .utils import TestPkiMixin
 Ca = load_model("django_x509", "Ca")
 Cert = load_model("django_x509", "Cert")
 DeviceCertificate = load_model("config", "DeviceCertificate")
-OrganizationUser = load_model("openwisp_users", "OrganizationUser")
+Template = load_model("config", "Template")
 
 
 class TestAdmin(
@@ -28,6 +29,9 @@ class TestAdmin(
     TestCase,
 ):
     app_label = "pki"
+
+    def _admin_url_name(self, model, action):
+        return f"admin:{model._meta.app_label}_{model._meta.model_name}_{action}"
 
     def _create_multitenancy_test_env(self, cert=False):
         org1 = self._create_org(name="test1org")
@@ -171,7 +175,7 @@ class TestAdmin(
         )
         for param in params:
             with self.subTest(param):
-                path = reverse("admin:pki_ca_changelist")
+                path = reverse(self._admin_url_name(Ca, "changelist"))
                 url = f"{path}?{param}"
                 request = RequestFactory().get(url)
                 request.resolver_match = resolve(path)
@@ -189,10 +193,10 @@ class TestAdmin(
         )
         for param in params:
             with self.subTest(param):
-                url = (
-                    f'{reverse("admin:pki_ca_change", args=[data["ca_shared"].pk])}'
-                    f"?{param}"
+                path = reverse(
+                    self._admin_url_name(Ca, "change"), args=[data["ca_shared"].pk]
                 )
+                url = f"{path}?{param}"
                 response = self.client.get(url)
                 self.assertEqual(response.status_code, 302)
                 self.assertEqual(response.url, reverse("admin:index"))
@@ -206,10 +210,10 @@ class TestAdmin(
         )
         for param in params:
             with self.subTest(param):
-                url = (
-                    f'{reverse("admin:pki_ca_delete", args=[data["ca_shared"].pk])}'
-                    f"?{param}"
+                path = reverse(
+                    self._admin_url_name(Ca, "delete"), args=[data["ca_shared"].pk]
                 )
+                url = f"{path}?{param}"
                 response = self.client.post(url, {"post": "yes"})
                 self.assertEqual(response.status_code, 302)
                 self.assertEqual(response.url, reverse("admin:index"))
@@ -219,11 +223,13 @@ class TestAdmin(
         data = self._create_multitenancy_test_env(cert=True)
         self._login(username="administrator", password="tester")
         url = (
-            f'{reverse("admin:pki_cert_changelist")}'
+            f'{reverse(self._admin_url_name(Cert, "changelist"))}'
             "?app_label=config&model_name=template&field_name=blueprint_cert"
         )
         request = RequestFactory().get(url)
-        request.resolver_match = resolve(reverse("admin:pki_cert_changelist"))
+        request.resolver_match = resolve(
+            reverse(self._admin_url_name(Cert, "changelist"))
+        )
         request.user = data["administrator"]
         cert_admin = admin.site._registry[Cert]
         qs = cert_admin.get_queryset(request)
@@ -234,7 +240,10 @@ class TestAdmin(
         data = self._create_multitenancy_test_env(cert=True)
         self._login(username="administrator", password="tester")
         params = "?app_label=config&model_name=template&field_name=blueprint_cert"
-        url = reverse("admin:pki_cert_change", args=[data["cert_shared"].pk]) + params
+        path = reverse(
+            self._admin_url_name(Cert, "change"), args=[data["cert_shared"].pk]
+        )
+        url = path + params
         response = self.client.get(url)
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse("admin:index"))
@@ -243,7 +252,10 @@ class TestAdmin(
         data = self._create_multitenancy_test_env(cert=True)
         self._login(username="administrator", password="tester")
         params = "?app_label=config&model_name=template&field_name=blueprint_cert"
-        url = reverse("admin:pki_cert_delete", args=[data["cert_shared"].pk]) + params
+        path = reverse(
+            self._admin_url_name(Cert, "delete"), args=[data["cert_shared"].pk]
+        )
+        url = path + params
         response = self.client.post(url, {"post": "yes"})
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse("admin:index"))
@@ -251,30 +263,25 @@ class TestAdmin(
 
     def test_autocomplete_requires_source_admin_permission(self):
         """
-        Default groups include template permissions, so use custom permissions.
+        Verify that shared relations are not exposed if the user lacks
+        permission for the source model (Template).
         """
         data = self._create_multitenancy_test_env()
-        user = self._create_user(
-            username="ca-only",
-            password="tester",
-            email="ca-only@test.com",
-            is_staff=True,
+        user = self._create_administrator(
+            organizations=[data["org1"]],
+            username="source-denied-admin",
+            email="source-denied-admin@test.com",
         )
-        user.user_permissions.add(
-            Permission.objects.get(codename="change_ca", content_type__app_label="pki")
-        )
-        OrganizationUser.objects.create(
-            user=user,
-            organization=data["org1"],
-            is_admin=True,
-        )
-        user.organizations_dict
         self.client.force_login(user)
         url = (
             f'{reverse("admin:autocomplete")}'
-            "?app_label=config&model_name=template&field_name=ca"
+            f"?app_label={Template._meta.app_label}&model_name=template&field_name=ca"
         )
-        response = self.client.get(url)
+        with mock.patch(
+            "openwisp_controller.config.admin.TemplateAdmin.has_view_permission",
+            return_value=False,
+        ):
+            response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, data["ca1"].name)
         self.assertNotContains(response, data["ca_shared"].name)

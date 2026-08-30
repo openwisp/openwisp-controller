@@ -767,10 +767,13 @@ class TestDeviceCertificateSignalTrigger(
         )
         config = self._create_config(device=device)
         config.templates.add(template)
+        device_cert = DeviceCertificate.objects.get(config=config, template=template)
         device.name = "new-router-name"
         with self.captureOnCommitCallbacks(execute=True):
             device.save()
-        self.assertEqual(mocked_task.call_count, 1)
+        mocked_task.assert_called_once_with(
+            str(device.id), [(device_cert.id, device_cert.cert_id)]
+        )
 
     @mock.patch(
         "openwisp_controller.config.tasks.regenerate_device_certificates_task.delay"
@@ -784,10 +787,13 @@ class TestDeviceCertificateSignalTrigger(
         )
         config = self._create_config(device=device)
         config.templates.add(template)
+        device_cert = DeviceCertificate.objects.get(config=config, template=template)
         device.mac_address = "AA:BB:CC:DD:EE:FF"
         with self.captureOnCommitCallbacks(execute=True):
             device.save()
-        self.assertEqual(mocked_task.call_count, 1)
+        mocked_task.assert_called_once_with(
+            str(device.id), [(device_cert.id, device_cert.cert_id)]
+        )
 
     @mock.patch(
         "openwisp_controller.config.tasks.regenerate_device_certificates_task.delay"

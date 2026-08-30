@@ -1844,7 +1844,8 @@ class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, Test
         removed_cert_id = removed_dc.pk
         removed_cert_pk = removed_dc.cert_id
         removed_cert = Cert.objects.get(pk=removed_cert_pk)
-        config.templates.set([cert_template_1], clear=True)
+        with self.captureOnCommitCallbacks(execute=True):
+            config.templates.set([cert_template_1], clear=True)
         self.assertEqual(
             config.device_certificate_relations.count(),
             1,
