@@ -13,9 +13,9 @@ A Certificate Template is a specific type of :doc:`Configuration Template
 automatically provision X.509 client certificates for devices.
 
 Unlike VPN templates, which generate certificates as part of a larger
-tunnel configuration (like OpenVPN or WireGuard), Certificate Templates
-are standalone. They are ideal for use cases where devices need
-cryptographic identities for external services, such as:
+tunnel configuration (like OpenVPN), Certificate Templates are standalone.
+They are ideal for use cases where devices need cryptographic identities
+for external services, such as:
 
 - Mutual TLS (mTLS) authentication against internal APIs.
 - Cryptographically signed device identities for 802.1x or captive

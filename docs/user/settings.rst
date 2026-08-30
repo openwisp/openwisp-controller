@@ -376,8 +376,8 @@ certificates that are automatically created when using VPN or Certificate
 Templates which have ``auto_cert`` set to ``True``. A unique slug
 generated using `shortuuid <https://github.com/skorokithakis/shortuuid/>`_
 is appended to the common name to introduce uniqueness. Therefore,
-resulting common names will have
-``{OPENWISP_CONTROLLER_COMMON_NAME_FORMAT}-{unique-slug}`` format.
+resulting common names will use the configured format, truncated to 55
+characters when necessary, followed by ``-{unique-slug}``.
 
 .. note::
 

@@ -1180,7 +1180,6 @@ class TestTemplateTransaction(
     def test_get_cert_context_excludes_unassigned_templates(self):
         org = self._get_org()
         ca = self._create_ca(organization=org)
-
         template_keep = self._create_template(
             name="cert-keep",
             type="cert",
@@ -1200,19 +1199,15 @@ class TestTemplateTransaction(
         device = self._create_device(organization=org)
         config = self._create_config(device=device)
         config.templates.add(template_keep, template_remove)
-
         keep_prefix = f"cert_{template_keep.pk.hex}"
         remove_prefix = f"cert_{template_remove.pk.hex}"
-
         context = config.get_context()
         self.assertIn(f"{keep_prefix}_path", context)
         self.assertIn(f"{remove_prefix}_path", context)
-
         Through = Config.templates.through
         with transaction.atomic():
             Through.objects.filter(config=config, template=template_remove).delete()
             config.refresh_from_db()
-
             self.assertEqual(
                 config.device_certificate_relations.count(),
                 2,
@@ -1225,7 +1220,6 @@ class TestTemplateTransaction(
                 context,
                 "Cert context for removed template should be excluded",
             )
-
         context = config.get_context()
         self.assertIn(f"{keep_prefix}_path", context)
         self.assertNotIn(f"{remove_prefix}_path", context)
