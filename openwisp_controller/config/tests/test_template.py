@@ -4,9 +4,16 @@ from threading import Event, Thread
 from unittest import mock
 
 from celery.exceptions import SoftTimeLimitExceeded
+from cryptography.hazmat.primitives.asymmetric import padding
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db import IntegrityError, close_old_connections, connection, transaction
+from django.db import (
+    IntegrityError,
+    OperationalError,
+    close_old_connections,
+    connection,
+    transaction,
+)
 from django.db.models.deletion import RestrictedError
 from django.test import TestCase, TransactionTestCase
 from django.test.utils import CaptureQueriesContext
@@ -14,7 +21,7 @@ from netjsonconfig import OpenWrt
 from netjsonconfig.exceptions import ValidationError as NetjsonconfigValidationError
 from swapper import load_model
 
-from openwisp_utils.tests import catch_signal
+from openwisp_utils.tests import AssertNumQueriesSubTestMixin, catch_signal
 
 from .. import settings as app_settings
 from ..base.template import _get_value_for_comparison, get_unassigned_certs
@@ -701,6 +708,22 @@ class TestTemplateTransaction(
         self.assertEqual(template.ca_id, ca1.pk)
         self.assertEqual(device_cert.cert.ca_id, template.ca_id)
 
+    def test_clear_is_atomic_when_revocation_fails(self):
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        template = self._create_template(
+            type="cert", ca=ca, organization=org, config={}
+        )
+        config = self._create_config(device=self._create_device(organization=org))
+        config.templates.add(template)
+        with mock.patch(
+            "django_x509.base.models.AbstractCert.revoke",
+            side_effect=OperationalError("database is locked"),
+        ):
+            with self.assertRaisesMessage(OperationalError, "database is locked"):
+                config.templates.clear()
+        self.assertTrue(config.templates.filter(pk=template.pk).exists())
+
     def test_cert_template_save_refreshes_stale_protected_snapshot(self):
         org = self._get_org()
         ca1 = self._create_ca(organization=org)
@@ -1225,7 +1248,9 @@ class TestTemplateTransaction(
         self.assertNotIn(f"{remove_prefix}_path", context)
 
 
-class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase):
+class TestTemplateCertificates(
+    AssertNumQueriesSubTestMixin, CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase
+):
     """
     tests for standalone X.509 certificate Template configurations
     """
@@ -1563,6 +1588,57 @@ class TestTemplateCertificates(CreateConfigTemplateMixin, TestVpnX509Mixin, Test
         self.assertEqual(generated_cert.city, "Berlin")
         self.assertEqual(generated_cert.key_length, "2048")
         self.assertEqual(generated_cert.digest, "sha256")
+
+    def test_cert_copies_ca_extensions(self):
+        org = self._get_org()
+        extension = {"name": "nsComment", "value": "controller", "critical": False}
+        ca = self._create_ca(organization=org, extensions=[extension])
+        template = self._create_template(
+            type="cert", ca=ca, organization=org, config={}
+        )
+        config = self._create_config(device=self._create_device(organization=org))
+        config.templates.add(template)
+        cert = config.device_certificate_relations.get(template=template).cert
+        self.assertIn(extension, cert.extensions)
+
+    def test_cert_context_uses_join(self):
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        templates = [
+            self._create_template(
+                name=f"context-{index}",
+                type="cert",
+                ca=ca,
+                organization=org,
+                config={},
+            )
+            for index in range(2)
+        ]
+        config = self._create_config(device=self._create_device(organization=org))
+        config.templates.add(*templates)
+        with self.assertNumQueries(2):
+            config.get_cert_context()
+
+    def test_no_blueprint_cert_uses_current_ca_key(self):
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        template = self._create_template(
+            type="cert", ca=ca, organization=org, config={}
+        )
+        config = self._create_config(device=self._create_device(organization=org))
+        template = Template.objects.get(pk=template.pk)
+        pending = DeviceCertificate(config=config, template=template)
+        cert = pending._build_cert(config.device.name, pending._get_common_name())
+        ca.renew()
+        cert.full_clean()
+        cert.save()
+        current_ca = Ca.objects.get(pk=ca.pk)
+        current_ca.x509.public_key().verify(
+            cert.x509.signature,
+            cert.x509.tbs_certificate_bytes,
+            padding.PKCS1v15(),
+            cert.x509.signature_hash_algorithm,
+        )
 
     def test_cert_generation_and_revocation_lifecycle(self):
         """
