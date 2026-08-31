@@ -220,10 +220,18 @@ class BaseSubnetDivisionRuleType(object):
     @staticmethod
     def create_subnets(config, division_rule, max_subnet, generated_indexes):
         master_subnet = division_rule.master_subnet
+        # IPAM forbids an address from being assigned more than once in a subnet
+        # hierarchy, including the master subnet and its child subnets.
+        allocated_ips = set(
+            IpAddress.objects.filter(
+                subnet_id__in=master_subnet.get_related_subnet_pks()
+            ).values_list("ip_address", flat=True)
+        )
         required_subnet = IPNetwork(str(max_subnet)).next()
         generated_subnets = []
 
-        for subnet_id in range(1, division_rule.number_of_subnets + 1):
+        while len(generated_subnets) < division_rule.number_of_subnets:
+            subnet_id = len(generated_subnets) + 1
             if not ip_network(str(required_subnet)).subnet_of(master_subnet.subnet):
                 notify.send(
                     sender=config,
@@ -242,6 +250,16 @@ class BaseSubnetDivisionRuleType(object):
                 )
                 logger.info(f"Cannot create more subnets of {master_subnet}")
                 break
+            # Avoid a child subnet when its provisioned addresses would conflict
+            # with an existing assignment in the related hierarchy.
+            if any(
+                str(required_subnet[ip_index]) in allocated_ips
+                for ip_index in BaseSubnetDivisionRuleType.get_ip_indexes(
+                    required_subnet, division_rule.number_of_ips
+                )
+            ):
+                required_subnet = required_subnet.next()
+                continue
             subnet_obj = Subnet(
                 name=f"{division_rule.label}_subnet{subnet_id}",
                 subnet=str(required_subnet),
@@ -266,23 +284,25 @@ class BaseSubnetDivisionRuleType(object):
         return generated_subnets
 
     @staticmethod
+    def get_ip_indexes(subnet, number_of_ips):
+        number_of_addresses = (
+            subnet.num_addresses if hasattr(subnet, "num_addresses") else subnet.size
+        )
+        # Reserve the first address unless the rule consumes the entire subnet,
+        # which is necessary for /32 and /128 subnets.
+        if number_of_addresses != number_of_ips:
+            return range(1, number_of_ips + 1)
+        return range(number_of_ips)
+
+    @staticmethod
     def create_ips(config, division_rule, generated_subnets, generated_indexes):
         generated_ips = []
         for subnet_obj in generated_subnets:
-            # don't assign first ip address of a subnet,
-            # unless the rule is designed to use the whole
-            # address space of the subnet
-            if subnet_obj.subnet.num_addresses != division_rule.number_of_ips:
-                index_start = 1
-                index_end = division_rule.number_of_ips + 1
-            # this allows handling /32, /128 or cases in which
-            # the number of requested ip addresses matches exactly
-            # what is available in the subnet
-            else:
-                index_start = 0
-                index_end = division_rule.number_of_ips
             # generate IPs and indexes accordingly
-            for ip_index in range(index_start, index_end):
+            ip_indexes = BaseSubnetDivisionRuleType.get_ip_indexes(
+                subnet_obj.subnet, division_rule.number_of_ips
+            )
+            for ip_index in ip_indexes:
                 ip_obj = IpAddress(
                     subnet_id=subnet_obj.id,
                     ip_address=str(subnet_obj.subnet[ip_index]),
@@ -290,7 +310,7 @@ class BaseSubnetDivisionRuleType(object):
                 ip_obj.full_clean()
                 generated_ips.append(ip_obj)
                 # ensure human friendly labels (starting from 1 instead of 0)
-                keyword_index = ip_index if index_start == 1 else ip_index + 1
+                keyword_index = ip_index if ip_indexes.start == 1 else ip_index + 1
                 generated_indexes.append(
                     SubnetDivisionIndex(
                         keyword=f"{subnet_obj.name}_ip{keyword_index}",
