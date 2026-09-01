@@ -72,6 +72,7 @@ class TemplateSerializer(BaseSerializer):
 
 class VpnSerializer(BaseSerializer):
     config = serializers.JSONField(initial={})
+    ip = serializers.PrimaryKeyRelatedField(read_only=True)
     include_shared = True
 
     class Meta(BaseMeta):
