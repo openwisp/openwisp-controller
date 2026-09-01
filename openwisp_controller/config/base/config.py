@@ -1117,23 +1117,26 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
         cert_template_ids = [t.id for t in self.templates.all() if t.type == "cert"]
         if not cert_template_ids:
             return cert_context
-        for dc in self.device_certificate_relations.all():
-            if dc.cert and not dc.cert.revoked and dc.template_id in cert_template_ids:
-                template_hex = dc.template_id.hex
-                prefix = f"cert_{template_hex}"
-                cert_filename = "cert-{0}.pem".format(template_hex)
-                cert_path = "{0}/{1}".format(app_settings.CERT_PATH, cert_filename)
-                key_filename = "key-{0}.pem".format(template_hex)
-                key_path = "{0}/{1}".format(app_settings.CERT_PATH, key_filename)
-                cert_context.update(
-                    {
-                        f"{prefix}_path": cert_path,
-                        f"{prefix}_pem": dc.cert.certificate,
-                        f"{prefix}_key_path": key_path,
-                        f"{prefix}_key": dc.cert.private_key,
-                        f"{prefix}_id": str(dc.cert.id),
-                    }
-                )
+        device_certificates = self.device_certificate_relations.filter(
+            cert__revoked=False,
+            template_id__in=cert_template_ids,
+        ).select_related("cert")
+        for dc in device_certificates:
+            template_hex = dc.template_id.hex
+            prefix = f"cert_{template_hex}"
+            cert_filename = "cert-{0}.pem".format(template_hex)
+            cert_path = "{0}/{1}".format(app_settings.CERT_PATH, cert_filename)
+            key_filename = "key-{0}.pem".format(template_hex)
+            key_path = "{0}/{1}".format(app_settings.CERT_PATH, key_filename)
+            cert_context.update(
+                {
+                    f"{prefix}_path": cert_path,
+                    f"{prefix}_pem": dc.cert.certificate,
+                    f"{prefix}_key_path": key_path,
+                    f"{prefix}_key": dc.cert.private_key,
+                    f"{prefix}_id": str(dc.cert.id),
+                }
+            )
         return cert_context
 
     def get_context(self, system=False):

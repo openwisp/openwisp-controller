@@ -131,12 +131,13 @@ def copy_ca_attributes(ca, blueprint=None):
     )
 
 
-def get_client_extensions(blueprint=None, hardware_oids=None):
+def get_client_extensions(blueprint=None, hardware_oids=None, ca=None):
     """
     Compiles the list of X.509 extensions for a new client certificate.
     """
-    if blueprint and blueprint.extensions:
-        extensions = copy.deepcopy(blueprint.extensions)
+    source = blueprint or ca
+    if source and source.extensions:
+        extensions = copy.deepcopy(source.extensions)
     else:
         extensions = copy.deepcopy(DEFAULT_CLIENT_EXTENSIONS)
     if hardware_oids:

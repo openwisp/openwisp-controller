@@ -178,7 +178,7 @@ class AbstractDeviceCertificate(TimeStampedEditableModel):
 
         attrs = copy_ca_attributes(ca, blueprint)
         extensions = get_client_extensions(
-            blueprint, hardware_oids=self._get_hardware_oid_extensions()
+            blueprint, hardware_oids=self._get_hardware_oid_extensions(), ca=ca
         )
         cert = cert_model(
             name=name,

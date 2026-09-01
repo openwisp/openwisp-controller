@@ -1591,15 +1591,39 @@ class TestTemplateCertificates(
 
     def test_cert_copies_ca_extensions(self):
         org = self._get_org()
+        mac_oid = "1.3.6.1.4.1.65901.1"
+        uuid_oid = "1.3.6.1.4.1.65901.2"
         extension = {"name": "nsComment", "value": "controller", "critical": False}
-        ca = self._create_ca(organization=org, extensions=[extension])
+        ca = self._create_ca(
+            organization=org,
+            extensions=[
+                extension,
+                {
+                    "oid": mac_oid,
+                    "value": "ASN1:UTF8:string:00:00:00:00:00:00",
+                    "critical": False,
+                },
+                {
+                    "oid": uuid_oid,
+                    "value": "ASN1:UTF8:string:00000000-0000-0000-0000-000000000000",
+                    "critical": False,
+                },
+            ],
+        )
         template = self._create_template(
             type="cert", ca=ca, organization=org, config={}
         )
-        config = self._create_config(device=self._create_device(organization=org))
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
         config.templates.add(template)
         cert = config.device_certificate_relations.get(template=template).cert
         self.assertIn(extension, cert.extensions)
+        mac_extensions = [ext for ext in cert.extensions if ext.get("oid") == mac_oid]
+        uuid_extensions = [ext for ext in cert.extensions if ext.get("oid") == uuid_oid]
+        self.assertEqual(len(mac_extensions), 1)
+        self.assertEqual(len(uuid_extensions), 1)
+        self.assertIn(device.mac_address, mac_extensions[0]["value"])
+        self.assertIn(str(device.id), uuid_extensions[0]["value"])
 
     def test_cert_context_uses_join(self):
         org = self._get_org()
