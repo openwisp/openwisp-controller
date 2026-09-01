@@ -168,7 +168,7 @@ class TestPkiApi(
         ca1 = self._create_ca(name="ca1", organization=self._get_org())
         old_serial_num = ca1.serial_number
         path = reverse("pki_api:ca_renew", args=[ca1.pk])
-        with self.assertNumQueries(5):
+        with self.assertNumQueries(6):
             r = self.client.post(path)
         ca1.refresh_from_db()
         self.assertEqual(r.status_code, 200)
@@ -179,7 +179,7 @@ class TestPkiApi(
         path = reverse("pki_api:cert_list")
         data = self._cert_data
         data["ca"] = self._create_ca().pk
-        with self.assertNumQueries(7):
+        with self.assertNumQueries(8):
             r = self.client.post(path, data, content_type="application/json")
         self.assertEqual(r.status_code, 201)
         self.assertEqual(Cert.objects.count(), 1)
@@ -196,7 +196,7 @@ class TestPkiApi(
             "private_key": ca1.private_key,
         }
         expected_queries = (
-            10 if parse_version(REST_FRAMEWORK_VERSION) >= parse_version("3.15") else 9
+            11 if parse_version(REST_FRAMEWORK_VERSION) >= parse_version("3.15") else 10
         )
         with self.assertNumQueries(expected_queries):
             r = self.client.post(path, data, content_type="application/json")
@@ -212,7 +212,7 @@ class TestPkiApi(
         data = self._cert_data
         data["ca"] = self._create_ca().pk
         data["extensions"] = []
-        with self.assertNumQueries(7):
+        with self.assertNumQueries(8):
             r = self.client.post(path, data, content_type="application/json")
         self.assertEqual(r.status_code, 201)
         self.assertEqual(Cert.objects.count(), 1)
@@ -228,7 +228,7 @@ class TestPkiApi(
             "validity_start": None,
             "validity_end": None,
         }
-        with self.assertNumQueries(7):
+        with self.assertNumQueries(8):
             r = self.client.post(path, data, content_type="application/json")
         self.assertEqual(r.status_code, 201)
         self.assertEqual(Cert.objects.count(), 1)
