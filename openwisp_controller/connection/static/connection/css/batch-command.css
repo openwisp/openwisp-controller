@@ -245,7 +245,7 @@
   text-align: center;
   width: 2rem;
 }
-.execute-form .submit-row {
+#main .execute-form .submit-row {
   display: flex;
   gap: 0.5rem;
   justify-content: flex-end;
@@ -305,4 +305,7 @@
 }
 .execute-batch-command .form-row.field-input.errors .flex-container {
   display: none;
+}
+#main .form-row .ow-text-field {
+  width: 320px;
 }
