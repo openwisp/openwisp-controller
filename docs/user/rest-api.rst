@@ -1201,10 +1201,6 @@ List VPNs
 
     GET /api/v1/controller/vpn/
 
-Each VPN list response includes the IDs of its associated ``subnet`` and
-read-only ``ip``, when available. The list response excludes
-``webhook_endpoint`` and ``auth_token``.
-
 **Available filters**
 
 You can filter a list of vpns based on their backend using the ``backend``
@@ -1246,9 +1242,6 @@ Get VPN detail
 .. code-block:: text
 
     GET /api/v1/controller/vpn/{id}/
-
-VPN detail and write responses include ``subnet``, read-only ``ip``,
-``webhook_endpoint`` and ``auth_token``.
 
 Download VPN Configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
