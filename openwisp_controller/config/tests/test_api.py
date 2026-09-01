@@ -892,12 +892,26 @@ class TestConfigApi(
     def test_vpn_list_api(self):
         org = self._get_org()
         vpn = self._create_wireguard_vpn(organization=org)
+        vpn.webhook_endpoint = "https://vpn.testing.com/webhook"
+        vpn.auth_token = "test-auth-token"
+        vpn.save()
+        self._create_wireguard_vpn(
+            name="second-vpn",
+            organization=org,
+            subnet=vpn.subnet,
+        )
         path = reverse("config_api:vpn_list")
         with self.assertNumQueries(3):
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
-        self.assertEqual(r.data["results"][0]["subnet"], vpn.subnet.pk)
-        self.assertEqual(r.data["results"][0]["ip"], vpn.ip.pk)
+        self.assertEqual(r.data["count"], 2)
+        result = next(
+            result for result in r.data["results"] if result["id"] == str(vpn.pk)
+        )
+        self.assertEqual(result["subnet"], vpn.subnet.pk)
+        self.assertEqual(result["ip"], vpn.ip.pk)
+        self.assertNotIn("webhook_endpoint", result)
+        self.assertNotIn("auth_token", result)
 
     def test_vpn_list_api_filter(self):
         org1 = self._create_org()
@@ -1006,12 +1020,17 @@ class TestConfigApi(
         self.assertEqual(r.data["auth_token"], data["auth_token"])
 
     def test_vpn_patch_api(self):
-        vpn1 = self._create_vpn(name="test-vpn")
+        vpn1 = self._create_wireguard_vpn(name="test-vpn")
+        original_ip = vpn1.ip
+        other_ip = vpn1.subnet.request_ip()
         path = reverse("config_api:vpn_detail", args=[vpn1.pk])
-        data = dict(name="test-vpn-change")
+        data = dict(name="test-vpn-change", ip=other_ip.pk)
         r = self.client.patch(path, data, content_type="application/json")
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data["name"], "test-vpn-change")
+        vpn1.refresh_from_db()
+        self.assertEqual(vpn1.ip, original_ip)
+        self.assertEqual(r.data["ip"], original_ip.pk)
 
     def test_vpn_download_api(self):
         vpn1 = self._create_vpn(name="test-vpn")
