@@ -24,7 +24,7 @@ from ..signals import (
     config_modified,
     config_status_changed,
 )
-from ..sortedm2m.fields import SortedManyToManyField
+from ..sortedm2m.fields import SORTED_M2M_SET_ATTR, SortedManyToManyField
 from ..utils import get_default_templates_queryset
 from .base import BaseConfig, ChecksumCacheMixin, get_cached_args_rewrite
 from .cache import CacheDependency, CacheInvalidationMixin
@@ -611,18 +611,20 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
             # retrieve required templates related to this
             # device and ensure they're always present
             organization = raw_data.get("organization", instance.device.organization)
-            required_templates = (
-                cls.get_template_model()
-                .objects.filter(template_query)
-                .filter(
-                    models.Q(organization=organization) | models.Q(organization=None)
-                )
-            )
+            required_templates = cls._get_required_templates(instance, organization)
             if required_templates.exists():
                 instance._is_enforcing_required_templates = True
                 instance.templates.add(
                     *required_templates.order_by("name").values_list("pk", flat=True)
                 )
+
+    @classmethod
+    def _get_required_templates(cls, instance, organization):
+        return (
+            cls.get_template_model()
+            .objects.filter(required=True, backend=instance.backend)
+            .filter(models.Q(organization=organization) | models.Q(organization=None))
+        )
 
     @classmethod
     def register_context_function(cls, func):
@@ -651,14 +653,15 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
         if action == "post_clear":
             if instance.is_deactivating_or_deactivated():
                 instance.device_certificate_relations.all().delete()
-            else:
-                # If this is a reorder, the subsequent 'add' will complete first,
-                # saving the certs. If it is a pure clear, the certs will be deleted.
-                transaction.on_commit(
-                    lambda: instance.device_certificate_relations.exclude(
-                        template_id__in=instance.templates.values_list("id", flat=True)
-                    ).delete()
+            elif not getattr(instance, SORTED_M2M_SET_ATTR, False):
+                required_cert_templates = (
+                    cls._get_required_templates(instance, instance.device.organization)
+                    .filter(type="cert")
+                    .values_list("id", flat=True)
                 )
+                instance.device_certificate_relations.exclude(
+                    template_id__in=required_cert_templates
+                ).delete()
             return
         # normalize templates across standard M2M sets vs Admin ModelForm querysets
         if isinstance(pk_set, set):
@@ -670,7 +673,10 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
             templates = pk_set
         # deletes orphaned certificates that are no
         # longer assigned in the templates list.
-        if len(pk_set) != templates.filter(required=True).count():
+        if (
+            getattr(instance, SORTED_M2M_SET_ATTR, False)
+            or len(pk_set) != templates.filter(required=True).count()
+        ):
             instance.device_certificate_relations.exclude(
                 template_id__in=instance.templates.values_list("id", flat=True)
             ).delete()
@@ -1117,10 +1123,24 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
         cert_template_ids = [t.id for t in self.templates.all() if t.type == "cert"]
         if not cert_template_ids:
             return cert_context
-        device_certificates = self.device_certificate_relations.filter(
-            cert__revoked=False,
-            template_id__in=cert_template_ids,
-        ).select_related("cert")
+        prefetched = getattr(self, "_prefetched_objects_cache", {}).get(
+            "device_certificate_relations"
+        )
+        if prefetched is not None and all(
+            not dc.cert_id or "cert" in dc._state.fields_cache for dc in prefetched
+        ):
+            device_certificates = (
+                dc
+                for dc in prefetched
+                if dc.cert_id
+                and not dc.cert.revoked
+                and dc.template_id in cert_template_ids
+            )
+        else:
+            device_certificates = self.device_certificate_relations.filter(
+                cert__revoked=False,
+                template_id__in=cert_template_ids,
+            ).select_related("cert")
         for dc in device_certificates:
             template_hex = dc.template_id.hex
             prefix = f"cert_{template_hex}"

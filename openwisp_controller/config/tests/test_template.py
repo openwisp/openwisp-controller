@@ -709,20 +709,73 @@ class TestTemplateTransaction(
         self.assertEqual(device_cert.cert.ca_id, template.ca_id)
 
     def test_clear_is_atomic_when_revocation_fails(self):
+        operations = {
+            "clear": "00:11:22:33:44:55",
+            "set-empty": "00:11:22:33:44:56",
+        }
+        for operation, mac_address in operations.items():
+            with self.subTest(operation=operation):
+                org = self._get_org()
+                ca = self._create_ca(
+                    name=f"ca-{operation}",
+                    common_name=f"ca-{operation}",
+                    organization=org,
+                )
+                template = self._create_template(
+                    name=f"template-{operation}",
+                    type="cert",
+                    ca=ca,
+                    organization=org,
+                    config={},
+                )
+                config = self._create_config(
+                    device=self._create_device(
+                        name=f"device-{operation}",
+                        organization=org,
+                        mac_address=mac_address,
+                    )
+                )
+                config.templates.add(template)
+                with mock.patch(
+                    "django_x509.base.models.AbstractCert.revoke",
+                    side_effect=OperationalError("database is locked"),
+                ):
+                    with self.assertRaisesMessage(
+                        OperationalError, "database is locked"
+                    ):
+                        if operation == "clear":
+                            config.templates.clear()
+                        else:
+                            config.templates.set([])
+                self.assertTrue(config.templates.filter(pk=template.pk).exists())
+
+    def test_set_is_atomic_when_revocation_fails(self):
         org = self._get_org()
         ca = self._create_ca(organization=org)
-        template = self._create_template(
-            type="cert", ca=ca, organization=org, config={}
+        required_template = self._create_template(
+            name="required-cert-template",
+            type="cert",
+            ca=ca,
+            organization=org,
+            required=True,
+            config={},
+        )
+        optional_template = self._create_template(
+            name="optional-cert-template",
+            type="cert",
+            ca=ca,
+            organization=org,
+            config={},
         )
         config = self._create_config(device=self._create_device(organization=org))
-        config.templates.add(template)
+        config.templates.set([required_template, optional_template])
         with mock.patch(
             "django_x509.base.models.AbstractCert.revoke",
             side_effect=OperationalError("database is locked"),
         ):
             with self.assertRaisesMessage(OperationalError, "database is locked"):
-                config.templates.clear()
-        self.assertTrue(config.templates.filter(pk=template.pk).exists())
+                config.templates.set([required_template])
+        self.assertTrue(config.templates.filter(pk=optional_template.pk).exists())
 
     def test_cert_template_save_refreshes_stale_protected_snapshot(self):
         org = self._get_org()
@@ -1641,6 +1694,28 @@ class TestTemplateCertificates(
         config = self._create_config(device=self._create_device(organization=org))
         config.templates.add(*templates)
         with self.assertNumQueries(2):
+            config.get_cert_context()
+
+    def test_cert_context_ignores_incomplete_prefetch(self):
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        templates = [
+            self._create_template(
+                name=f"incomplete-prefetch-{index}",
+                type="cert",
+                ca=ca,
+                organization=org,
+                config={},
+            )
+            for index in range(2)
+        ]
+        config = self._create_config(device=self._create_device(organization=org))
+        config.templates.add(*templates)
+        config = Config.objects.prefetch_related(
+            "templates", "device_certificate_relations"
+        ).get(pk=config.pk)
+
+        with self.assertNumQueries(1):
             config.get_cert_context()
 
     def test_no_blueprint_cert_uses_current_ca_key(self):

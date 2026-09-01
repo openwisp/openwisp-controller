@@ -3,7 +3,7 @@ Customized sortedm2m field that sends the pre_add and post_add
 signals also when all the m2m relations are removed.
 """
 
-from django.db import router
+from django.db import router, transaction
 from django.db.models import signals
 from django.utils.functional import cached_property
 from sortedm2m.fields import (
@@ -16,6 +16,8 @@ from sortedm2m.fields import (
 
 from .forms import SortedMultipleChoiceField
 
+SORTED_M2M_SET_ATTR = "_openwisp_sortedm2m_is_setting"
+
 
 def create_sorted_many_related_manager(superclass, rel, *args, **kwargs):
     BaseSortedRelatedManager = base_create_sorted_many_related_manager(
@@ -23,6 +25,23 @@ def create_sorted_many_related_manager(superclass, rel, *args, **kwargs):
     )
 
     class SortedRelatedManager(BaseSortedRelatedManager):
+        def set(self, objs, **kwargs):
+            objs = tuple(objs)
+            sentinel = object()
+            previous = getattr(self.instance, SORTED_M2M_SET_ATTR, sentinel)
+            setattr(self.instance, SORTED_M2M_SET_ATTR, bool(objs))
+            try:
+                db = router.db_for_write(self.through, instance=self.instance)
+                with transaction.atomic(using=db, savepoint=False):
+                    return super().set(objs, **kwargs)
+            finally:
+                if previous is sentinel:
+                    delattr(self.instance, SORTED_M2M_SET_ATTR)
+                else:
+                    setattr(self.instance, SORTED_M2M_SET_ATTR, previous)
+
+        set.alters_data = True
+
         def _add_items(self, source_field_name, target_field_name, *objs, **kwargs):
             db = router.db_for_write(self.through, instance=self.instance)
             super()._add_items(source_field_name, target_field_name, *objs, **kwargs)
