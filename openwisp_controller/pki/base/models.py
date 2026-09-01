@@ -78,7 +78,8 @@ class AbstractCert(ShareableOrgMixin, UnqiueCommonNameMixin, BaseCert):
         if self._state.adding and self.ca_id:
             with _atomic_if_needed():
                 self._lock_current_ca()
-                self._regenerate_if_signed_by_stale_ca()
+                if getattr(self, "_generated_by_model", False):
+                    self._regenerate_if_signed_by_stale_ca()
                 super().save(*args, **kwargs)
         else:
             super().save(*args, **kwargs)

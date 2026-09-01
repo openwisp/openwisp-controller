@@ -1,3 +1,5 @@
+from unittest import mock
+
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import padding
@@ -58,6 +60,25 @@ class TestModels(TestAdminMixin, TestPkiMixin, TestOrganizationMixin, TestCase):
             padding.PKCS1v15(),
             cert.x509.signature_hash_algorithm,
         )
+
+    def test_imported_cert_save_does_not_verify_generated_material(self):
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        cert = Cert(
+            name="imported",
+            ca=ca,
+            organization=org,
+            certificate=ca.certificate,
+            private_key=ca.private_key,
+        )
+        cert.full_clean()
+        with mock.patch.object(
+            Cert,
+            "_verify_ca",
+            side_effect=ValidationError("stale generated certificate"),
+        ):
+            cert.save()
+        self.assertEqual(Cert.objects.count(), 1)
 
     def test_cert_validate_org_relation_no_rel(self):
         cert = Cert()
