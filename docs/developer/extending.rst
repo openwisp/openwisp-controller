@@ -773,6 +773,73 @@ For more information about django views, please refer to the `views
 section in the django documentation
 <https://docs.djangoproject.com/en/5.2/topics/http/views/>`_.
 
+Only the views you want to customize need to be defined in the custom
+module: whenever a view is missing, ``get_geo_urls`` falls back to the
+standard view. Geo URL patterns already include the ``api/v1/`` prefix, so
+geo API URLs must be included at the root path (``path("",
+include(...))``) to avoid duplicating it.
+
+3. Extending the REST API Views
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The REST API URL helpers accept a custom views module: ``get_api_urls``
+(imported from ``openwisp_controller.config.api.urls`` or
+``openwisp_controller.connection.api.urls``), ``get_pki_api_urls``
+(imported from ``openwisp_controller.pki.api.urls``), and ``get_geo_urls``
+(imported from ``openwisp_controller.geo.utils``).
+
+The custom views module only needs to define the views you want to
+customize: whenever a view is missing, the helper falls back to the
+standard view, so there is no need to duplicate the full set of views.
+When using the default settings, the following URL configuration is
+already loaded automatically:
+
+.. code-block:: python
+
+    from django.urls import include, path
+
+    from openwisp_controller.config.api.urls import get_api_urls
+    from yourcustom.api import views as api_views
+
+    urlpatterns = [
+        # ... other urls in your project ...
+        # use only if you are customizing config API views
+        path(
+            "api/v1/",
+            include(
+                (get_api_urls(api_views), "config_api"),
+                namespace="config_api",
+            ),
+        ),
+    ]
+
+The views module may define only a subset of the views, for example:
+
+.. code-block:: python
+
+    # in yourcustom/api/views.py
+    from openwisp_controller.config.api.views import (
+        DeviceListCreateView as BaseDeviceListCreateView,
+    )
+
+
+    class DeviceListCreateView(BaseDeviceListCreateView):
+        pass
+
+
+    device_list = DeviceListCreateView.as_view()
+
+All other views (templates, VPNs, device groups, downloads, etc.) fall
+back to the standard implementation. The same pattern applies to the
+connection, PKI, and geo API views, with one difference: connection and
+geo URL patterns already include the ``api/v1/`` prefix, so their API URLs
+must be included at the root path (``path("", include(...))``) to avoid
+duplicating it.
+
+For more information about django views, please refer to the `views
+section in the django documentation
+<https://docs.djangoproject.com/en/5.2/topics/http/views/>`_.
+
 .. _custom_subnet_division_rule_types:
 
 Custom Subnet Division Rule Types
