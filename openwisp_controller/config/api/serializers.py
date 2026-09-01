@@ -85,6 +85,10 @@ class VpnSerializer(BaseSerializer):
             "ca",
             "cert",
             "backend",
+            "subnet",
+            "ip",
+            "webhook_endpoint",
+            "auth_token",
             "notes",
             "dh",
             "config",
@@ -106,6 +110,13 @@ class VpnSerializer(BaseSerializer):
             if data["ca"] and self.instance.cert.ca != data["ca"]:
                 data["cert"] = None
         return super().validate(data)
+
+
+class VpnListSerializer(VpnSerializer):
+    class Meta(VpnSerializer.Meta):
+        fields = VpnSerializer.Meta.fields[:]
+        fields.remove("webhook_endpoint")
+        fields.remove("auth_token")
 
 
 class FilterTemplatesByOrganization(serializers.PrimaryKeyRelatedField):
