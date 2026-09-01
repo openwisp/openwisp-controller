@@ -11,7 +11,7 @@ from django.contrib import admin, messages
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.db.models import Count, Q
-from django.http import HttpResponseForbidden, JsonResponse
+from django.http import HttpResponseForbidden, HttpResponseNotAllowed, JsonResponse
 from django.shortcuts import redirect
 from django.template.response import TemplateResponse
 from django.urls import path, resolve
@@ -73,7 +73,7 @@ class BatchCommandExecutionForm(forms.ModelForm):
             "location",
         ]
         widgets = {
-            "label": forms.TextInput(attrs={"class": "vTextField"}),
+            "label": forms.TextInput(attrs={"class": "vTextField ow-text-field"}),
             "notes": forms.Textarea(attrs={"rows": 3}),
             "input": BatchCommandSchemaWidget,
             "group": OrganizationScopedSelect,
@@ -508,6 +508,8 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
         A valid submission goes to the session and redirects to the confirm
         page, so that its device table can be paginated with plain GETs.
         """
+        if request.method not in ("GET", "POST"):
+            return HttpResponseNotAllowed(["GET", "POST"])
         self._check_add_permission(request)
         if request.method == "POST":
             form = BatchCommandExecutionForm(request.POST, request=request)
@@ -524,9 +526,6 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
             "title": _("Execute mass command"),
             "opts": self.opts,
             "form": form,
-            # not combined with self.media: ModelAdmin.media loads
-            # jquery.init.js before select2, the opposite of what select2
-            # needs (see BatchCommandExecutionForm.Media)
             "media": form.media,
             "has_view_permission": self.has_view_permission(request),
         }
@@ -536,6 +535,8 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
         """Second step: review the targeted devices and dispatch the command.
         Dispatching is decided by the HTTP method alone.
         """
+        if request.method not in ("GET", "POST"):
+            return HttpResponseNotAllowed(["GET", "POST"])
         self._check_add_permission(request)
         if request.method == "POST":
             return self._execute_batch_command(request)

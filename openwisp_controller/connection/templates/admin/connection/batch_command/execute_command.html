@@ -30,7 +30,7 @@
 
 {% block content %}
 <div id="content-main">
-  <form method="post" novalidate>
+  <form method="post" novalidate class="execute-form">
     {% csrf_token %}
     <nav class="stepper" aria-label="{% trans 'Execution progress' %}">
       <div class="stepper-step active" aria-current="step">
