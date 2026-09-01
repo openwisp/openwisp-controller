@@ -2,7 +2,7 @@ from types import SimpleNamespace
 
 from django.test import SimpleTestCase
 
-from openwisp_controller.config.api import download_views
+from openwisp_controller.config.api import download_views, views
 from openwisp_controller.config.api.urls import get_api_urls
 
 
@@ -31,18 +31,30 @@ class TestApiUrls(SimpleTestCase):
             **{
                 view_name: custom_view
                 for view_name in view_names.values()
-                if view_name != "download_template_config"
+                if view_name not in ("download_template_config", "template_list")
             }
         )
+        fallback_views = {
+            "download_template_config": download_views.download_template_config,
+            "template_list": views.template_list,
+        }
         callbacks = {
             pattern.name: pattern.callback for pattern in get_api_urls(custom_views)
         }
 
         for url_name, view_name in view_names.items():
             with self.subTest(url_name=url_name):
-                expected = (
-                    download_views.download_template_config
-                    if view_name == "download_template_config"
-                    else custom_view
-                )
+                expected = fallback_views.get(view_name, custom_view)
                 self.assertIs(callbacks[url_name], expected)
+
+        default_callbacks = {
+            pattern.name: pattern.callback for pattern in get_api_urls()
+        }
+
+        for url_name, view_name in view_names.items():
+            with self.subTest(url_name=url_name, custom=False):
+                expected = getattr(
+                    download_views if hasattr(download_views, view_name) else views,
+                    view_name,
+                )
+                self.assertIs(default_callbacks[url_name], expected)

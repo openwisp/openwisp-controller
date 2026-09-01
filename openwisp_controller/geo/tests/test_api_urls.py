@@ -38,3 +38,11 @@ class TestApiUrls(SimpleTestCase):
             with self.subTest(url_name=url_name):
                 expected = views.geojson if view_name == "geojson" else custom_view
                 self.assertIs(callbacks[url_name], expected)
+
+        default_callbacks = {
+            pattern.name: pattern.callback for pattern in get_geo_urls()
+        }
+
+        for url_name, view_name in view_names.items():
+            with self.subTest(url_name=url_name, custom=False):
+                self.assertIs(default_callbacks[url_name], getattr(views, view_name))

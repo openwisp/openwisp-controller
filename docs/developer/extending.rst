@@ -676,8 +676,9 @@ resort to monkey patching, you can proceed as follows:
         # ... other urls in your project ...
         # Use only when changing controller API views (discussed below)
         # url(r'^controller/', include((get_controller_urls(config_views), 'controller'), namespace='controller'))
-        # Use only when changing geo API views (discussed below)
-        # url(r'^geo/', include((get_geo_urls(geo_views), 'geo'), namespace='geo')),
+        # Use only when changing geo API views (discussed below);
+        # geo URL patterns already include the api/v1/ prefix, so mount at the root
+        # url(r'', include((get_geo_urls(geo_views), 'geo'), namespace='geo')),
         # openwisp-controller urls
         url(
             r"",
@@ -790,9 +791,12 @@ The REST API URL helpers accept a custom views module: ``get_api_urls``
 
 The custom views module only needs to define the views you want to
 customize: whenever a view is missing, the helper falls back to the
-standard view, so there is no need to duplicate the full set of views.
-When using the default settings, the following URL configuration is
-already loaded automatically:
+standard view, so there is no need to duplicate the full set of views. The
+default API URLs are already loaded automatically by the app with the
+standard views. The following URL configuration is only needed when
+customizing the API views: it must be added before the default
+configuration include, or instead of it, so the custom URLs take
+precedence:
 
 .. code-block:: python
 
