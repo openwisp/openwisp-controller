@@ -295,8 +295,23 @@ class TestSubnetDivisionRule(
         )
         self.assertEqual(index_queryset.count(), 1)
         index = index_queryset.first()
-        self.assertEqual(str(index.subnet.subnet), "10.0.0.1/32")
-        self.assertEqual(index.ip.ip_address, "10.0.0.1")
+        self.assertEqual(self.vpn_server.ip.ip_address, "10.0.0.1")
+        self.assertEqual(str(index.subnet.subnet), "10.0.0.2/32")
+        self.assertEqual(index.ip.ip_address, "10.0.0.2")
+
+    def test_slash_32_rule_ipv4_skips_parent_allocations(self):
+        self.master_subnet.request_ip()
+        self.master_subnet.request_ip()
+        rule = self._get_vpn_subdivision_rule(
+            size=32, number_of_ips=1, number_of_subnets=1
+        )
+        self.config.templates.add(self.template)
+        index = rule.subnetdivisionindex_set.get(
+            config_id=self.config.id, subnet_id__isnull=False, ip_id__isnull=False
+        )
+        self.assertEqual(self.vpn_server.ip.ip_address, "10.0.0.1")
+        self.assertEqual(str(index.subnet.subnet), "10.0.0.4/32")
+        self.assertEqual(index.ip.ip_address, "10.0.0.4")
 
     def test_slash_32_rule_ipv4_error(self):
         master_ipv4 = self._get_master_subnet(subnet="192.168.1.1/32")
@@ -317,6 +332,8 @@ class TestSubnetDivisionRule(
 
     def test_slash_128_rule_ipv6(self):
         master_ipv6 = self._get_master_subnet(subnet="fd12:3456:7890::/48")
+        self.vpn_server.ip.delete()
+        self.vpn_server.ip = None
         self.vpn_server.subnet = master_ipv6
         self.vpn_server.save()
         rule = self._get_vpn_subdivision_rule(
@@ -328,8 +345,9 @@ class TestSubnetDivisionRule(
         )
         self.assertEqual(index_queryset.count(), 1)
         index = index_queryset.first()
-        self.assertEqual(str(index.subnet.subnet), "fd12:3456:7890::1/128")
-        self.assertEqual(index.ip.ip_address, "fd12:3456:7890::1")
+        self.assertEqual(self.vpn_server.ip.ip_address, "fd12:3456:7890::1")
+        self.assertEqual(str(index.subnet.subnet), "fd12:3456:7890::2/128")
+        self.assertEqual(index.ip.ip_address, "fd12:3456:7890::2")
 
     def test_slash_128_rule_ipv6_error(self):
         master_ipv6 = self._get_master_subnet(subnet="fd12:3456:7890::/128")

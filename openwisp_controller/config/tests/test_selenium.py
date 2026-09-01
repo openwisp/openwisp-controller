@@ -72,7 +72,9 @@ class TestDeviceAdmin(
             reverse(f"admin:{self.config_app_label}_device_change", args=[device_id])
             + "#config-group"
         )
-        self.wait_for_presence(By.CSS_SELECTOR, 'input[name="config-0-templates"]')
+        self.wait_for_presence(
+            By.CSS_SELECTOR, 'input[name="config-0-templates"]', timeout=10
+        )
 
         # if not is_enabled:
         self.hide_loading_overlay()
