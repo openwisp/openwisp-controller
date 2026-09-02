@@ -550,7 +550,10 @@ class TestConfigApi(
             name="org1-template", organization=org1, config={"interfaces": []}
         )
         shared_generic = self._create_template(
-            name="shared-generic", organization=None, type="generic", config={"general": {}}
+            name="shared-generic",
+            organization=None,
+            type="generic",
+            config={"general": {}},
         )
         shared_vpn = self._create_vpn(name="shared-vpn", organization=None)
         shared_vpn_template = self._create_template(
@@ -558,6 +561,7 @@ class TestConfigApi(
             type="vpn",
             vpn=shared_vpn,
             organization=None,
+            required=True,
             auto_cert=True,
             config={},
         )

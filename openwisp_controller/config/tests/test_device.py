@@ -7,6 +7,7 @@ from swapper import load_model
 
 from openwisp_utils.tests import AssertNumQueriesSubTestMixin, catch_signal
 
+from ...pki.tests.utils import TestPkiMixin
 from .. import settings as app_settings
 from ..signals import (
     config_deactivated,
@@ -19,12 +20,7 @@ from ..signals import (
     organization_changed,
 )
 from ..validators import device_name_validator, mac_address_validator
-from ...pki.tests.utils import TestPkiMixin
-from .utils import (
-    CreateConfigTemplateMixin,
-    CreateDeviceGroupMixin,
-    CreateVpnMixin,
-)
+from .utils import CreateConfigTemplateMixin, CreateDeviceGroupMixin, CreateVpnMixin
 
 TEST_ORG_SHARED_SECRET = "functional_testing_secret"
 
@@ -619,7 +615,10 @@ class TestDevice(
             name="org1-template", organization=org1, config={"interfaces": []}
         )
         shared_generic_template = self._create_template(
-            name="shared-generic", organization=None, type="generic", config={"general": {}}
+            name="shared-generic",
+            organization=None,
+            type="generic",
+            config={"general": {}},
         )
         shared_vpn = self._create_vpn(name="shared-vpn", organization=None)
         shared_vpn_template = self._create_template(
@@ -627,16 +626,22 @@ class TestDevice(
             type="vpn",
             vpn=shared_vpn,
             organization=None,
+            required=True,
             auto_cert=True,
             config={},
         )
         org2_required_template = self._create_template(
-            name="org2-required", organization=org2, required=True, config={"general": {}}
+            name="org2-required",
+            organization=org2,
+            required=True,
+            config={"general": {}},
         )
 
         device = self._create_device(organization=org1)
         config = self._create_config(device=device)
-        config.templates.add(org1_template, shared_generic_template, shared_vpn_template)
+        config.templates.add(
+            org1_template, shared_generic_template, shared_vpn_template
+        )
 
         self.assertEqual(config.templates.count(), 3)
         self.assertEqual(config.vpnclient_set.count(), 1)
@@ -814,4 +819,3 @@ class TestTransactionDevice(
         device.refresh_from_db()
         self.assertEqual(device._has_config(), False)
         self.assertEqual(device.is_deactivated(), False)
-

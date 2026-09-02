@@ -123,6 +123,7 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
         self._send_config_deactivating = False
         self._send_config_status_changed = False
         self._is_enforcing_required_templates = False
+        self._is_reconciling_organization = False
 
     def __str__(self):
         if self._has_device():
@@ -480,7 +481,10 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
         # intermediate state we cannot know which VpnClient objects should be
         # removed, so deletion is delayed until a later post_add event sees
         # the final template set.
-        if len(pk_set) != templates.filter(required=True).count():
+        if (
+            getattr(instance, "_is_reconciling_organization", False)
+            or len(pk_set) != templates.filter(required=True).count()
+        ):
             instance.vpnclient_set.exclude(
                 template_id__in=instance.templates.values_list("id", flat=True)
             ).delete()
@@ -566,13 +570,20 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
         if action == "pre_remove":
             organization = raw_data.get("organization", instance.device.organization)
             templates = cls._get_templates_from_pk_set(pk_set)
-            if (
-                templates.filter(template_query)
-                .filter(
-                    models.Q(organization=organization) | models.Q(organization=None)
+            # Shared credential-bearing required templates (e.g. VPN-client)
+            # must be removable during organization change reconciliation
+            # because their provisioned credentials are bound to the previous
+            # organization. Only protect shared generic required templates in
+            # that case.
+            if getattr(instance, "_is_reconciling_organization", False):
+                protected_org_query = models.Q(organization=organization) | models.Q(
+                    organization=None, type="generic"
                 )
-                .exists()
-            ):
+            else:
+                protected_org_query = models.Q(organization=organization) | models.Q(
+                    organization=None
+                )
+            if templates.filter(template_query).filter(protected_org_query).exists():
                 raise PermissionDenied(
                     _("Required templates cannot be removed from the configuration")
                 )
@@ -592,6 +603,40 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
                 instance.templates.add(
                     *required_templates.order_by("name").values_list("pk", flat=True)
                 )
+
+    def reconcile_templates_after_organization_change(self, organization_id):
+        """
+        Reconcile assigned templates after the device organization changes.
+
+        Removes templates owned by other organizations and shared non-generic
+        templates (VPN-client and future credential-bearing types), then applies
+        required templates for the destination organization. Shared generic
+        templates are preserved. Shared credential-bearing required templates
+        are not re-applied automatically.
+        """
+        self._is_reconciling_organization = True
+        try:
+            to_remove = self.templates.filter(
+                (
+                    models.Q(organization__isnull=False)
+                    & ~models.Q(organization_id=organization_id)
+                )
+                | (models.Q(organization__isnull=True) & ~models.Q(type="generic"))
+            )
+            if to_remove.exists():
+                self.templates.remove(*to_remove)
+            required_templates = (
+                self.get_template_model()
+                .objects.filter(required=True, backend=self.backend)
+                .filter(
+                    models.Q(organization_id=organization_id)
+                    | models.Q(organization__isnull=True, type="generic")
+                )
+            )
+            if required_templates.exists():
+                self.templates.add(*required_templates)
+        finally:
+            self._is_reconciling_organization = False
 
     @classmethod
     def register_context_function(cls, func):

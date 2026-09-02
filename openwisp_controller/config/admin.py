@@ -677,7 +677,33 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, CopyableFieldsAdmin):
 
     def save_form(self, request, form, change):
         self._state_adding = form.instance._state.adding
+        form.instance._organization_changed = False
+        if change:
+            old_org = form.initial.get("organization")
+            new_org = form.cleaned_data.get("organization")
+            old_org_id = getattr(old_org, "pk", old_org)
+            new_org_id = getattr(new_org, "pk", new_org)
+            form.instance._organization_changed = (
+                old_org_id is not None
+                and new_org_id is not None
+                and str(old_org_id) != str(new_org_id)
+            )
         return super().save_form(request, form, change)
+
+    def save_related(self, request, form, formsets, change):
+        # Device.save() emits organization_changed and reconciles templates
+        # before config inlines persist the submitted template selection.
+        # Re-run reconciliation after related objects are saved so shared
+        # credential-bearing templates from the previous organization cannot
+        # be reintroduced by the form POST.
+        super().save_related(request, form, formsets, change)
+        if (
+            getattr(form.instance, "_organization_changed", False)
+            and form.instance._has_config()
+        ):
+            form.instance.config.reconcile_templates_after_organization_change(
+                form.instance.organization_id
+            )
 
     def save_formset(self, request, form, formset, change):
         # if a new device and config objects get created

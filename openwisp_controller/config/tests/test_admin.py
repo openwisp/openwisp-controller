@@ -1123,6 +1123,75 @@ class TestAdmin(
         config.refresh_from_db()
         self.assertEqual(config.templates.count(), 0)
 
+    def test_change_device_org_reconciles_templates_and_vpn(self):
+        org1 = self._create_org(name="org1")
+        org2 = self._create_org(name="org2")
+        org1_template = self._create_template(
+            name="org1-template", organization=org1, config={"interfaces": []}
+        )
+        shared_generic_template = self._create_template(
+            name="shared-generic",
+            organization=None,
+            type="generic",
+            config={"general": {}},
+        )
+        shared_vpn = self._create_vpn(name="shared-vpn", organization=None)
+        shared_vpn_template = self._create_template(
+            name="shared-vpn-template",
+            type="vpn",
+            vpn=shared_vpn,
+            organization=None,
+            required=True,
+            auto_cert=True,
+            config={},
+        )
+        org2_required_template = self._create_template(
+            name="org2-required",
+            organization=org2,
+            required=True,
+            config={"general": {}},
+        )
+
+        device = self._create_device(organization=org1)
+        config = self._create_config(device=device)
+        config.templates.add(
+            org1_template, shared_generic_template, shared_vpn_template
+        )
+
+        self.assertEqual(config.templates.count(), 3)
+        self.assertEqual(config.vpnclient_set.count(), 1)
+        cert = config.vpnclient_set.first().cert
+        self.assertFalse(cert.revoked)
+
+        path = reverse(f"admin:{self.app_label}_device_change", args=[device.pk])
+        params = self._get_device_params(org=org1)
+        params.update(
+            {
+                "name": "test-device-reconciled",
+                "config-0-id": str(config.pk),
+                "config-0-device": str(device.pk),
+                "config-0-templates": ",".join(
+                    [
+                        str(shared_generic_template.pk),
+                        str(shared_vpn_template.pk),
+                    ]
+                ),
+                "config-INITIAL_FORMS": 1,
+                "organization": str(org2.pk),
+            }
+        )
+        response = self.client.post(path, params)
+        self.assertNotContains(response, "errors", status_code=302)
+        config.refresh_from_db()
+        self.assertEqual(
+            set(config.templates.values_list("id", flat=True)),
+            {shared_generic_template.pk, org2_required_template.pk},
+        )
+        self.assertEqual(config.vpnclient_set.count(), 0)
+        cert.refresh_from_db()
+        self.assertTrue(cert.revoked)
+        self.assertEqual(config.get_vpn_context(), {})
+
     def test_change_device_reorder_templates(self):
         org = self._get_org()
         template1 = self._create_template(name="template1")
