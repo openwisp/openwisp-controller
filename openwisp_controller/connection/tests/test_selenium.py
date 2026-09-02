@@ -61,9 +61,5 @@ class TestDeviceAdmin(
         self.open(path)
         self.wait_for_visibility(
             By.CSS_SELECTOR,
-            (  # selector for Django 5.2
-                "#tabs-container li.recent.commands,"
-                # selector for Django 4.2
-                " #tabs-container li.recent-commands"
-            ),
+            "#tabs-container li.recent.commands",
         )
