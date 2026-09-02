@@ -277,10 +277,12 @@ with the value of the device using the template.
 
 The following features are **not** managed by certificate templates:
 
-- **Subject Alternative Names (SAN):** SAN extensions are not
-  automatically injected. If a SAN is required, it must be included in the
-  blueprint certificate's extensions and will be copied to generated
-  certificates.
+- **Subject Alternative Names (SAN):** SANs are not supported.
+  ``subjectAltName`` is not an accepted named extension and its standard
+  OID is reserved, so a blueprint certificate containing a SAN fails
+  validation instead of being copied to generated certificates. SANs will
+  remain unsupported until django-x509 provides a supported
+  representation.
 - **Let's Encrypt / ACME integration:** Automated ACME or public CA
   enrollment is not supported. Certificate Templates are designed for
   private CAs managed within OpenWISP's PKI module.

@@ -1,9 +1,11 @@
 import json
 import uuid
 from hashlib import md5
+from threading import Event, Thread
 from unittest import mock
 
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from django.db import close_old_connections
 from django.test import TestCase, TransactionTestCase
 from swapper import load_model
 
@@ -875,6 +877,72 @@ class TestDeviceCertificateSignalTrigger(
         with self.captureOnCommitCallbacks(execute=True):
             device.save(False, False, None, ["name"])
         mocked_task.assert_called_once()
+
+
+class TestDeviceCertificateRegenerationTaskTransaction(
+    CreateConfigTemplateMixin,
+    CreateDeviceGroupMixin,
+    TestPkiMixin,
+    TransactionTestCase,
+):
+    @mock.patch(
+        "openwisp_controller.config.tasks.regenerate_device_certificates_task.delay"
+    )
+    def test_regeneration_keeps_previous_cert_revoked_after_stale_renewal(
+        self, mocked_delay
+    ):
+        org = self._create_org()
+        device = self._create_device(
+            organization=org, name="test-device", mac_address="00:11:22:33:44:55"
+        )
+        ca = self._create_ca(name="test-ca", organization=org)
+        template = self._create_template(
+            organization=org, type="cert", ca=ca, auto_cert=True
+        )
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        device_cert = DeviceCertificate.objects.get(config=config, template=template)
+        old_cert_id = device_cert.cert_id
+        cert_loaded = Event()
+        cert_replaced = Event()
+        renewal_errors = []
+
+        def renew_stale_cert():
+            close_old_connections()
+            try:
+                stale_cert = Cert.objects.get(pk=old_cert_id)
+                cert_loaded.set()
+                if not cert_replaced.wait(timeout=5):
+                    renewal_errors.append(
+                        AssertionError("certificate was not replaced")
+                    )
+                    return
+                stale_cert.renew()
+            except Exception as e:
+                renewal_errors.append(e)
+            finally:
+                close_old_connections()
+
+        renewal = Thread(target=renew_stale_cert)
+        renewal.start()
+        self.assertTrue(
+            cert_loaded.wait(timeout=5),
+            "Renewal thread did not load the stale certificate.",
+        )
+        device.name = "renamed-device"
+        device.save()
+        regenerate_device_certificates_task(str(device.id))
+        cert_replaced.set()
+        renewal.join(timeout=5)
+
+        self.assertFalse(renewal.is_alive(), "Renewal thread did not finish.")
+        self.assertEqual(len(renewal_errors), 1)
+        self.assertIsInstance(renewal_errors[0], ValidationError)
+        self.assertIn("Cannot renew a revoked certificate", str(renewal_errors[0]))
+        device_cert.refresh_from_db()
+        self.assertNotEqual(device_cert.cert_id, old_cert_id)
+        self.assertTrue(Cert.objects.get(pk=old_cert_id).revoked)
+        self.assertFalse(device_cert.cert.revoked)
 
 
 class TestDeviceCertificateRegenerationTask(

@@ -393,7 +393,8 @@ class AbstractDevice(OrgMixin, BaseModel):
     def _check_management_ip_changed(self, update_fields=None):
         if self._initial_management_ip == models.DEFERRED:
             return
-        if self.management_ip != self._initial_management_ip:
+        field_saved = update_fields is None or "management_ip" in update_fields
+        if field_saved and self.management_ip != self._initial_management_ip:
             management_ip_changed.send(
                 sender=self.__class__,
                 management_ip=self.management_ip,
@@ -401,7 +402,7 @@ class AbstractDevice(OrgMixin, BaseModel):
                 instance=self,
             )
 
-        if update_fields is None or "management_ip" in update_fields:
+        if field_saved:
             self._initial_management_ip = self.management_ip
 
     def _check_organization_id_changed(self, update_fields=None):
