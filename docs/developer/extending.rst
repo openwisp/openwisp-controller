@@ -677,7 +677,7 @@ resort to monkey patching, you can proceed as follows:
         # ... other urls in your project ...
         # Use only when changing controller API views (discussed below)
         # path(
-        #     "controller/",
+        #     "",
         #     include(
         #         (get_controller_urls(config_views), "controller"),
         #         namespace="controller",
