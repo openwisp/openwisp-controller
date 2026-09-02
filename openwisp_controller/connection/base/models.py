@@ -1,6 +1,5 @@
 import logging
 
-import django
 import jsonschema
 from django.core.exceptions import ValidationError
 from django.core.serializers.json import DjangoJSONEncoder
@@ -451,15 +450,8 @@ class AbstractCommand(TimeStampedEditableModel):
     )
     type = models.CharField(
         max_length=16,
-        choices=(
-            COMMAND_CHOICES
-            if django.VERSION < (5, 0)
-            # In Django 5.0+, choices are normalized at model definition,
-            # creating a static list of tuples that doesn't update when command
-            # are dynamically registered or unregistered. Using a callable
-            # ensures we always get the current choices from the registry.
-            else get_command_choices
-        ),
+        # Choices must remain dynamic when commands are registered or unregistered.
+        choices=get_command_choices,
     )
     input = JSONField(
         blank=True,
