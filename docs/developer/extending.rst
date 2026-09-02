@@ -666,6 +666,7 @@ resort to monkey patching, you can proceed as follows:
 .. code-block:: python
 
     from django.contrib import admin
+    from django.urls import include, path
     from openwisp_controller.config.utils import get_controller_urls
     from openwisp_controller.geo.utils import get_geo_urls
 
@@ -675,7 +676,13 @@ resort to monkey patching, you can proceed as follows:
     urlpatterns = [
         # ... other urls in your project ...
         # Use only when changing controller API views (discussed below)
-        # url(r'^controller/', include((get_controller_urls(config_views), 'controller'), namespace='controller'))
+        # path(
+        #     "controller/",
+        #     include(
+        #         (get_controller_urls(config_views), "controller"),
+        #         namespace="controller",
+        #     ),
+        # ),
         # Use only when changing geo API views (discussed below);
         # geo URL patterns already include the api/v1/ prefix, so mount at the root
         # path(
@@ -686,14 +693,14 @@ resort to monkey patching, you can proceed as follows:
         #     ),
         # ),
         # openwisp-controller urls
-        url(
-            r"",
+        path(
+            "",
             include(
                 ("openwisp_controller.config.urls", "config"),
                 namespace="config",
             ),
         ),
-        url(r"", include("openwisp_controller.urls")),
+        path("", include("openwisp_controller.urls")),
     ]
 
 For more information about URL configuration in django, please refer to
