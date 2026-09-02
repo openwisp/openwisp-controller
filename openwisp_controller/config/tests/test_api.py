@@ -916,9 +916,13 @@ class TestConfigApi(
         ca1 = self._create_ca()
         data = self._vpn_data
         data["ca"] = ca1.pk
+        data["webhook_endpoint"] = "https://vpn.testing.com/webhook"
+        data["auth_token"] = "test-auth-token"
         r = self.client.post(path, data, content_type="application/json")
         self.assertEqual(r.status_code, 201)
         self.assertEqual(Vpn.objects.count(), 1)
+        self.assertEqual(r.data["webhook_endpoint"], data["webhook_endpoint"])
+        self.assertEqual(r.data["auth_token"], data["auth_token"])
 
     def test_vpn_create_with_shared_objects(self):
         org1 = self._get_org()
@@ -936,11 +940,27 @@ class TestConfigApi(
 
     def test_vpn_list_api(self):
         org = self._get_org()
-        self._create_vpn(organization=org)
+        vpn = self._create_wireguard_vpn(organization=org)
+        vpn.webhook_endpoint = "https://vpn.testing.com/webhook"
+        vpn.auth_token = "test-auth-token"
+        vpn.save()
+        self._create_wireguard_vpn(
+            name="second-vpn",
+            organization=org,
+            subnet=vpn.subnet,
+        )
         path = reverse("config_api:vpn_list")
         with self.assertNumQueries(3):
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.data["count"], 2)
+        result = next(
+            result for result in r.data["results"] if result["id"] == str(vpn.pk)
+        )
+        self.assertEqual(result["subnet"], vpn.subnet.pk)
+        self.assertEqual(result["ip"], vpn.ip.pk)
+        self.assertNotIn("webhook_endpoint", result)
+        self.assertNotIn("auth_token", result)
 
     def test_vpn_list_api_filter(self):
         org1 = self._create_org()
@@ -953,10 +973,12 @@ class TestConfigApi(
             self.assertEqual(response.status_code, 200)
             data = response.data
             self.assertEqual(data["count"], 1)
-            self.assertEqual(len(data["results"][0]), 13)
+            self.assertEqual(len(data["results"][0]), 15)
             self.assertEqual(data["results"][0]["id"], str(vpn.pk))
             self.assertEqual(data["results"][0]["name"], str(vpn.name))
             self.assertEqual(data["results"][0]["organization"], vpn.organization.pk)
+            self.assertEqual(data["results"][0]["subnet"], vpn.subnet_id)
+            self.assertEqual(data["results"][0]["ip"], vpn.ip_id)
 
         with self.subTest("Test filtering using VPN backend"):
             r1 = self.client.get(
@@ -1008,12 +1030,20 @@ class TestConfigApi(
     # VPN detail having Org
     def test_vpn_detail_with_org_api(self):
         org = self._get_org()
-        vpn1 = self._create_vpn(name="test-vpn", organization=org)
+        vpn1 = self._create_wireguard_vpn(name="test-vpn", organization=org)
+        vpn1.webhook_endpoint = "https://vpn.testing.com/webhook"
+        vpn1.auth_token = "test-auth-token"
+        vpn1.full_clean()
+        vpn1.save()
         path = reverse("config_api:vpn_detail", args=[vpn1.pk])
         with self.assertNumQueries(2):
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data["organization"], org.pk)
+        self.assertEqual(r.data["subnet"], vpn1.subnet.pk)
+        self.assertEqual(r.data["ip"], vpn1.ip.pk)
+        self.assertEqual(r.data["webhook_endpoint"], vpn1.webhook_endpoint)
+        self.assertEqual(r.data["auth_token"], vpn1.auth_token)
 
     def test_vpn_put_api(self):
         vpn1 = self._create_vpn(name="test-vpn")
@@ -1026,6 +1056,8 @@ class TestConfigApi(
             "organization": org.pk,
             "ca": ca1.pk,
             "backend": vpn1.backend,
+            "webhook_endpoint": "https://vpn1.changetest.com/webhook",
+            "auth_token": "test-auth-token",
             "config": vpn1.config,
         }
         r = self.client.put(path, data, content_type="application/json")
@@ -1033,14 +1065,21 @@ class TestConfigApi(
         self.assertEqual(r.data["name"], "change-test-vpn")
         self.assertEqual(r.data["ca"], ca1.pk)
         self.assertEqual(r.data["organization"], org.pk)
+        self.assertEqual(r.data["webhook_endpoint"], data["webhook_endpoint"])
+        self.assertEqual(r.data["auth_token"], data["auth_token"])
 
     def test_vpn_patch_api(self):
-        vpn1 = self._create_vpn(name="test-vpn")
+        vpn1 = self._create_wireguard_vpn(name="test-vpn")
+        original_ip = vpn1.ip
+        other_ip = vpn1.subnet.request_ip()
         path = reverse("config_api:vpn_detail", args=[vpn1.pk])
-        data = dict(name="test-vpn-change")
+        data = dict(name="test-vpn-change", ip=other_ip.pk)
         r = self.client.patch(path, data, content_type="application/json")
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data["name"], "test-vpn-change")
+        vpn1.refresh_from_db()
+        self.assertEqual(vpn1.ip, original_ip)
+        self.assertEqual(r.data["ip"], original_ip.pk)
 
     def test_vpn_download_api(self):
         vpn1 = self._create_vpn(name="test-vpn")
