@@ -678,7 +678,13 @@ resort to monkey patching, you can proceed as follows:
         # url(r'^controller/', include((get_controller_urls(config_views), 'controller'), namespace='controller'))
         # Use only when changing geo API views (discussed below);
         # geo URL patterns already include the api/v1/ prefix, so mount at the root
-        # url(r'', include((get_geo_urls(geo_views), 'geo'), namespace='geo')),
+        # path(
+        #     "",
+        #     include(
+        #         (get_geo_urls(geo_views), "geo_api"),
+        #         namespace="geo_api",
+        #     ),
+        # ),
         # openwisp-controller urls
         url(
             r"",
