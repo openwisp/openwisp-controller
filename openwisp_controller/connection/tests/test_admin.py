@@ -5,7 +5,9 @@ from uuid import uuid4
 from django.contrib import admin
 from django.contrib.auth.models import Permission
 from django.core.exceptions import ValidationError
+from django.db import connection as db_connection
 from django.test import TestCase, override_settings
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from swapper import load_model
 
@@ -16,6 +18,7 @@ from openwisp_controller.connection.commands import (
 )
 
 from ... import settings as module_settings
+from ...config.admin import DeviceAdmin
 from ...tests import _get_updated_templates_settings
 from ...tests.utils import TestAdminMixin
 from ..admin import BatchCommandAdmin, BatchCommandExecutionForm
@@ -300,9 +303,9 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
 
     def setUp(self):
         self._create_admin()
-        self.execute_url = reverse("admin:connection_batchcommand_execute")
-        self.confirm_url = reverse("admin:connection_batchcommand_confirm")
-        self.changelist_url = reverse("admin:connection_batchcommand_changelist")
+        self.execute_url = reverse(f"admin:{self.app_label}_batchcommand_execute")
+        self.confirm_url = reverse(f"admin:{self.app_label}_batchcommand_confirm")
+        self.changelist_url = reverse(f"admin:{self.app_label}_batchcommand_changelist")
 
     def test_wizard_permissions_and_tenant_isolation(self):
         org = self._get_org()
@@ -311,6 +314,7 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
         device2 = self._create_device(
             name="device2", mac_address="00:11:22:33:44:02", organization=org2
         )
+
         with self.subTest("view permission is not enough"):
             viewer = self._create_operator(
                 organizations=[org], username="viewer", email="viewer@test.com"
@@ -322,6 +326,7 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
             self.client.force_login(viewer)
             self.assertEqual(self.client.get(self.execute_url).status_code, 403)
             self.assertEqual(self.client.get(self.confirm_url).status_code, 403)
+
         with self.subTest("the operator group can reach the wizard"):
             operator = self._create_operator(organizations=[org])
             self.client.force_login(operator)
@@ -329,9 +334,11 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
                 BatchCommandAdmin(BatchCommand, admin.site).has_add_permission(None)
             )
             self.assertEqual(self.client.get(self.execute_url).status_code, 200)
+
         with self.subTest("a target is required for non superusers"):
             response = self._post_execute()
             self.assertContains(response, "Please select at least one of")
+
         with self.subTest("devices of unmanaged organizations are not reachable"):
             wizard = self._start_wizard(organization=str(org.pk))
             wizard["organization_id"] = str(org2.pk)
@@ -344,6 +351,7 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
                 "No devices match the specified criteria.", self._messages(response)
             )
             self.assertFalse(BatchCommand.objects.exists())
+
         with self.subTest("superusers may target every device"):
             self._login()
             self._start_wizard()
@@ -366,21 +374,25 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
         device = self._create_device(organization=org, group=group)
         operator = self._create_operator(organizations=[org, org2])
         self.client.force_login(operator)
+
         with self.subTest("group of another organization"):
             response = self._post_execute(
                 organization=str(org.pk), group=str(group2.pk)
             )
             self.assertIn("group", response.context["form"].errors)
+
         with self.subTest("location of another organization"):
             response = self._post_execute(
                 organization=str(org.pk), location=str(location2.pk)
             )
             self.assertIn("location", response.context["form"].errors)
+
         with self.subTest("the organization is derived from the group"):
             wizard = self._start_wizard(group=str(group.pk))
             self.assertEqual(wizard["group_id"], str(group.pk))
             response = self.client.get(self.confirm_url)
             self.assertEqual(response.context["device_count"], 1)
+
         with self.subTest("scopes which share no devices"):
             wizard = self._start_wizard(
                 organization=str(org.pk),
@@ -409,16 +421,19 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
         )
         operator = self._create_operator(organizations=[org])
         self.client.force_login(operator)
+
         with self.subTest("choices are limited to the managed organizations"):
             form = self.client.get(self.execute_url).context["form"]
             self.assertEqual(list(form.fields["organization"].queryset), [org])
             self.assertEqual(list(form.fields["group"].queryset), [group])
             self.assertEqual(list(form.fields["location"].queryset), [location])
+
         with self.subTest("types are limited to the enabled commands"):
             with patch.dict(ORGANIZATION_ENABLED_COMMANDS, {str(org.pk): ("reboot",)}):
                 form = self.client.get(self.execute_url).context["form"]
                 choices = form.fields["type"].choices
                 self.assertEqual([value for value, _ in choices], ["", "reboot"])
+
         with self.subTest("superusers are not restricted"):
             self._login()
             form = self.client.get(self.execute_url).context["form"]
@@ -428,13 +443,46 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
 
     def test_wizard_schema_view(self):
         org = self._get_org()
-        url = reverse("admin:connection_batchcommand_schema")
+        url = reverse(f"admin:{self.app_label}_batchcommand_schema")
+
         with self.subTest("superusers get every enabled type"):
             self._login()
             schemas = self.client.get(url).json()
             form = self.client.get(self.execute_url).context["form"]
             choices = {value for value, _ in form.fields["type"].choices if value}
             self.assertEqual(set(schemas), choices)
+
+        with self.subTest("superusers get the schemas of every organization"):
+            with patch.dict(
+                ORGANIZATION_COMMAND_SCHEMA,
+                {
+                    "__all__": {"reboot": COMMANDS["reboot"]["schema"]},
+                    str(org.pk): {
+                        "change_password": COMMANDS["change_password"]["schema"]
+                    },
+                },
+                clear=True,
+            ):
+                response = self.client.get(url)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(sorted(response.json()), ["change_password", "reboot"])
+
+        with self.subTest("superusers do not need an __all__ configuration"):
+            with patch.dict(
+                ORGANIZATION_COMMAND_SCHEMA,
+                {str(org.pk): {"reboot": COMMANDS["reboot"]["schema"]}},
+                clear=True,
+            ):
+                response = self.client.get(url)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(list(response.json()), ["reboot"])
+
+        with self.subTest("an empty configuration returns an empty object"):
+            with patch.dict(ORGANIZATION_COMMAND_SCHEMA, {}, clear=True):
+                response = self.client.get(url)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.json(), {})
+
         with self.subTest("managers get the union of their organizations"):
             operator = self._create_operator(organizations=[org])
             self.client.force_login(operator)
@@ -443,6 +491,7 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
                 {str(org.pk): {"reboot": COMMANDS["reboot"]["schema"]}},
             ):
                 self.assertEqual(list(self.client.get(url).json()), ["reboot"])
+
         with self.subTest("the add permission is required"):
             viewer = self._create_operator(
                 organizations=[org], username="viewer", email="viewer@test.com"
@@ -477,6 +526,148 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
         self.assertFalse(form.is_valid())
         self.assertEqual(form.errors["group"], ["Select a valid choice."])
 
+    def test_wizard_views_reject_unsupported_methods(self):
+        self._login()
+        response = self.client.delete(self.execute_url)
+        self.assertEqual(response.status_code, 405)
+        self.assertEqual(response["Allow"], "GET, POST")
+        response = self.client.delete(self.confirm_url)
+        self.assertEqual(response.status_code, 405)
+        self.assertEqual(response["Allow"], "GET, POST")
+
+    def test_wizard_back_restores_the_form(self):
+        org = self._get_org()
+        group = DeviceGroup.objects.create(name="back-group", organization=org)
+        self._create_device(organization=org, group=group)
+        self._login()
+        self._post_execute(
+            type="custom",
+            input='{"command": "echo back"}',
+            label="back-label",
+            notes="back notes",
+            organization=str(org.pk),
+            group=str(group.pk),
+        )
+        form = self.client.get(f"{self.execute_url}?back=1").context["form"]
+        self.assertEqual(form.initial["type"], "custom")
+        self.assertEqual(form.initial["input"], {"command": "echo back"})
+        self.assertEqual(form.initial["label"], "back-label")
+        self.assertEqual(form.initial["notes"], "back notes")
+        self.assertEqual(form.initial["organization"], str(org.pk))
+        self.assertEqual(form.initial["group"], str(group.pk))
+        self.assertIsNone(form.initial["location"])
+        self.assertIn(BatchCommandAdmin.session_key, self.client.session)
+        form = self.client.get(self.execute_url).context["form"]
+        self.assertEqual(form.initial, {})
+        self.assertNotIn(BatchCommandAdmin.session_key, self.client.session)
+
+    def test_wizard_device_admin_composition(self):
+        class ReplacementDeviceAdmin(DeviceAdmin):
+            change_list_template = "admin/connection/replacement_change_list.html"
+            readonly_fields = ["last_ip"]
+
+            def monitoring_status(self, obj):
+                return "ok"
+
+            monitoring_status.short_description = "monitoring status"
+
+        model_admin = BatchCommandAdmin(BatchCommand, admin.site)
+        device_admin_class = type(admin.site.get_model_admin(Device))
+        admin.site.unregister(Device)
+        admin.site.register(Device, ReplacementDeviceAdmin)
+        try:
+            registered_readonly = list(ReplacementDeviceAdmin.readonly_fields)
+            device_admin = model_admin.get_device_admin(Device.objects.none())
+            model_admin.get_device_admin(Device.objects.none())
+            template = model_admin.get_device_changelist_template()
+        finally:
+            admin.site.unregister(Device)
+            admin.site.register(Device, device_admin_class)
+
+        self.assertIsInstance(device_admin, ReplacementDeviceAdmin)
+        self.assertTrue(hasattr(device_admin, "monitoring_status"))
+        self.assertEqual(template, "admin/connection/replacement_change_list.html")
+        self.assertIn("last_ip", device_admin.readonly_fields)
+        self.assertEqual(
+            list(ReplacementDeviceAdmin.readonly_fields), registered_readonly
+        )
+
+        with self.subTest("a registration without a template falls back"):
+
+            class BareDeviceAdmin(DeviceAdmin):
+                change_list_template = None
+
+            admin.site.unregister(Device)
+            admin.site.register(Device, BareDeviceAdmin)
+            try:
+                self.assertEqual(
+                    model_admin.get_device_changelist_template(),
+                    "admin/change_list.html",
+                )
+            finally:
+                admin.site.unregister(Device)
+                admin.site.register(Device, device_admin_class)
+
+        self.assertIs(type(admin.site.get_model_admin(Device)), device_admin_class)
+
+    def test_wizard_and_detail_query_budget(self):
+        """The pages must not run a query per listed row.
+
+        The absolute count depends on caches which are warm or cold depending
+        on what ran before, so the budget asserted here is that listing three
+        times as many rows costs exactly the same number of queries.
+        """
+        org = self._get_org()
+        devices = [
+            self._create_device(
+                name=f"budget{index}",
+                mac_address=f"00:11:22:33:55:{index:02x}",
+                organization=org,
+            )
+            for index in range(4)
+        ]
+        batch = self._create_batch_command(organization=org)
+        self._create_commands(batch, devices)
+        batch.skipped_devices = {
+            str(uuid4()): {"name": "skipped-device", "error": "no credentials"}
+        }
+        batch.save(update_fields=["skipped_devices"])
+        more_devices = [
+            self._create_device(
+                name=f"budget-more{index}",
+                mac_address=f"00:11:22:33:56:{index:02x}",
+                organization=org,
+            )
+            for index in range(8)
+        ]
+        self._login()
+
+        with self.subTest("the confirm page"):
+            self._start_wizard(organization=str(org.pk))
+            self.client.get(self.confirm_url)
+            with CaptureQueriesContext(db_connection) as few:
+                self.client.get(self.confirm_url)
+            self._start_wizard(organization=str(org.pk))
+            self.client.get(self.confirm_url)
+            with CaptureQueriesContext(db_connection) as many:
+                response = self.client.get(self.confirm_url)
+            self.assertEqual(response.context["device_count"], len(devices) + 8)
+            self.assertEqual(len(many.captured_queries), len(few.captured_queries))
+
+        with self.subTest("the detail page"):
+            url = reverse(
+                f"admin:{self.app_label}_batchcommand_change", args=[batch.pk]
+            )
+            self.client.get(url)
+            with CaptureQueriesContext(db_connection) as few:
+                self.client.get(url)
+            self._create_commands(batch, more_devices)
+            self.client.get(url)
+            with CaptureQueriesContext(db_connection) as many:
+                response = self.client.get(url)
+            self.assertEqual(len(response.context["commands"]), len(devices) + 8 + 1)
+            self.assertEqual(len(many.captured_queries), len(few.captured_queries))
+
     def test_wizard_review_step_input(self):
         model_admin = BatchCommandAdmin(BatchCommand, admin.site)
         cases = (
@@ -489,6 +680,8 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
                 "service: firewall, action: restart",
             ),
             ({"password": "tester123", "confirm_password": "tester123"}, ""),
+            ({"newPassword": "tester123"}, ""),
+            ({"Password": "tester123", "host": "10.0.0.1"}, "host: 10.0.0.1"),
         )
         for command_input, expected in cases:
             with self.subTest(str(command_input)):
@@ -498,33 +691,49 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
         org = self._get_org()
         self._create_device(organization=org)
         self._login()
+
         with self.subTest("a confirm page without a wizard restarts"):
             response = self.client.get(self.confirm_url)
             self.assertRedirects(response, self.execute_url)
+
         with self.subTest("targets which cannot be resolved list no devices"):
             self._start_wizard(organization=str(org.pk))
             with patch.object(
                 BatchCommand, "dry_run", side_effect=ValidationError("broken")
             ):
-                response = self.client.get(self.confirm_url)
+                with self.assertLogs(
+                    "openwisp_controller.connection.admin", level="WARNING"
+                ) as logs:
+                    response = self.client.get(self.confirm_url)
                 self.assertEqual(response.context["device_count"], 0)
+            self.assertIn(
+                "Failed to resolve devices for mass command wizard", logs.output[0]
+            )
+
         with self.subTest("a batch which disappears restarts"):
             wizard = self._start_wizard(organization=str(org.pk))
             self.client.get(self.confirm_url)
             with patch.object(BatchCommand, "execute", side_effect=Device.DoesNotExist):
-                response = self._post_confirm(wizard["token"])
+                with self.assertLogs(
+                    "openwisp_controller.connection.admin", level="WARNING"
+                ) as logs:
+                    response = self._post_confirm(wizard["token"])
             self.assertRedirects(response, self.execute_url)
             self.assertFalse(BatchCommand.objects.exists())
+            self.assertIn("Failed to execute mass command wizard", logs.output[0])
+            self.assertIn(str(org.pk), logs.output[0])
 
     def test_wizard_stale_and_parallel_sessions(self):
         org = self._get_org()
         self._create_device(organization=org)
         self._login()
         restart_message = "Please fill in the mass command details to continue."
+
         with self.subTest("no wizard in the session"):
             response = self._post_confirm("any-token")
             self.assertRedirects(response, self.execute_url)
             self.assertIn(restart_message, self._messages(response))
+
         with self.subTest("a token from another tab"):
             wizard = self._start_wizard(organization=str(org.pk))
             self.client.get(self.confirm_url)
@@ -532,6 +741,7 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
             self.assertRedirects(response, self.execute_url)
             self.assertIn(restart_message, self._messages(response))
             self.assertFalse(BatchCommand.objects.exists())
+
         with self.subTest("double submit"):
             wizard = self._start_wizard(organization=str(org.pk))
             self.client.get(self.confirm_url)
@@ -542,6 +752,7 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
             self.assertIn(restart_message, self._messages(response))
             self.assertEqual(list(BatchCommand.objects.all()), [batch])
         BatchCommand.objects.all().delete()
+
         with self.subTest("the targeted devices changed"):
             wizard = self._start_wizard(organization=str(org.pk))
             self.client.get(self.confirm_url)
@@ -571,6 +782,7 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
             for index in range(1, 4)
         ]
         self._login()
+
         with self.subTest("excluded devices are left out"):
             wizard = self._start_wizard(organization=str(org.pk))
             self.client.get(self.confirm_url)
@@ -578,6 +790,7 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
             batch = BatchCommand.objects.get()
             self.assertEqual(set(batch.devices.all()), set(devices[:-1]))
         BatchCommand.objects.all().delete()
+
         with self.subTest("malformed entries are ignored"):
             wizard = self._start_wizard(organization=str(org.pk))
             self.client.get(self.confirm_url)
@@ -588,6 +801,7 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
             batch = BatchCommand.objects.get()
             self.assertEqual(set(batch.devices.all()), set(devices[1:]))
         BatchCommand.objects.all().delete()
+
         with self.subTest("excluding every device"):
             wizard = self._start_wizard(organization=str(org.pk))
             self.client.get(self.confirm_url)
@@ -609,14 +823,19 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
         batch2 = self._create_batch_command(organization=org2, label="other-label")
         operator = self._create_operator(organizations=[org])
         self.client.force_login(operator)
+
         with self.subTest("only managed organizations are listed"):
             response = self.client.get(self.changelist_url)
             queryset = response.context["cl"].queryset
             self.assertIn(batch, queryset)
             self.assertNotIn(batch2, queryset)
+
         with self.subTest("an unmanaged batch cannot be opened"):
-            url = reverse("admin:connection_batchcommand_change", args=[batch2.pk])
+            url = reverse(
+                f"admin:{self.app_label}_batchcommand_change", args=[batch2.pk]
+            )
             self.assertEqual(self.client.get(url).status_code, 302)
+
         with self.subTest("superusers see every batch"):
             self._login()
             response = self.client.get(self.changelist_url)
@@ -653,11 +872,13 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
                 response = self.client.get(self.changelist_url, params)
                 queryset = response.context["cl"].queryset
                 self.assertEqual(list(queryset), [expected])
+
         with self.subTest("combined filters exclude everything"):
             response = self.client.get(
                 self.changelist_url, {"status": "success", "type": "custom"}
             )
             self.assertEqual(response.context["cl"].queryset.count(), 0)
+
         with self.subTest("affected devices is orderable and not duplicated"):
             response = self.client.get(self.changelist_url, {"o": "5"})
             queryset = response.context["cl"].queryset
@@ -669,17 +890,22 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
         self._login()
         model_admin = BatchCommandAdmin(BatchCommand, admin.site)
         response = self.client.get(self.changelist_url)
+
         with self.subTest("no bulk actions"):
             self.assertNotIn(
                 "delete_selected", model_admin.get_actions(response.wsgi_request)
             )
+
         with self.subTest("adding and deleting are disabled"):
             self.assertFalse(model_admin.has_add_permission(response.wsgi_request))
             self.assertFalse(
                 model_admin.has_delete_permission(response.wsgi_request, batch)
             )
+
         with self.subTest("no save buttons on the change page"):
-            url = reverse("admin:connection_batchcommand_change", args=[batch.pk])
+            url = reverse(
+                f"admin:{self.app_label}_batchcommand_change", args=[batch.pk]
+            )
             response = self.client.get(url)
             self.assertFalse(response.context["show_save"])
             self.assertFalse(response.context["show_save_and_continue"])
@@ -723,9 +949,16 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
         batch.skipped_devices = {
             str(uuid4()): {"name": "skipped-device", "error": "no credentials"}
         }
+        batch.skipped_devices.update(
+            {
+                str(uuid4()): {"name": f"skipped{index}", "error": "no credentials"}
+                for index in range(4)
+            }
+        )
+        skipped_names = [skipped["name"] for skipped in batch.skipped_devices.values()]
         batch.save(update_fields=["skipped_devices"])
         self._login()
-        url = reverse("admin:connection_batchcommand_change", args=[batch.pk])
+        url = reverse(f"admin:{self.app_label}_batchcommand_change", args=[batch.pk])
         with patch.object(BatchCommandAdmin, "device_commands_per_page", 3):
             with self.subTest("first page"):
                 rows = self.client.get(url).context["commands"]
@@ -736,14 +969,49 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
                 self.assertEqual(rows[0]["output"], "… last")
                 self.assertEqual(rows[0]["status_display"], "in progress")
                 self.assertFalse(rows[0]["is_skipped"])
+
             with self.subTest("the page spanning commands and skipped devices"):
                 rows = self.client.get(url, {"page": 2}).context["commands"]
-                self.assertEqual([row["is_skipped"] for row in rows], [False, True])
-                self.assertEqual(rows[-1]["device_name"], "skipped-device")
+                self.assertEqual(
+                    [row["is_skipped"] for row in rows], [False, True, True]
+                )
+                self.assertEqual(
+                    [row["device_name"] for row in rows[1:]], skipped_names[:2]
+                )
+
+            with self.subTest("a page made of skipped devices only"):
+                rows = self.client.get(url, {"page": 3}).context["commands"]
+                self.assertEqual([row["is_skipped"] for row in rows], [True] * 3)
+                self.assertEqual(
+                    [row["device_name"] for row in rows], skipped_names[2:]
+                )
+
+            with self.subTest("the unfiltered page does not copy the skipped devices"):
+                filters = {
+                    "q": "",
+                    "status": "",
+                    "location_id": "",
+                    "group_id": "",
+                    "organization_id": "",
+                }
+                self.assertEqual(
+                    batch.filter_skipped_items(filters),
+                    batch.skipped_devices.items(),
+                )
+                filters["q"] = "skipped0"
+                self.assertEqual(
+                    [
+                        skipped["name"]
+                        for _pk, skipped in batch.filter_skipped_items(filters)
+                    ],
+                    ["skipped0"],
+                )
+
             with self.subTest("an unusable page falls back to the first"):
                 for page in ("abc", 0, 99):
                     response = self.client.get(url, {"page": page})
                     self.assertEqual(response.context["page_obj"].number, 1)
+
             with self.subTest("the newest command is last"):
                 rows = self.client.get(url, {"page": 2}).context["commands"]
                 self.assertEqual(rows[0]["device"], commands[-1].device.pk)
@@ -766,26 +1034,54 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
             group=other_group,
         )
         self._create_commands(batch, [device], status="success")
+        transferred_group = DeviceGroup.objects.create(
+            name="transferred-group", organization=org2
+        )
+        transferred_location = Location.objects.create(
+            name="transferred-location", type="indoor", organization=org2
+        )
+        transferred_device = self._create_device(
+            name="transferred-device",
+            mac_address="00:11:22:33:44:89",
+            organization=org2,
+            group=transferred_group,
+        )
+        DeviceLocation.objects.create(
+            content_object=transferred_device, location=transferred_location
+        )
         batch.skipped_devices = {
             str(skipped_device.pk): {
                 "name": skipped_device.name,
                 "error": "no credentials",
-            }
+            },
+            str(transferred_device.pk): {
+                "name": transferred_device.name,
+                "error": "no longer belongs to the organization",
+            },
         }
         batch.save(update_fields=["skipped_devices"])
         self._login()
-        url = reverse("admin:connection_batchcommand_change", args=[batch.pk])
+        url = reverse(f"admin:{self.app_label}_batchcommand_change", args=[batch.pk])
+
         with self.subTest("search matches commands and skipped devices"):
             rows = self.client.get(url, {"q": device.name}).context["commands"]
             self.assertEqual([row["device_name"] for row in rows], [device.name])
             rows = self.client.get(url, {"q": "skipped"}).context["commands"]
             self.assertEqual([row["device_name"] for row in rows], ["skipped-device"])
+
         with self.subTest("status skipped hides the commands"):
             rows = self.client.get(url, {"status": "skipped"}).context["commands"]
-            self.assertEqual([row["is_skipped"] for row in rows], [True])
+            self.assertEqual([row["is_skipped"] for row in rows], [True, True])
+
         with self.subTest("status success hides the skipped devices"):
             rows = self.client.get(url, {"status": "success"}).context["commands"]
             self.assertEqual([row["is_skipped"] for row in rows], [False])
+
+        with self.subTest("the all choice clears the only active filter"):
+            specs = self.client.get(url, {"status": "success"}).context["filter_specs"]
+            self.assertEqual(specs[0].choices[0]["display"], "All")
+            self.assertEqual(specs[0].choices[0]["query_string"], "?")
+
         with self.subTest("groups of skipped devices are offered as filters"):
             response = self.client.get(url)
             titles = {
@@ -796,11 +1092,13 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
             ]
             self.assertIn(other_group.name, displays)
             self.assertIn(group.name, displays)
+
         with self.subTest("filtering by a group keeps only its devices"):
             rows = self.client.get(url, {"group_id": str(other_group.pk)}).context[
                 "commands"
             ]
             self.assertEqual([row["device_name"] for row in rows], ["skipped-device"])
+
         with self.subTest("filtering by location"):
             DeviceLocation.objects.create(
                 content_object=skipped_device, location=location
@@ -812,6 +1110,7 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
                 sorted(row["device_name"] for row in rows),
                 sorted([device.name, "skipped-device"]),
             )
+
         with self.subTest("filtering by organization"):
             rows = self.client.get(url, {"organization_id": str(org.pk)}).context[
                 "commands"
@@ -823,14 +1122,34 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
             rows = self.client.get(url, {"organization_id": str(org2.pk)}).context[
                 "commands"
             ]
-            self.assertEqual(rows, [])
+            self.assertEqual(
+                [row["device_name"] for row in rows], [transferred_device.name]
+            )
+
         with self.subTest("the organization filter is for superusers only"):
             operator = self._create_operator(organizations=[org])
             self.client.force_login(operator)
             response = self.client.get(url)
             titles = [str(spec.title) for spec in response.context["filter_specs"]]
             self.assertNotIn("organization", titles)
+
+        with self.subTest("the filters do not offer other organizations"):
+            specs = {
+                str(spec.title): [str(choice["display"]) for choice in spec.choices]
+                for spec in self.client.get(url).context["filter_specs"]
+            }
+            self.assertNotIn(transferred_group.name, specs["device group"])
+            self.assertIn(other_group.name, specs["device group"])
+            self.assertNotIn(transferred_location.name, specs["location"])
+            self.assertIn(location.name, specs["location"])
             self._login()
+            specs = {
+                str(spec.title): [str(choice["display"]) for choice in spec.choices]
+                for spec in self.client.get(url).context["filter_specs"]
+            }
+            self.assertIn(transferred_group.name, specs["device group"])
+            self.assertIn(transferred_location.name, specs["location"])
+
         with self.subTest("the search term is not an active filter"):
             response = self.client.get(url, {"q": "anything"})
             self.assertFalse(response.context["has_active_filters"])
@@ -842,14 +1161,17 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
         org2 = self._create_org(name="org2", slug="org2")
         batch = self._create_batch_command(organization=org)
         model_admin = BatchCommandAdmin(BatchCommand, admin.site)
+
         with self.subTest("organization display"):
             self.assertEqual(model_admin.organization_display(batch), org.name)
             shared = self._create_batch_command(organization=None, label="shared")
             self.assertEqual(str(model_admin.organization_display(shared)), "All")
+
         with self.subTest("colored status"):
             self.assertIn(
                 f"command-status {batch.status}", model_admin.colored_status(batch)
             )
+
         with self.subTest("formatted input"):
             self.assertEqual(model_admin.formatted_input(batch), "echo test")
             empty_batch = self._create_batch_command(
@@ -870,10 +1192,12 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
                 input={"password": "tester123", "confirm_password": "tester123"},
             )
             self.assertEqual(model_admin.formatted_input(password_batch), "********")
+
         with self.subTest("affected devices falls back to the model"):
             self.assertEqual(model_admin.affected_devices(batch), 0)
             batch._affected_devices = 7
             self.assertEqual(model_admin.affected_devices(batch), 7)
+
         with self.subTest("skipped devices rendering"):
             self.assertEqual(model_admin.display_skipped_devices(batch), "-")
             batch.skipped_devices = {
@@ -884,6 +1208,7 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
             self.assertIn("12", rendered)
             self.assertIn("device0: failed", rendered)
             self.assertIn("…", rendered)
+
         with self.subTest("commands of unmanaged organizations are hidden"):
             device2 = self._create_device(
                 name="device-org2",
@@ -915,32 +1240,38 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
         operator = self._create_operator(organizations=[org])
         self.client.force_login(operator)
         request = self.client.get(self.changelist_url).wsgi_request
+
         with self.subTest("type lookups are limited to the managed organizations"):
             type_filter = TypeFilter(request, {}, BatchCommand, model_admin)
             self.assertEqual(
                 type_filter.lookups(request, model_admin),
                 [("custom", "Custom commands")],
             )
+
         with self.subTest("type lookups list every type for superusers"):
             self._login()
             admin_request = self.client.get(self.changelist_url).wsgi_request
             type_filter = TypeFilter(admin_request, {}, BatchCommand, model_admin)
             lookups = dict(type_filter.lookups(admin_request, model_admin))
             self.assertEqual(set(lookups), {"custom", "reboot"})
+
         with self.subTest("type queryset"):
             response = self.client.get(self.changelist_url, {"type": "reboot"})
             self.assertEqual(list(response.context["cl"].queryset), [batch2])
             response = self.client.get(self.changelist_url)
             self.assertEqual(set(response.context["cl"].queryset), {batch, batch2})
+
         with self.subTest("the parameter names match the change page filters"):
             self.assertEqual(GroupFilter.parameter_name, "group_id")
             self.assertEqual(LocationFilter.parameter_name, "location_id")
+
         with self.subTest("the filters are on the changelist"):
             self.client.force_login(operator)
             response = self.client.get(self.changelist_url)
             specs = {type(spec) for spec in response.context["cl"].filter_specs}
             self.assertIn(GroupFilter, specs)
             self.assertIn(LocationFilter, specs)
+
         with self.subTest("related choices are limited to the managed organizations"):
             self._create_administrator(organizations=[org])
             self._test_multitenant_admin(

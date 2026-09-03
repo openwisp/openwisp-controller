@@ -14,6 +14,7 @@
 {% endif %}
     const batchCommandId = '{{ original.pk }}';
 </script>
+{{ status_labels|json_script:"batch-status-labels" }}
 {% endblock %}
 
 {% block content %}
@@ -101,7 +102,7 @@
 
 <div class="results-container">
   <table id="result_list" class="results-table"
-    data-device-url="{% url 'admin:config_device_change' '00000000-0000-0000-0000-000000000000' %}"
+    data-device-url="{% url device_opts|admin_urlname:'change' '00000000-0000-0000-0000-000000000000' %}"
     data-active-status="{{ request.GET.status|default:'' }}"
     data-per-page="{{ paginator.per_page }}"
     data-current-page="{{ page_obj.number }}">
@@ -122,7 +123,7 @@
           {% if command.is_skipped %}
           <span class="device-name-disabled">{{ command.device_name }}</span>
           {% else %}
-          <a href="{% url 'admin:config_device_change' command.device %}#command_set-2-group"
+          <a href="{% url device_opts|admin_urlname:'change' command.device %}#command_set-2-group"
             class="device-link" aria-label="{% trans 'View recent commands' %} {{ command.device_name }}">
             {{ command.device_name }}
           </a>
