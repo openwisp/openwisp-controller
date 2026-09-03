@@ -4,8 +4,6 @@ from django.utils.translation import gettext_lazy as _
 from openwisp_notifications.signals import notify
 from swapper import load_model
 
-from openwisp_controller.config.controller.views import DeviceChecksumView
-
 from . import tasks
 from .signals import config_status_changed, device_registered
 
@@ -44,32 +42,83 @@ def device_registered_notification(sender, instance, is_new, **kwargs):
 
 
 def devicegroup_change_handler(instance, **kwargs):
+    """
+    Manages group templates when a device's group changes.
+
+    Cache invalidation for the device group change is handled separately
+    by ``invalidate_devicegroup_cache_change_handler``, declared as a
+    ``CacheDependency`` target in
+    ``ConfigConfig.connect_cache_dependencies`` (see ``config/apps.py``).
+    """
     if type(instance) is list:
         # changes group templates for multiple devices
         devicegroup_templates_change_handler(instance, **kwargs)
         return
     if instance._state.adding or ("created" in kwargs and kwargs["created"] is True):
         return
-    model_name = instance._meta.model_name
-    if model_name == Device._meta.model_name:
-        # remove old group templates and apply new group templates
-        devicegroup_templates_change_handler(instance, **kwargs)
-    tasks.invalidate_devicegroup_cache_change.delay(instance.id, model_name)
+    # this handler is only connected to device_group_changed (sender=Device),
+    # so instance is always a Device here: remove old group templates and
+    # apply the new ones
+    devicegroup_templates_change_handler(instance, **kwargs)
+
+
+def invalidate_devicegroup_cache_change_handler(instance, **kwargs):
+    """
+    Invalidates the ``DeviceGroupCommonName`` cache when a device's group,
+    a device group, or a certificate changes. Used as a ``CacheDependency``
+    target (see ``ConfigConfig.connect_cache_dependencies`` in
+    ``config/apps.py``).
+    """
+    if isinstance(instance, list):
+        for device_id in instance:
+            tasks.invalidate_devicegroup_cache_change.delay(
+                device_id, Device._meta.model_name
+            )
+        return
+    tasks.invalidate_devicegroup_cache_change.delay(
+        instance.id, instance._meta.model_name
+    )
 
 
 def devicegroup_delete_handler(instance, **kwargs):
+    """
+    Invalidates the ``DeviceGroupCommonName`` cache when a device group or a
+    certificate is deleted. Used as a ``CacheDependency`` target (see
+    ``ConfigConfig.connect_cache_dependencies`` in ``config/apps.py``).
+
+    Runs synchronously (the ``CacheDependency`` is declared with
+    ``on_commit=False``) so it still receives the live ``instance``. Only the
+    task enqueue itself is deferred to ``transaction.on_commit()``, so a
+    concurrent request cannot repopulate the cache from a row that is about
+    to be (or was just) deleted.
+
+    For a deleted ``Cert``, ``common_name`` and the organization's ``slug``
+    are captured here rather than looked up by the deferred task: in an
+    organization-cascade delete, the ``Organization`` row itself is also
+    gone by the time the task would run, so it must not depend on a
+    post-commit database lookup to resolve the org's slug. A ``Cert`` can
+    have no organization at all (a cert shared across organizations), in
+    which case only the no-org cache entry is invalidated: ``get_device_group``
+    only filters by organization when one is explicitly requested, so a
+    shared cert can still populate (and needs to invalidate) that entry.
+    """
     kwargs = {}
     model_name = instance._meta.model_name
-    kwargs["organization_id"] = instance.organization_id
     if isinstance(instance, Cert):
+        if not instance.common_name:
+            return
         kwargs["common_name"] = instance.common_name
-    tasks.invalidate_devicegroup_cache_delete.delay(instance.id, model_name, **kwargs)
-
-
-def device_cache_invalidation_handler(instance, **kwargs):
-    view = DeviceChecksumView()
-    setattr(view, "kwargs", {"pk": str(instance.pk)})
-    view.get_device.invalidate(view)
+        organization = instance.organization
+        if organization is not None:
+            kwargs["organization_slug"] = organization.slug
+    else:
+        kwargs["organization_id"] = instance.organization_id
+    instance_id = instance.id
+    transaction.on_commit(
+        lambda: tasks.invalidate_devicegroup_cache_delete.delay(
+            instance_id, model_name, **kwargs
+        )
+    )
 
 
 def config_backend_change_handler(instance, **kwargs):

@@ -41,6 +41,7 @@ class TemplateSerializer(BaseSerializer):
             "tags",
             "default",
             "required",
+            "notes",
             "default_values",
             "config",
             "created",
@@ -71,6 +72,7 @@ class TemplateSerializer(BaseSerializer):
 
 class VpnSerializer(BaseSerializer):
     config = serializers.JSONField(initial={})
+    ip = serializers.PrimaryKeyRelatedField(read_only=True)
     include_shared = True
 
     class Meta(BaseMeta):
@@ -84,12 +86,38 @@ class VpnSerializer(BaseSerializer):
             "ca",
             "cert",
             "backend",
+            "subnet",
+            "ip",
+            "webhook_endpoint",
+            "auth_token",
             "notes",
             "dh",
             "config",
             "created",
             "modified",
         ]
+
+    def validate(self, data):
+        """Validates the VPN and clears the certificate if CA is changed.
+
+        When the CA is updated on an existing VPN, the current certificate
+        (which was issued by the old CA) becomes invalid. This method clears
+        the certificate so the model's ``save()`` method can auto-create a
+        new one for the new CA.
+        """
+        if self.instance and "ca" in data and self.instance.cert:
+            # if the CA is changed and new cert not supplied,
+            # allow creating a new certificate automatically
+            if data["ca"] and self.instance.cert.ca != data["ca"]:
+                data["cert"] = None
+        return super().validate(data)
+
+
+class VpnListSerializer(VpnSerializer):
+    class Meta(VpnSerializer.Meta):
+        fields = VpnSerializer.Meta.fields[:]
+        fields.remove("webhook_endpoint")
+        fields.remove("auth_token")
 
 
 class FilterTemplatesByOrganization(serializers.PrimaryKeyRelatedField):

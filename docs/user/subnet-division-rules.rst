@@ -136,9 +136,10 @@ Important notes for using Subnet Division
   the *default values* template field (mainly used for validation).
 - The Subnet Division Rule automatically creates a reserved subnet, which
   can be utilized to provision any IP addresses that need to be created
-  manually. The remaining address space of the master subnet must not be
-  interfered with, or the automation implemented in this module will not
-  function.
+  manually. Do not create child subnets manually in the remaining address
+  space of the master subnet. If an IP address is already allocated in the
+  master subnet hierarchy, the rule skips child subnet candidates that
+  would provision the same address.
 - The example provided used the :ref:`VPN subnet division rule
   <vpn_rule>`. Similarly, the :ref:`device subnet division rule
   <device_rule>` can be employed, requiring only :ref:`the creation of a

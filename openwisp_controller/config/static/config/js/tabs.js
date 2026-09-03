@@ -17,6 +17,11 @@ django.jQuery(function ($) {
       $(".tab-content").removeClass("current");
       menuLink.addClass("current");
       $(tabId).addClass("current");
+      // show estimated location warning when "map" tab is open
+      $(".messagelist.map").css(
+        "display",
+        tabId === "#devicelocation-group" ? "block" : "",
+      );
       triggerResize();
       $.event.trigger({
         type: "tabshown",

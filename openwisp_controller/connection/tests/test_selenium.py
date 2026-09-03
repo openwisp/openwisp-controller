@@ -47,7 +47,7 @@ class TestDeviceAdmin(
         self.hide_loading_overlay()
         # Send reboot command to the device
         self.find_element(
-            by=By.CSS_SELECTOR, value="ul.object-tools a#send-command", timeout=5
+            by=By.CSS_SELECTOR, value="ul.object-tools a#send-command"
         ).click()
         self.find_element(
             by=By.CSS_SELECTOR, value='button.ow-command-btn[data-command="reboot"]'
@@ -55,15 +55,11 @@ class TestDeviceAdmin(
         self.find_element(by=By.CSS_SELECTOR, value="#ow-command-confirm-yes").click()
 
         self.assertEqual(Command.objects.count(), 1)
-        # TODO: Selenium tests does not support websocket connections.
+        # TODO: Selenium tests do not support websocket connections.
         # Thus, we need to refresh the page. Remove this when support for
         # websockets is added.
         self.open(path)
         self.wait_for_visibility(
             By.CSS_SELECTOR,
-            (  # selector for Django 5.2
-                "#tabs-container li.recent.commands,"
-                # selector for Django 4.2
-                " #tabs-container li.recent-commands"
-            ),
+            "#tabs-container li.recent.commands",
         )

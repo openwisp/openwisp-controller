@@ -15,7 +15,7 @@ from openwisp_controller.tests.utils import TestAdminMixin
 from openwisp_users.tests.test_api import AuthenticationMixin
 
 from .. import settings as app_settings
-from ..api.views import ListViewPagination
+from ..api.views import CommandListCreateView
 from ..commands import ORGANIZATION_ENABLED_COMMANDS
 from .utils import CreateCommandMixin, CreateConnectionsMixin
 
@@ -48,7 +48,7 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
     def _get_device_not_found_error(self, device_id):
         return {"detail": ErrorDetail("Not found.", code="not_found")}
 
-    @patch.object(ListViewPagination, "page_size", 3)
+    @patch.object(CommandListCreateView, "pagination_page_size", 3, create=True)
     def test_command_list_api(self):
         number_of_commands = 6
         url = self._get_path("device_command_list", self.device_id)
@@ -287,6 +287,7 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
             self.assertDictEqual(response.data, device_not_found)
 
     def test_endpoints_for_deactivated_device(self):
+        command = self._create_command(device_conn=self.device_conn)
         self.device_conn.device.deactivate()
 
         with self.subTest("Test listing commands"):
@@ -308,7 +309,6 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
             self.assertEqual(response.status_code, 403)
 
         with self.subTest("Test retrieving commands"):
-            command = self._create_command(device_conn=self.device_conn)
             url = self._get_path("device_command_details", self.device_id, command.id)
             response = self.client.get(
                 url,
@@ -606,7 +606,7 @@ class TestConnectionApi(
             "enabled": False,
             "failure_reason": "",
         }
-        with self.assertNumQueries(14):
+        with self.assertNumQueries(13):
             response = self.client.put(path, data, content_type="application/json")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(

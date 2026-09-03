@@ -3,6 +3,23 @@ Developer Installation Instructions
 
 .. include:: ../partials/developer-docs.rst
 
+The following diagram illustrates the role of the Controller module within
+the OpenWISP architecture.
+
+.. figure:: ../images/architecture-v2-openwisp-controller.png
+    :target: ../../_images/architecture-v2-openwisp-controller.png
+    :align: center
+    :alt: OpenWISP Architecture: Controller module
+
+    **OpenWISP Architecture: highlighted controller module**
+
+.. important::
+
+    For an enhanced viewing experience, open the image above in a new
+    browser tab.
+
+    Refer to :doc:`/general/architecture` for more information.
+
 .. contents:: **Table of Contents**:
     :depth: 2
     :local:
@@ -78,11 +95,12 @@ Create database:
     ./manage.py migrate
     ./manage.py createsuperuser
 
-Launch celery worker (for background jobs):
+Launch celery worker (for background jobs and periodic jobs respectively):
 
 .. code-block:: shell
 
     celery -A openwisp2 worker -l info
+    celery -A openwisp2 beat -l info
 
 Launch development server:
 
@@ -173,13 +191,13 @@ If you are incurring in the following exception:
 You need to specify ``SPATIALITE_LIBRARY_PATH`` in your ``settings.py`` as
 explained in `django documentation regarding how to install and configure
 spatialte
-<https://docs.djangoproject.com/en/4.2/ref/contrib/gis/install/spatialite/>`_.
+<https://docs.djangoproject.com/en/5.2/ref/contrib/gis/install/spatialite/>`_.
 
 Having Issues with Other Geospatial Libraries?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Please refer `troubleshooting issues related to geospatial libraries
-<https://docs.djangoproject.com/en/4.2/ref/contrib/gis/install/#library-environment-settings/>`_.
+<https://docs.djangoproject.com/en/5.2/ref/contrib/gis/install/#library-environment-settings/>`_.
 
 .. important::
 

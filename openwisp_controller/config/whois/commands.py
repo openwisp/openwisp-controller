@@ -37,9 +37,11 @@ def clear_last_ip_command(stdout, stderr, interactive=True):
         Device.objects.filter(_is_deactivated=False).select_related(
             "organization__config_settings"
         )
-        # include the FK field 'organization' in .only() so the related
-        # `organization__config_settings` traversal is not deferred
-        .only("last_ip", "organization", "key")
+        # Keep 'organization' and '_is_deactivated' loaded. The former is
+        # needed for the select_related() traversal, while the latter is
+        # accessed during save() signal handling via is_deactivated();
+        # deferring either field would result in additional queries.
+        .only("last_ip", "organization", "key", "_is_deactivated")
     )
     # Filter out devices that have WHOIS information for their last IP
     devices = devices.exclude(last_ip=None).exclude(

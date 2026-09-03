@@ -10,6 +10,8 @@ on:
       - master
       - "1.1"
       - "1.2"
+      - "gsoc26-x509-certificate-generator-templates"
+      - "gsoc26-mass-commands"
 
 jobs:
   build:
@@ -25,21 +27,16 @@ jobs:
           - "3.12"
           - "3.13"
         django-version:
-          - django~=4.2.0
           - django~=5.1.0
           - django~=5.2.0
-        exclude:
-          # Python 3.13 supported only in Django >=5.1.3
-          - python-version: "3.13"
-            django-version: django~=4.2.0
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Cache APT packages
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: /var/cache/apt/archives
           key: apt-${{ runner.os }}-${{ hashFiles('.github/workflows/ci.yml') }}
@@ -52,7 +49,7 @@ jobs:
           sudo dpkg-reconfigure man-db
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
           cache: "pip"
@@ -88,7 +85,9 @@ jobs:
 
       - name: Show gecko web driver log on failures
         if: ${{ failure() }}
-        run: cat geckodriver.log
+        run: |
+          [ -f geckodriver.log ] && cat geckodriver.log \
+            || echo "there is no gecko web driver log to show"
 
       - name: Upload Coverage
         if: ${{ success() }}

@@ -1,6 +1,8 @@
 import os
 import sys
 
+from celery.schedules import crontab
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DEBUG = True
 TESTING = os.environ.get("TESTING", False) or sys.argv[1:2] == ["test"]
@@ -166,7 +168,16 @@ CACHES = {
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         },
-    }
+    },
+    # Keep sessions outside the default cache because some tests clear it while
+    # parallel workers may still be using authenticated clients.
+    "sessions": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": f"{REDIS_URL}/8",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        },
+    },
 }
 
 if not TESTING:
@@ -177,7 +188,7 @@ else:
     CELERY_BROKER_URL = "memory://"
 
 SESSION_ENGINE = "django.contrib.sessions.backends.cache"
-SESSION_CACHE_ALIAS = "default"
+SESSION_CACHE_ALIAS = "sessions"
 
 LOGGING = {
     "version": 1,
@@ -215,6 +226,15 @@ OPENWISP_CONTROLLER_WHOIS_GEOIP_ACCOUNT = os.getenv(
 OPENWISP_CONTROLLER_WHOIS_GEOIP_KEY = os.getenv(
     "OPENWISP_CONTROLLER_WHOIS_GEOIP_KEY", ""
 )
+# Periodic cleanup task for WHOIS records
+# Shown here for example purposes
+# (this feature is disabled by default in the dev env)
+CELERY_BEAT_SCHEDULE = {
+    "cleanup_unreferenced_whois_records": {
+        "task": "openwisp_controller.config.whois.tasks.cleanup_unreferenced_whois_records",
+        "schedule": crontab(hour=2, minute=0),
+    }
+}
 
 TEST_RUNNER = "openwisp_utils.tests.TimeLoggingTestRunner"
 
@@ -280,6 +300,7 @@ if os.environ.get("SAMPLE_APP", False):
     GEO_LOCATION_MODEL = "sample_geo.Location"
     GEO_FLOORPLAN_MODEL = "sample_geo.FloorPlan"
     GEO_DEVICELOCATION_MODEL = "sample_geo.DeviceLocation"
+    GEO_ORGANIZATIONGEOSETTINGS_MODEL = "sample_geo.OrganizationGeoSettings"
     CONNECTION_CREDENTIALS_MODEL = "sample_connection.Credentials"
     CONNECTION_DEVICECONNECTION_MODEL = "sample_connection.DeviceConnection"
     CONNECTION_COMMAND_MODEL = "sample_connection.Command"

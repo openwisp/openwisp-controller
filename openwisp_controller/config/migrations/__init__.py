@@ -1,3 +1,4 @@
+import json
 import subprocess
 
 from django.contrib.auth.models import Permission
@@ -6,10 +7,21 @@ from swapper import load_model
 from ...migrations import create_default_permissions, get_swapped_model
 
 
+def resolve_config(value):
+    if isinstance(value, str):
+        try:
+            value = json.loads(value) if value else {}
+        except ValueError:
+            value = {}
+    if not isinstance(value, dict):
+        return {}
+    return value
+
+
 def update_vpn_dhparam_length(apps, schema_editor):
     vpn_model = get_swapped_model(apps, "config", "Vpn")
     for vpn in vpn_model.objects.all().iterator():
-        if len(vpn.dh) < 424:
+        if not vpn.dh or len(vpn.dh) < 424:
             print(
                 (
                     "\n  Generating a new 2048 bit DH key for "

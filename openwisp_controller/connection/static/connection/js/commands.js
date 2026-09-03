@@ -567,7 +567,8 @@ function initCommandWebSockets($, commandWebSocket) {
       .html(getFormattedDateTimeString(data.modified));
 
     // Fade background color from green/red to white to signify change
-    colorCode = data.status == "success" ? "#bbffbb" : "#ff949461";
+    colorCode =
+      data.status == "success" ? "var(--ow-color-success)" : "var(--ow-color-danger)";
     commandObjectFieldset.css("background-color", colorCode);
     setTimeout(function () {
       commandObjectFieldset.addClass("object-updated");

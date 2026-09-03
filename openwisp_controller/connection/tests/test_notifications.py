@@ -52,7 +52,7 @@ class TestNotifications(CreateConnectionsMixin, BaseTestNotification, TestCase):
         # by some other module
 
         # Unregister "config_error" and "device_registered" notification
-        # types to avoid getting rasing ImproperlyConfigured exceptions
+        # types to avoid getting raising ImproperlyConfigured exceptions
         unregister_notification_type("connection_is_not_working")
         unregister_notification_type("connection_is_working")
 

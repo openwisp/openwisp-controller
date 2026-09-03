@@ -132,7 +132,7 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
             raise ValidationError(
                 {
                     "number_of_subnets": _(
-                        "The master subnet is too small to acommodate the "
+                        "The master subnet is too small to accommodate the "
                         'requested "number of subnets" plus the reserved '
                         "subnet, please increase the size of the master "
                         'subnet or decrease the "size of subnets" field.'

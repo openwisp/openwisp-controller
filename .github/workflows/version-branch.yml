@@ -7,6 +7,7 @@ on:
 
 jobs:
   version-branch:
+    if: github.repository == 'openwisp/openwisp-controller'
     uses: openwisp/openwisp-utils/.github/workflows/reusable-version-branch.yml@master
     with:
       module_name: openwisp_controller

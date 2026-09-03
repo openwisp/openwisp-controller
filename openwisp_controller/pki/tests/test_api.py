@@ -1,4 +1,4 @@
-from django.test import TestCase
+from django.test import TestCase, TransactionTestCase
 from django.urls import reverse
 from packaging.version import parse as parse_version
 from rest_framework import VERSION as REST_FRAMEWORK_VERSION
@@ -124,7 +124,7 @@ class TestPkiApi(
         path = reverse("pki_api:ca_detail", args=[ca1.pk])
         org2 = self._create_org()
         data = {"name": "change-ca1", "organization": org2.pk, "notes": "change-notes"}
-        with self.assertNumQueries(7):
+        with self.assertNumQueries(6):
             r = self.client.put(path, data, content_type="application/json")
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data["name"], "change-ca1")
@@ -161,7 +161,7 @@ class TestPkiApi(
         ca1 = self._create_ca(name="ca1", organization=self._get_org())
         old_serial_num = ca1.serial_number
         path = reverse("pki_api:ca_renew", args=[ca1.pk])
-        with self.assertNumQueries(4):
+        with self.assertNumQueries(5):
             r = self.client.post(path)
         ca1.refresh_from_db()
         self.assertEqual(r.status_code, 200)
@@ -244,35 +244,10 @@ class TestPkiApi(
         self.assertEqual(r.data["id"], cert1.pk)
         self.assertEqual(r.data["extensions"], [])
 
-    def test_cert_put_api(self):
-        cert1 = self._create_cert(name="cert1")
-        org2 = self._create_org()
-        path = reverse("pki_api:cert_detail", args=[cert1.pk])
-        data = {
-            "name": "cert1-change",
-            "organization": org2.pk,
-            "notes": "new-notes",
-        }
-        with self.assertNumQueries(9):
-            r = self.client.put(path, data, content_type="application/json")
-        self.assertEqual(r.status_code, 200)
-        self.assertEqual(r.data["name"], "cert1-change")
-        self.assertEqual(r.data["organization"], org2.pk)
-        self.assertEqual(r.data["notes"], "new-notes")
-
-    def test_cert_patch_api(self):
-        cert1 = self._create_cert(name="cert1")
-        path = reverse("pki_api:cert_detail", args=[cert1.pk])
-        data = {"name": "cert1-change"}
-        with self.assertNumQueries(8):
-            r = self.client.patch(path, data, content_type="application/json")
-        self.assertEqual(r.status_code, 200)
-        self.assertEqual(r.data["name"], "cert1-change")
-
     def test_cert_delete_api(self):
         cert1 = self._create_cert(name="cert1")
         path = reverse("pki_api:cert_detail", args=[cert1.pk])
-        with self.assertNumQueries(6):
+        with self.assertNumQueries(5):
             r = self.client.delete(path)
         self.assertEqual(r.status_code, 204)
         self.assertEqual(Cert.objects.count(), 0)
@@ -284,28 +259,6 @@ class TestPkiApi(
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data["ca"], cert1.ca.id)
-
-    def test_post_cert_renew_api(self):
-        cert1 = self._create_cert(name="cert1")
-        old_serial_num = cert1.serial_number
-        path = reverse("pki_api:cert_renew", args=[cert1.pk])
-        with self.assertNumQueries(5):
-            r = self.client.post(path)
-        self.assertEqual(r.status_code, 200)
-        cert1.refresh_from_db()
-        self.assertNotEqual(cert1.serial_number, old_serial_num)
-        self.assertNotEqual(r.data["serial_number"], old_serial_num)
-
-    def test_post_cert_revoke_api(self):
-        cert1 = self._create_cert(name="cert1")
-        self.assertFalse(cert1.revoked)
-        path = reverse("pki_api:cert_revoke", args=[cert1.pk])
-        with self.assertNumQueries(4):
-            r = self.client.post(path)
-        cert1.refresh_from_db()
-        self.assertEqual(r.status_code, 200)
-        self.assertTrue(cert1.revoked)
-        self.assertTrue(r.data["revoked"])
 
     @capture_any_output()
     def test_bearer_authentication(self):
@@ -368,3 +321,63 @@ class TestPkiApi(
                 HTTP_AUTHORIZATION=f"Bearer {token}",
             )
             self.assertEqual(response.status_code, 200)
+
+
+class TestTransactionPkiApi(
+    AssertNumQueriesSubTestMixin,
+    TestAdminMixin,
+    TestPkiMixin,
+    TestOrganizationMixin,
+    AuthenticationMixin,
+    TransactionTestCase,
+):
+    def setUp(self):
+        super().setUp()
+        self._login()
+
+    def test_cert_put_api(self):
+        cert1 = self._create_cert(name="cert1")
+        org2 = self._create_org()
+        path = reverse("pki_api:cert_detail", args=[cert1.pk])
+        data = {
+            "name": "cert1-change",
+            "organization": org2.pk,
+            "notes": "new-notes",
+        }
+        with self.assertNumQueries(10):
+            r = self.client.put(path, data, content_type="application/json")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.data["name"], "cert1-change")
+        self.assertEqual(r.data["organization"], org2.pk)
+        self.assertEqual(r.data["notes"], "new-notes")
+
+    def test_cert_patch_api(self):
+        cert1 = self._create_cert(name="cert1")
+        path = reverse("pki_api:cert_detail", args=[cert1.pk])
+        data = {"name": "cert1-change"}
+        with self.assertNumQueries(8):
+            r = self.client.patch(path, data, content_type="application/json")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.data["name"], "cert1-change")
+
+    def test_post_cert_renew_api(self):
+        cert1 = self._create_cert(name="cert1")
+        old_serial_num = cert1.serial_number
+        path = reverse("pki_api:cert_renew", args=[cert1.pk])
+        with self.assertNumQueries(6):
+            r = self.client.post(path)
+        self.assertEqual(r.status_code, 200)
+        cert1.refresh_from_db()
+        self.assertNotEqual(cert1.serial_number, old_serial_num)
+        self.assertNotEqual(r.data["serial_number"], old_serial_num)
+
+    def test_post_cert_revoke_api(self):
+        cert1 = self._create_cert(name="cert1")
+        self.assertFalse(cert1.revoked)
+        path = reverse("pki_api:cert_revoke", args=[cert1.pk])
+        with self.assertNumQueries(4):
+            r = self.client.post(path)
+        cert1.refresh_from_db()
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(cert1.revoked)
+        self.assertTrue(r.data["revoked"])

@@ -1,3 +1,4 @@
+import csv
 import io
 import json
 import os
@@ -5,6 +6,7 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import django
+from django.contrib import admin
 from django.contrib.admin.models import LogEntry
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
@@ -12,8 +14,8 @@ from django.core.files.base import ContentFile
 from django.core.management import call_command
 from django.db import IntegrityError
 from django.db.models.signals import post_save
-from django.test import TestCase, TransactionTestCase
-from django.urls import reverse
+from django.test import RequestFactory, TestCase, TransactionTestCase
+from django.urls import resolve, reverse
 from reversion.models import Version
 from swapper import load_model
 
@@ -36,6 +38,7 @@ from .utils import (
     CreateConfigTemplateMixin,
     CreateDeviceGroupMixin,
     CreateDeviceMixin,
+    TestDeviceAdminMixin,
     TestVpnX509Mixin,
 )
 
@@ -52,47 +55,6 @@ User = get_user_model()
 Location = load_model("geo", "Location")
 DeviceLocation = load_model("geo", "DeviceLocation")
 Group = load_model("openwisp_users", "Group")
-
-
-class TestDeviceAdminMixin:
-    _device_params = {
-        "name": "test-device",
-        "hardware_id": "1234",
-        "mac_address": CreateConfigTemplateMixin.TEST_MAC_ADDRESS,
-        "key": CreateConfigTemplateMixin.TEST_KEY,
-        "model": "",
-        "os": "",
-        "notes": "",
-        "config-0-id": "",
-        "config-0-device": "",
-        "config-0-backend": "netjsonconfig.OpenWrt",
-        "config-0-templates": "",
-        "config-0-config": json.dumps({}),
-        "config-0-context": "",
-        "config-TOTAL_FORMS": 1,
-        "config-INITIAL_FORMS": 0,
-        "config-MIN_NUM_FORMS": 0,
-        "config-MAX_NUM_FORMS": 1,
-        # openwisp_controller.connection
-        "deviceconnection_set-TOTAL_FORMS": 0,
-        "deviceconnection_set-INITIAL_FORMS": 0,
-        "deviceconnection_set-MIN_NUM_FORMS": 0,
-        "deviceconnection_set-MAX_NUM_FORMS": 1000,
-        "command_set-TOTAL_FORMS": 0,
-        "command_set-INITIAL_FORMS": 0,
-        "command_set-MIN_NUM_FORMS": 0,
-        "command_set-MAX_NUM_FORMS": 1000,
-    }
-    # WARNING - WATCHOUT
-    # this class attribute is changed dynamically
-    # by other apps which add inlines to DeviceAdmin
-    _additional_params = {}
-
-    def _get_device_params(self, org):
-        p = self._device_params.copy()
-        p.update(self._additional_params)
-        p["organization"] = org.pk
-        return p
 
 
 class TestImportExportMixin:
@@ -292,34 +254,6 @@ class TestAdmin(
     object_model = Device
     object_location_model = DeviceLocation
     maxDiff = None
-    _device_params = {
-        "name": "test-device",
-        "hardware_id": "1234",
-        "mac_address": CreateConfigTemplateMixin.TEST_MAC_ADDRESS,
-        "key": CreateConfigTemplateMixin.TEST_KEY,
-        "model": "",
-        "os": "",
-        "notes": "",
-        "config-0-id": "",
-        "config-0-device": "",
-        "config-0-backend": "netjsonconfig.OpenWrt",
-        "config-0-templates": "",
-        "config-0-config": json.dumps({}),
-        "config-0-context": "",
-        "config-TOTAL_FORMS": 1,
-        "config-INITIAL_FORMS": 0,
-        "config-MIN_NUM_FORMS": 0,
-        "config-MAX_NUM_FORMS": 1,
-        # openwisp_controller.connection
-        "deviceconnection_set-TOTAL_FORMS": 0,
-        "deviceconnection_set-INITIAL_FORMS": 0,
-        "deviceconnection_set-MIN_NUM_FORMS": 0,
-        "deviceconnection_set-MAX_NUM_FORMS": 1000,
-        "command_set-TOTAL_FORMS": 0,
-        "command_set-INITIAL_FORMS": 0,
-        "command_set-MIN_NUM_FORMS": 0,
-        "command_set-MAX_NUM_FORMS": 1000,
-    }
 
     def setUp(self):
         self.client.force_login(self._get_admin())
@@ -381,13 +315,11 @@ class TestAdmin(
         data = self._get_device_params(org=org1)
         data.update({"group": str(self._create_device_group().pk)})
         self._login()
-        with catch_signal(
-            device_group_changed
-        ) as mocked_device_group_changed, catch_signal(
-            device_name_changed
-        ) as mocked_device_name_changed, catch_signal(
-            management_ip_changed
-        ) as mocked_management_ip_changed:
+        with (
+            catch_signal(device_group_changed) as mocked_device_group_changed,
+            catch_signal(device_name_changed) as mocked_device_name_changed,
+            catch_signal(management_ip_changed) as mocked_management_ip_changed,
+        ):
             self.client.post(path, data)
 
         mocked_device_group_changed.assert_not_called()
@@ -438,6 +370,24 @@ class TestAdmin(
         self._login()
         response = self.client.get(path)
         self.assertIn("Preview", str(response.content))
+
+    def test_template_notes_after_required(self):
+        t = self._create_template(organization=self._get_org())
+        path = reverse(f"admin:{self.app_label}_template_change", args=[t.pk])
+        self._login()
+        response = self.client.get(path)
+        fields = response.context["adminform"].model_admin.fields
+        self.assertEqual(fields[fields.index("required") + 1], "notes")
+
+    def test_template_search_notes(self):
+        t = self._create_template(
+            name="admin-search-template", notes="template searchable notes"
+        )
+        path = reverse(f"admin:{self.app_label}_template_changelist")
+        response = self.client.get(path, {"q": "template searchable notes"})
+        self.assertContains(response, t.name)
+        response = self.client.get(path, {"q": "ZERO-RESULTS-PLEASE"})
+        self.assertNotContains(response, t.name)
 
     def test_vpn_preview_button(self):
         v = self._create_vpn(organization=self._get_org())
@@ -653,6 +603,68 @@ class TestAdmin(
             extra_payload={"device_group": group.pk, "apply": True},
         )
 
+    def test_device_export_includes_deactivated_config_status(self):
+        device = self._create_device_config()
+        device.deactivate()
+        response = self.client.post(
+            reverse(f"admin:{self.app_label}_device_export"), {"format": "0"}
+        )
+        self.assertNotContains(response, "error")
+        rows = list(csv.reader(response.content.decode().splitlines()))
+        header = rows[0]
+        status_col = header.index("config_status")
+        self.assertEqual(rows[1][status_col], "deactivated")
+
+    def test_device_import_deactivated_config_status_ignored(self):
+        # config_status is readonly=True in DeviceResource, so importing a
+        # row with config_status=deactivated must NOT create a deactivated device.
+        org = self._get_org(org_name="default")
+        contents = (
+            "name,mac_address,organization,group,model,os,system,notes,last_ip,"
+            "management_ip,config_status,config_backend,config_data,config_context,"
+            "config_templates,created,modified,id,key,organization_id,group_id\n"
+            "test-deactivated,00:11:22:33:44:66,{org_name},,,,,,,,"
+            "deactivated,netjsonconfig.OpenWrt,,,,"
+            "2022-10-17 15:26:51,2022-10-17 15:26:51,"
+            "559871c5-ce3d-4c7e-9176-fb6623d562f3,934d0799b1ce3a454bbb585cda1d7a49,"
+            "{org_id},"
+        ).strip()
+        contents = contents.format(org_name=org.name, org_id=org.id)
+        csv_file = ContentFile(contents)
+        response = self.client.post(
+            reverse(f"admin:{self.app_label}_device_import"),
+            {"format": "0", "import_file": csv_file, "file_name": "test.csv"},
+        )
+        self.assertFalse(response.context["result"].has_errors())
+        confirm_form = response.context["confirm_form"]
+        data = confirm_form.initial
+        response = self.client.post(
+            reverse(f"admin:{self.app_label}_device_process_import"), data, follow=True
+        )
+        self.assertEqual(response.status_code, 200)
+        device = Device.objects.get(name="test-deactivated")
+        self.assertFalse(device._is_deactivated)
+        self.assertTrue(device._has_config())
+        self.assertNotEqual(device.config.status, "deactivated")
+
+    def test_change_group_action_skips_deactivated_device(self):
+        path = reverse(f"admin:{self.app_label}_device_changelist")
+        org = self._get_org(org_name="default")
+        group = self._create_device_group(name="test-group", organization=org)
+        device = self._create_device(organization=org)
+        device.deactivate()
+        post_data = {
+            "_selected_action": [device.pk],
+            "action": "change_group",
+            "csrfmiddlewaretoken": "test",
+            "apply": True,
+            "device_group": group.pk,
+        }
+        response = self.client.post(path, post_data, follow=True)
+        self.assertEqual(response.status_code, 200)
+        device.refresh_from_db()
+        self.assertIsNone(device.group)
+
     def test_device_import_with_group_apply_templates(self):
         org = self._get_org(org_name="default")
         template = self._create_template(name="template")
@@ -743,9 +755,10 @@ class TestAdmin(
         dg2.templates.add(t2)
         data = self._get_device_params(org=org)
         data.update(group=str(dg1.pk))
-        with catch_signal(post_save) as mock_post_save, catch_signal(
-            device_group_changed
-        ) as device_group_changed_mock:
+        with (
+            catch_signal(post_save) as mock_post_save,
+            catch_signal(device_group_changed) as device_group_changed_mock,
+        ):
             self.client.post(
                 reverse(f"admin:{self.app_label}_device_add"), data, follow=True
             )
@@ -1144,6 +1157,8 @@ class TestAdmin(
     def test_download_device_config(self):
         d = self._create_device(name="download")
         self._create_config(device=d)
+        # use the hex (dashless) form to also cover the legacy UUID format
+        # accepted by the uuid_any path converter
         path = reverse(f"admin:{self.app_label}_device_download", args=[d.pk.hex])
         response = self.client.get(path)
         self.assertEqual(response.status_code, 200)
@@ -1153,7 +1168,7 @@ class TestAdmin(
         device = self._create_device(name="download")
         self._create_config(device=device)
         device.deactivate()
-        path = reverse(f"admin:{self.app_label}_device_download", args=[device.pk.hex])
+        path = reverse(f"admin:{self.app_label}_device_download", args=[device.pk])
         response = self.client.get(path)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get("content-type"), "application/octet-stream")
@@ -1162,6 +1177,24 @@ class TestAdmin(
         d = self._create_device(name="download")
         path = reverse(f"admin:{self.app_label}_device_download", args=[d.pk])
         response = self.client.get(path)
+        self.assertEqual(response.status_code, 404)
+
+    def test_change_view_404_malformed_url(self):
+        # regression test for #682: malformed admin URLs must return 404
+        # instead of raising NoReverseMatch (HTTP 500) in get_extra_context
+        malformed_suffix = (
+            "de8fa775-1134-47b6-adc5-2da3d0626c72/history/1564/"
+            "undefinedadmin/img/icon-deletelink.svg"
+        )
+        for model_name in ("device", "template", "vpn"):
+            with self.subTest(model=model_name):
+                url = f"/admin/{self.app_label}/{model_name}/{malformed_suffix}"
+                response = self.client.get(url, follow=True)
+                self.assertEqual(response.status_code, 404)
+
+    def test_context_view_404_malformed_url(self):
+        url = f"/admin/{self.app_label}/device/not-a-uuid/context.json"
+        response = self.client.get(url, follow=True)
         self.assertEqual(response.status_code, 404)
 
     @patch("openwisp_controller.config.settings.HARDWARE_ID_ENABLED", True)
@@ -1234,7 +1267,7 @@ class TestAdmin(
 
     def test_preview_device_config_empty_id(self):
         path = reverse(f"admin:{self.app_label}_device_preview")
-        config = json.dumps({"general": {"descripion": "id: {{ id }}"}})
+        config = json.dumps({"general": {"description": "id: {{ id }}"}})
         data = {
             "id": "",
             "name": "test-empty-id",
@@ -1574,11 +1607,14 @@ class TestAdmin(
         v = self._create_vpn()
         path = reverse(f"admin:{self.app_label}_vpn_download", args=[v.pk])
         # First request warms up the cache
-        with patch.object(
-            Vpn, "generate", return_value=v.generate()
-        ) as mocked_generate, patch.object(
-            Vpn, "get_cached_configuration", return_value=v.get_cached_configuration()
-        ) as mocked_get_cached_configuration:
+        with (
+            patch.object(Vpn, "generate", return_value=v.generate()) as mocked_generate,
+            patch.object(
+                Vpn,
+                "get_cached_configuration",
+                return_value=v.get_cached_configuration(),
+            ) as mocked_get_cached_configuration,
+        ):
             response = self.client.get(path)
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.get("content-type"), "application/octet-stream")
@@ -1586,11 +1622,14 @@ class TestAdmin(
             mocked_get_cached_configuration.assert_called_once()
 
         # Second request uses the cached config
-        with patch.object(
-            Vpn, "generate", return_value=v.generate()
-        ) as mocked_generate, patch.object(
-            Vpn, "get_cached_configuration", return_value=v.get_cached_configuration()
-        ) as mocked_get_cached_configuration:
+        with (
+            patch.object(Vpn, "generate", return_value=v.generate()) as mocked_generate,
+            patch.object(
+                Vpn,
+                "get_cached_configuration",
+                return_value=v.get_cached_configuration(),
+            ) as mocked_get_cached_configuration,
+        ):
             response = self.client.get(path)
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.get("content-type"), "application/octet-stream")
@@ -2781,6 +2820,135 @@ class TestTransactionAdmin(
                 self.assertEqual(template2.default_values["ifname"], "eth3")
                 mocked_signal.assert_called_once()
 
+    def test_delete_organization_with_active_device(self):
+        org = self._create_org(name="organization-delete", slug="organization-delete")
+        first_device = self._create_device(organization=org)
+        second_device = self._create_device(
+            name="second-device",
+            organization=org,
+            mac_address="00:11:22:33:44:56",
+        )
+        url = reverse(
+            f"admin:{org._meta.app_label}_{org._meta.model_name}_delete",
+            args=[org.pk],
+        )
+        warning = (
+            "This organization contains active devices. It is highly recommended "
+            "to deactivate them before deleting the organization to ensure "
+            "sensitive configuration data is disposed of safely."
+        )
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(
+            response, "your account doesn't have permission to delete"
+        )
+        self.assertContains(response, warning, count=1)
+        response = self.client.post(url, {"post": "yes"}, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(org.__class__.objects.filter(pk=org.pk).exists())
+        self.assertFalse(Device.objects.filter(pk=first_device.pk).exists())
+        self.assertFalse(Device.objects.filter(pk=second_device.pk).exists())
+
+    def test_delete_organization_with_deactivated_device(self):
+        org = self._create_org(name="organization-delete", slug="organization-delete")
+        device = self._create_device(organization=org)
+        device.deactivate()
+        url = reverse(
+            f"admin:{org._meta.app_label}_{org._meta.model_name}_delete",
+            args=[org.pk],
+        )
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "This organization contains active devices.")
+        response = self.client.post(url, {"post": "yes"}, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(org.__class__.objects.filter(pk=org.pk).exists())
+        self.assertFalse(Device.objects.filter(pk=device.pk).exists())
+
+    def test_delete_organizations_with_multiple_active_devices(self):
+        first_org = self._create_org(name="first-organization", slug="first-org")
+        second_org = self._create_org(name="second-organization", slug="second-org")
+        first_device = self._create_device(organization=first_org)
+        second_device = self._create_device(
+            name="second-device",
+            organization=second_org,
+            mac_address="00:11:22:33:44:56",
+        )
+        url = reverse(
+            f"admin:{first_org._meta.app_label}_{first_org._meta.model_name}_changelist"
+        )
+        data = {
+            "action": "delete_selected",
+            "_selected_action": [first_org.pk, second_org.pk],
+        }
+        warning = (
+            "2 organizations contain active devices. It is highly recommended to "
+            "deactivate them before deleting the organizations to ensure sensitive "
+            "configuration data is disposed of safely."
+        )
+        response = self.client.post(url, data)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, warning, count=1)
+        response = self.client.post(url, {**data, "post": "yes"}, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(first_org.__class__.objects.filter(pk=first_org.pk).exists())
+        self.assertFalse(second_org.__class__.objects.filter(pk=second_org.pk).exists())
+        self.assertFalse(Device.objects.filter(pk=first_device.pk).exists())
+        self.assertFalse(Device.objects.filter(pk=second_device.pk).exists())
+
+    def test_organization_delete_warning_uses_authorized_organizations(self):
+        first_org = self._create_org(name="first-organization", slug="first-org")
+        second_org = self._create_org(name="second-organization", slug="second-org")
+        first_device = self._create_device(organization=first_org)
+        self._create_device(
+            name="second-device",
+            organization=second_org,
+            mac_address="00:11:22:33:44:56",
+        )
+        user = self._create_operator(organizations=[first_org])
+        url = reverse(
+            f"admin:{first_org._meta.app_label}_{first_org._meta.model_name}_changelist"
+        )
+        request = RequestFactory().post(
+            url,
+            {
+                "action": "delete_selected",
+                "_selected_action": [first_org.pk, second_org.pk],
+            },
+        )
+        request.resolver_match = resolve(url)
+        request.user = user
+        device_admin = admin.site.get_model_admin(Device)
+        with patch.object(device_admin, "message_user") as message_user:
+            device_admin._add_active_device_delete_warning(request, first_device)
+        message = str(message_user.call_args.args[1])
+        self.assertIn("This organization contains active devices.", message)
+        self.assertNotIn("organizations contain active devices.", message)
+
+    def test_organization_delete_warning_is_checked_once(self):
+        org = self._create_org(name="organization-delete", slug="organization-delete")
+        first_device = self._create_device(organization=org)
+        second_device = self._create_device(
+            name="second-device",
+            organization=org,
+            mac_address="00:11:22:33:44:56",
+        )
+        first_device.deactivate()
+        second_device.deactivate()
+        url = reverse(
+            f"admin:{org._meta.app_label}_{org._meta.model_name}_delete",
+            args=[org.pk],
+        )
+        request = RequestFactory().get(url)
+        request.resolver_match = resolve(url)
+        device_admin = admin.site.get_model_admin(Device)
+        with patch.object(
+            Device.objects, "filter", wraps=Device.objects.filter
+        ) as filter_:
+            device_admin._add_active_device_delete_warning(request, first_device)
+            device_admin._add_active_device_delete_warning(request, second_device)
+        self.assertEqual(filter_.call_count, 1)
+
 
 class TestDeviceGroupAdmin(
     CreateDeviceGroupMixin,
@@ -3017,6 +3185,26 @@ class TestDeviceGroupAdminTransaction(
                 response = self.client.post(path, data, follow=True)
                 self.assertEqual(response.status_code, 200)
                 self.assertEqual(len(mocked.call_args_list), 2)
+
+        with self.subTest("Change group skips deactivated devices in signals"):
+            device3 = self._create_device(
+                organization=org1,
+                group=dg1,
+                name="default.test.device3",
+                mac_address="AA:BB:CC:DD:EE:01",
+            )
+            device3.deactivate()
+            data = post_data.copy()
+            data["_selected_action"] = [device1.pk, device3.pk]
+            data["device_group"] = str(dg2.pk)
+            with patch.object(Device, "_send_device_group_changed_signal") as mocked:
+                response = self.client.post(path, data, follow=True)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(len(mocked.call_args_list), 1)
+            device1.refresh_from_db()
+            device3.refresh_from_db()
+            self.assertEqual(device1.group_id, dg2.id)
+            self.assertEqual(device3.group_id, dg1.id)
 
         device2.organization = org2
         device2.save()

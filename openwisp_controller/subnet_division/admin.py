@@ -28,7 +28,7 @@ class SubnetDivisionRuleInlineAdmin(
     help_text = {
         "text": _(
             "Please keep in mind that once the subnet division rule is created "
-            'changing changing "Size", "Number of Subnets" or decreasing '
+            'changing "Size", "Number of Subnets" or decreasing '
             '"Number of IPs" will not be possible.'
         ),
         "documentation_url": (

@@ -4,7 +4,7 @@ from django.db.models import F, Q
 from django.http import Http404
 from django.urls.base import reverse
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import pagination, serializers, status
+from rest_framework import serializers, status
 from rest_framework.generics import (
     GenericAPIView,
     ListCreateAPIView,
@@ -15,6 +15,7 @@ from rest_framework.response import Response
 from swapper import load_model
 
 from openwisp_users.api.permissions import DjangoModelPermissions
+from openwisp_utils.api.pagination import OpenWispPagination
 
 from ...mixins import ProtectedAPIMixin
 from .filters import (
@@ -29,6 +30,7 @@ from .serializers import (
     DeviceGroupSerializer,
     DeviceListSerializer,
     TemplateSerializer,
+    VpnListSerializer,
     VpnSerializer,
 )
 
@@ -39,19 +41,12 @@ DeviceGroup = load_model("config", "DeviceGroup")
 Config = load_model("config", "Config")
 VpnClient = load_model("config", "VpnClient")
 Cert = load_model("django_x509", "Cert")
-Organization = load_model("openwisp_users", "Organization")
-
-
-class ListViewPagination(pagination.PageNumberPagination):
-    page_size = 10
-    page_size_query_param = "page_size"
-    max_page_size = 100
 
 
 class TemplateListCreateView(ProtectedAPIMixin, ListCreateAPIView):
     serializer_class = TemplateSerializer
     queryset = Template.objects.prefetch_related("tags").order_by("-created")
-    pagination_class = ListViewPagination
+    pagination_class = OpenWispPagination
     filter_backends = [DjangoFilterBackend]
     filterset_class = TemplateListFilter
 
@@ -63,10 +58,15 @@ class TemplateDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
 
 class VpnListCreateView(ProtectedAPIMixin, ListCreateAPIView):
     serializer_class = VpnSerializer
-    queryset = Vpn.objects.select_related("subnet").order_by("-created")
-    pagination_class = ListViewPagination
+    queryset = Vpn.objects.order_by("-created")
+    pagination_class = OpenWispPagination
     filter_backends = [DjangoFilterBackend]
     filterset_class = VPNListFilter
+
+    def get_serializer_class(self):
+        if self.request.method == "GET":
+            return VpnListSerializer
+        return super().get_serializer_class()
 
 
 class VpnDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
@@ -92,7 +92,7 @@ class DeviceListCreateView(ProtectedAPIMixin, ListCreateAPIView):
     queryset = Device.objects.select_related(
         "config", "group", "organization", "devicelocation"
     ).order_by("-created")
-    pagination_class = ListViewPagination
+    pagination_class = OpenWispPagination
     filter_backends = [DeviceListFilterBackend]
     filterset_class = DeviceListFilter
 
@@ -153,7 +153,7 @@ class DeviceDeactivateView(ProtectedAPIMixin, GenericAPIView):
 class DeviceGroupListCreateView(ProtectedAPIMixin, ListCreateAPIView):
     serializer_class = DeviceGroupSerializer
     queryset = DeviceGroup.objects.prefetch_related("templates").order_by("-created")
-    pagination_class = ListViewPagination
+    pagination_class = OpenWispPagination
     filter_backends = [DjangoFilterBackend]
     filterset_class = DeviceGroupListFilter
 
@@ -279,14 +279,12 @@ class DeviceGroupCommonName(ProtectedAPIMixin, RetrieveAPIView):
         cls._invalidate_from_queryset(qs)
 
     @classmethod
-    def certificate_delete_invalidates_cache(cls, organization_id, common_name):
-        try:
-            assert common_name
-            org_slug = Organization.objects.only("slug").get(id=organization_id).slug
-        except (AssertionError, Organization.DoesNotExist):
+    def certificate_delete_invalidates_cache(cls, common_name, organization_slug=None):
+        if not common_name:
             return
         cls.get_device_group.invalidate(cls, "", common_name)
-        cls.get_device_group.invalidate(cls, org_slug, common_name)
+        if organization_slug:
+            cls.get_device_group.invalidate(cls, organization_slug, common_name)
 
 
 template_list = TemplateListCreateView.as_view()

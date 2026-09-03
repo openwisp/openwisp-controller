@@ -37,7 +37,7 @@ def get_api_urls(api_views):
         ),
         path(
             "api/v1/controller/device/<uuid:device_id>/connection/<uuid:pk>/",
-            api_views.deviceconnection_details_view,
+            api_views.deviceconnection_detail_view,
             name="deviceconnection_detail",
         ),
     ]

@@ -79,16 +79,36 @@ class BaseSubnetDivisionRuleType(object):
     def destroyer_receiver(cls, instance, **kwargs):
         cls.destroy_provisioned_subnets_ips(instance, **kwargs)
 
-    @staticmethod
-    def post_provision_handler(instance, provisioned, **kwargs):
+    @classmethod
+    def post_provision_handler(cls, instance, provisioned, **kwargs):
         """
-        This method should be overridden in inherited rule types to
-        perform any operation on provisioned subnets and IP addresses.
-        :param instance: object that triggered provisioning
-        :param provisioned: dictionary containing subnets and IP addresses
-            provisioned, None if nothing is provisioned
+        Hook for post-provisioning actions on subnets and IP addresses.
+
+        This method is intended to be extended by subclasses of rule types
+        to perform custom operations after subnets and IPs are provisioned.
+
+        Subnet provisioning is executed asynchronously in Celery workers.
+        If the device configuration references variables provided by the
+        subnet division rule, the current checksum may have been computed
+        using variable names instead of their provisioned values. In such cases,
+        `Config.checksum_db` (which tracks persisted configuration changes)
+        must be updated to reflect the actual provisioned values, and the
+        checksum cache invalidated to avoid stale data.
+
+        :param instance: The object that triggered the provisioning.
+        :param provisioned: Dictionary containing provisioned subnets and IPs,
+            or None if no provisioning occurred.
         """
-        pass
+        if not provisioned:
+            return
+        config = cls.get_config(instance)
+        config._invalidate_backend_instance_cache()
+        current_checksum = config.checksum
+        if current_checksum != config.checksum_db:
+            # Update checksum using the UPDATE query to avoid sending
+            # unnecessary signals that may be triggered by `save()` method.
+            config._update_checksum_db(current_checksum)
+            config.invalidate_checksum_cache()
 
     @staticmethod
     def subnet_provisioned_signal_emitter(instance, provisioned):
@@ -157,7 +177,7 @@ class BaseSubnetDivisionRuleType(object):
         # check for real existence in DB to workaround
         # this django-import-export bug:
         # https://github.com/django-import-export/django-import-export/issues/1078
-        # TODO: if that issue is ever solved, we can remove the this block below
+        # TODO: if that issue is ever solved, we can remove this block below
         Config = config._meta.model
         if not Config.objects.filter(pk=config.pk).exists():
             raise ObjectDoesNotExist()
@@ -200,10 +220,18 @@ class BaseSubnetDivisionRuleType(object):
     @staticmethod
     def create_subnets(config, division_rule, max_subnet, generated_indexes):
         master_subnet = division_rule.master_subnet
+        # IPAM forbids an address from being assigned more than once in a subnet
+        # hierarchy, including the master subnet and its child subnets.
+        allocated_ips = set(
+            IpAddress.objects.filter(
+                subnet_id__in=master_subnet.get_related_subnet_pks()
+            ).values_list("ip_address", flat=True)
+        )
         required_subnet = IPNetwork(str(max_subnet)).next()
         generated_subnets = []
 
-        for subnet_id in range(1, division_rule.number_of_subnets + 1):
+        while len(generated_subnets) < division_rule.number_of_subnets:
+            subnet_id = len(generated_subnets) + 1
             if not ip_network(str(required_subnet)).subnet_of(master_subnet.subnet):
                 notify.send(
                     sender=config,
@@ -222,6 +250,16 @@ class BaseSubnetDivisionRuleType(object):
                 )
                 logger.info(f"Cannot create more subnets of {master_subnet}")
                 break
+            # Avoid a child subnet when its provisioned addresses would conflict
+            # with an existing assignment in the related hierarchy.
+            if any(
+                str(required_subnet[ip_index]) in allocated_ips
+                for ip_index in BaseSubnetDivisionRuleType.get_ip_indexes(
+                    required_subnet, division_rule.number_of_ips
+                )
+            ):
+                required_subnet = required_subnet.next()
+                continue
             subnet_obj = Subnet(
                 name=f"{division_rule.label}_subnet{subnet_id}",
                 subnet=str(required_subnet),
@@ -246,23 +284,25 @@ class BaseSubnetDivisionRuleType(object):
         return generated_subnets
 
     @staticmethod
+    def get_ip_indexes(subnet, number_of_ips):
+        number_of_addresses = (
+            subnet.num_addresses if hasattr(subnet, "num_addresses") else subnet.size
+        )
+        # Reserve the first address unless the rule consumes the entire subnet,
+        # which is necessary for /32 and /128 subnets.
+        if number_of_addresses != number_of_ips:
+            return range(1, number_of_ips + 1)
+        return range(number_of_ips)
+
+    @staticmethod
     def create_ips(config, division_rule, generated_subnets, generated_indexes):
         generated_ips = []
         for subnet_obj in generated_subnets:
-            # don't assign first ip address of a subnet,
-            # unless the rule is designed to use the whole
-            # address space of the subnet
-            if subnet_obj.subnet.num_addresses != division_rule.number_of_ips:
-                index_start = 1
-                index_end = division_rule.number_of_ips + 1
-            # this allows handling /32, /128 or cases in which
-            # the number of requested ip addresses matches exactly
-            # what is available in the subnet
-            else:
-                index_start = 0
-                index_end = division_rule.number_of_ips
             # generate IPs and indexes accordingly
-            for ip_index in range(index_start, index_end):
+            ip_indexes = BaseSubnetDivisionRuleType.get_ip_indexes(
+                subnet_obj.subnet, division_rule.number_of_ips
+            )
+            for ip_index in ip_indexes:
                 ip_obj = IpAddress(
                     subnet_id=subnet_obj.id,
                     ip_address=str(subnet_obj.subnet[ip_index]),
@@ -270,7 +310,7 @@ class BaseSubnetDivisionRuleType(object):
                 ip_obj.full_clean()
                 generated_ips.append(ip_obj)
                 # ensure human friendly labels (starting from 1 instead of 0)
-                keyword_index = ip_index if index_start == 1 else ip_index + 1
+                keyword_index = ip_index if ip_indexes.start == 1 else ip_index + 1
                 generated_indexes.append(
                     SubnetDivisionIndex(
                         keyword=f"{subnet_obj.name}_ip{keyword_index}",

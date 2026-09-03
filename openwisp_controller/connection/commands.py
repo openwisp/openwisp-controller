@@ -58,7 +58,7 @@ DEFAULT_COMMANDS = OrderedDict(
                             "title": _("Confirm Password"),
                         },
                     },
-                    "message": _("Your password must be atleast 6 characters long"),
+                    "message": _("Your password must be at least 6 characters long"),
                     "additionalProperties": False,
                     "definitions": {
                         "password_regex": {

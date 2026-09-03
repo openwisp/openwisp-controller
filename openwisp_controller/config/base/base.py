@@ -1,4 +1,3 @@
-import collections
 import hashlib
 import json
 import logging
@@ -6,11 +5,12 @@ from copy import deepcopy
 
 from cache_memoize import cache_memoize
 from django.core.exceptions import ValidationError
+from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
+from django.db.models import JSONField
 from django.utils.functional import cached_property
 from django.utils.module_loading import import_string
 from django.utils.translation import gettext_lazy as _
-from jsonfield import JSONField
 from netjsonconfig.exceptions import ValidationError as SchemaError
 
 from openwisp_utils.base import TimeStampedEditableModel
@@ -126,8 +126,7 @@ class BaseConfig(BaseModel):
         _("configuration"),
         default=dict,
         help_text=_("configuration in NetJSON DeviceConfiguration format"),
-        load_kwargs={"object_pairs_hook": collections.OrderedDict},
-        dump_kwargs={"indent": 4},
+        encoder=DjangoJSONEncoder,
     )
 
     __template__ = False

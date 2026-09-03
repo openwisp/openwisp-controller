@@ -15,12 +15,14 @@ from django.core.exceptions import (
     ObjectDoesNotExist,
     ValidationError,
 )
+from django.db import models
+from django.db.models.functions import Cast
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.http.response import HttpResponseForbidden
 from django.shortcuts import get_object_or_404
 from django.template.loader import get_template
 from django.template.response import TemplateResponse
-from django.urls import path, re_path, reverse
+from django.urls import NoReverseMatch, path, reverse
 from django.utils.html import format_html, mark_safe
 from django.utils.translation import gettext_lazy as _
 from django.utils.translation import ngettext_lazy
@@ -36,8 +38,9 @@ from openwisp_users.admin import OrganizationAdmin
 from openwisp_users.multitenancy import MultitenantOrgFilter
 from openwisp_utils.admin import (
     AlwaysHasChangedMixin,
+    BlockDeleteAllowCascadeMixin,
+    CopyableFieldsAdmin,
     TimeReadonlyAdminMixin,
-    UUIDAdmin,
 )
 
 from ..admin import MultitenantAdminMixin
@@ -113,7 +116,7 @@ class BaseConfigAdmin(BaseAdmin):
 
     class Media:
         css = {"all": (f"{prefix}css/admin.css",)}
-        js = list(UUIDAdmin.Media.js) + [
+        js = list(CopyableFieldsAdmin.Media.js) + [
             f"{prefix}js/{file_}"
             for file_ in ("preview.js", "unsaved_changes.js", "switcher.js")
         ]
@@ -139,16 +142,15 @@ class BaseConfigAdmin(BaseAdmin):
         if not issubclass(self.model, AbstractVpn):
             ctx["CONFIG_BACKEND_FIELD_SHOWN"] = app_settings.CONFIG_BACKEND_FIELD_SHOWN
         if pk:
-            ctx["download_url"] = reverse("{0}_download".format(prefix), args=[pk])
             try:
+                download_url = reverse("{0}_download".format(prefix), args=[pk])
                 has_config = True
                 if self.model.__name__ == "Device":
                     has_config = self.model.objects.get(pk=pk)._has_config()
-            except (ObjectDoesNotExist, ValidationError):
+            except (ObjectDoesNotExist, ValidationError, NoReverseMatch):
                 raise Http404()
             else:
-                if not has_config:
-                    ctx["download_url"] = None
+                ctx["download_url"] = download_url if has_config else None
         return ctx
 
     def add_view(self, request, form_url="", extra_context=None):
@@ -169,8 +171,8 @@ class BaseConfigAdmin(BaseAdmin):
         options = getattr(self.model, "_meta")
         url_prefix = "{0}_{1}".format(options.app_label, options.model_name)
         return [
-            re_path(
-                r"^download/(?P<pk>[^/]+)/$",
+            path(
+                "download/<uuid_any:pk>/",
                 self.admin_site.admin_view(self.download_view),
                 name="{0}_download".format(url_prefix),
             ),
@@ -179,8 +181,8 @@ class BaseConfigAdmin(BaseAdmin):
                 self.admin_site.admin_view(self.preview_view),
                 name="{0}_preview".format(url_prefix),
             ),
-            re_path(
-                r"^(?P<pk>[^/]+)/context\.json$",
+            path(
+                "<uuid_any:pk>/context.json",
                 self.admin_site.admin_view(self.context_view),
                 name="{0}_context".format(url_prefix),
             ),
@@ -217,6 +219,15 @@ class BaseConfigAdmin(BaseAdmin):
                 key = "{relation}_id".format(relation=key)
                 # pass non-empty string or None
                 kwargs[key] = value or None
+            # parse JSON strings for JSONField fields
+            elif isinstance(field, models.JSONField) and isinstance(value, str):
+                if not value:
+                    kwargs[key] = None
+                else:
+                    try:
+                        kwargs[key] = json.loads(value)
+                    except json.JSONDecodeError:
+                        kwargs[key] = value
             # put regular field values in kwargs dict
             else:
                 kwargs[key] = value
@@ -500,11 +511,12 @@ class ChangeDeviceGroupForm(forms.Form):
         )
 
 
-class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
+class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, CopyableFieldsAdmin):
     change_form_template = "admin/config/device/change_form.html"
     delete_selected_confirmation_template = (
         "admin/config/device/delete_selected_confirmation.html"
     )
+    delete_confirmation_template = "admin/config/device/delete_confirmation.html"
     list_display = [
         "name",
         "backend",
@@ -550,6 +562,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         "created",
         "modified",
     ]
+    copyable_fields = ["uuid"]
     inlines = [ConfigInline]
     conditional_inlines = []
     actions = [
@@ -597,7 +610,69 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
         perm = super().has_delete_permission(request)
         if not obj:
             return perm
+        if BlockDeleteAllowCascadeMixin.is_admin_cascade_delete_request(self, request):
+            self._add_active_device_delete_warning(request, obj)
+            return perm
         return perm and obj.is_deactivated()
+
+    def _add_active_device_delete_warning(self, request, obj):
+        if getattr(request, "_active_device_delete_warning_checked", False):
+            return
+        resolver_match = getattr(request, "resolver_match", None)
+        url_name = getattr(resolver_match, "url_name", None)
+        opts = Organization._meta
+        organization_delete_url_name = f"{opts.app_label}_{opts.model_name}_delete"
+        organization_changelist_url_name = (
+            f"{opts.app_label}_{opts.model_name}_changelist"
+        )
+        active_organizations = 0
+        if request.method == "GET" and url_name == organization_delete_url_name:
+            request._active_device_delete_warning_checked = True
+            active_organizations = (
+                Device.objects.filter(
+                    organization_id=obj.organization_id,
+                    _is_deactivated=False,
+                )
+                .values("organization_id")
+                .distinct()
+                .count()
+            )
+        elif (
+            url_name == organization_changelist_url_name
+            and request.POST.get("action") == "delete_selected"
+            and not request.POST.get("post")
+        ):
+            request._active_device_delete_warning_checked = True
+            organizations = self.admin_site.get_model_admin(Organization).get_queryset(
+                request
+            )
+            active_organizations = (
+                Device.objects.filter(
+                    organization_id__in=organizations.filter(
+                        pk__in=request.POST.getlist(helpers.ACTION_CHECKBOX_NAME)
+                    ),
+                    _is_deactivated=False,
+                )
+                .values("organization_id")
+                .distinct()
+                .count()
+            )
+        if not active_organizations:
+            return
+        self.message_user(
+            request,
+            ngettext_lazy(
+                "This organization contains active devices. It is highly "
+                "recommended to deactivate them before deleting the organization "
+                "to ensure sensitive configuration data is disposed of safely.",
+                "%(count)d organizations contain active devices. It is highly "
+                "recommended to deactivate them before deleting the organizations "
+                "to ensure sensitive configuration data is disposed of safely.",
+                active_organizations,
+            )
+            % {"count": active_organizations},
+            messages.WARNING,
+        )
 
     def save_form(self, request, form, change):
         self._state_adding = form.instance._state.adding
@@ -667,6 +742,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
             form = ChangeDeviceGroupForm(data=request.POST, org_id=org_id)
             if form.is_valid():
                 group = form.cleaned_data["device_group"]
+                queryset = queryset.filter(_is_deactivated=False)
                 # Evaluate queryset to store old group id
                 old_group_qs = list(queryset)
                 queryset.update(group=group or None)
@@ -694,8 +770,7 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin):
             "action_checkbox_name": helpers.ACTION_CHECKBOX_NAME,
             "opts": self.model._meta,
             "changelist_url": (
-                f"{request.resolver_match.app_name}:"
-                f"{request.resolver_match.url_name}"
+                f"{request.resolver_match.app_name}:{request.resolver_match.url_name}"
             ),
         }
 
@@ -1061,7 +1136,7 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin, SystemDefinedVariabl
         "required",
         "created",
     ]
-    search_fields = ["name"]
+    search_fields = ["name", "notes"]
     multitenant_shared_relations = ("vpn",)
     fields = [
         "name",
@@ -1073,6 +1148,7 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin, SystemDefinedVariabl
         "tags",
         "default",
         "required",
+        "notes",
         "system_context",
         "default_values",
         "config",
@@ -1104,8 +1180,7 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin, SystemDefinedVariabl
                     validated_org = Organization.objects.get(pk=organization)
                 except (ValidationError, Organization.DoesNotExist) as e:
                     logger.warning(
-                        "Detected tampering in clone template "
-                        f"form by user {user}: {e}"
+                        f"Detected tampering in clone template form by user {user}: {e}"
                     )
                     return
                 if not user.is_superuser and not user.is_manager(organization):
@@ -1217,7 +1292,10 @@ class VpnForm(forms.ModelForm):
 
 
 class VpnAdmin(
-    MultitenantAdminMixin, BaseConfigAdmin, UUIDAdmin, SystemDefinedVariableMixin
+    MultitenantAdminMixin,
+    BaseConfigAdmin,
+    CopyableFieldsAdmin,
+    SystemDefinedVariableMixin,
 ):
     form = VpnForm
     list_display = [
@@ -1238,6 +1316,7 @@ class VpnAdmin(
     ]
     search_fields = ["id", "name", "host", "key"]
     readonly_fields = ["id", "uuid", "system_context"]
+    copyable_fields = ["uuid"]
     multitenant_shared_relations = ("ca", "cert", "subnet")
     autocomplete_fields = ["ip", "subnet"]
     fields = [
@@ -1308,12 +1387,19 @@ class DeviceGroupAdmin(MultitenantAdminMixin, BaseAdmin):
         "created",
         "modified",
     ]
-    search_fields = ["name", "description", "meta_data"]
+    search_fields = ["name", "description", "_meta_data_text"]
     list_filter = [MultitenantOrgFilter, DeviceGroupFilter]
     multitenant_shared_relations = ("templates",)
 
+    def get_search_results(self, request, queryset, search_term):
+        if search_term:
+            queryset = queryset.annotate(
+                _meta_data_text=Cast("meta_data", output_field=models.TextField()),
+            )
+        return super().get_search_results(request, queryset, search_term)
+
     class Media:
-        js = list(UUIDAdmin.Media.js) + [
+        js = list(CopyableFieldsAdmin.Media.js) + [
             f"{prefix}js/relevant_templates.js",
         ]
         css = {"all": (f"{prefix}css/admin.css",)}
@@ -1393,7 +1479,7 @@ class ConfigSettingsInline(admin.StackedInline):
         if app_settings.REGISTRATION_ENABLED:
             fields += ["registration_enabled", "shared_secret"]
         if app_settings.WHOIS_CONFIGURED:
-            fields += ["whois_enabled", "estimated_location_enabled"]
+            fields += ["whois_enabled"]
         fields += ["context"]
         return fields
 

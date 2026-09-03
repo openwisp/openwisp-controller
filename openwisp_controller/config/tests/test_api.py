@@ -2,6 +2,8 @@ from datetime import timedelta
 from unittest.mock import patch
 
 from django.contrib.auth.models import Permission
+from django.core.cache import cache
+from django.http.response import Http404
 from django.test import TestCase
 from django.test.client import BOUNDARY, MULTIPART_CONTENT, encode_multipart
 from django.test.testcases import TransactionTestCase
@@ -15,6 +17,7 @@ from openwisp_users.tests.test_api import AuthenticationMixin
 from openwisp_utils.tests import capture_any_output, catch_signal
 
 from .. import settings as app_settings
+from ..controller.views import DeviceChecksumView, VpnChecksumView
 from ..signals import group_templates_changed
 from .utils import (
     CreateConfigTemplateMixin,
@@ -29,8 +32,6 @@ VpnClient = load_model("config", "VpnClient")
 Device = load_model("config", "Device")
 Config = load_model("config", "Config")
 DeviceGroup = load_model("config", "DeviceGroup")
-DeviceLocation = load_model("geo", "DeviceLocation")
-Location = load_model("geo", "Location")
 OrganizationUser = load_model("openwisp_users", "OrganizationUser")
 
 
@@ -430,8 +431,8 @@ class TestConfigApi(
                 "backend": "netjsonconfig.OpenWisp",
                 "status": "modified",
                 "templates": [],
-                "context": "{}",
-                "config": "{}",
+                "context": {},
+                "config": {},
             },
         }
         r = self.client.put(path, data, content_type="application/json")
@@ -661,10 +662,12 @@ class TestConfigApi(
         data = self._template_data
         data["organization"] = org.pk
         data["required"] = True
+        data["notes"] = "internal template notes"
         r = self.client.post(path, data, content_type="application/json")
         self.assertEqual(Template.objects.count(), initial_count + 1)
         self.assertEqual(r.status_code, 201)
         self.assertEqual(r.data["organization"], org.pk)
+        self.assertEqual(r.data["notes"], "internal template notes")
 
     def test_template_create_of_vpn_type(self):
         org = self._get_org()
@@ -740,7 +743,7 @@ class TestConfigApi(
             self.assertEqual(response.status_code, 200)
             data = response.data
             self.assertEqual(data["count"], 1)
-            self.assertEqual(len(data["results"][0]), 13)
+            self.assertEqual(len(data["results"][0]), 14)
             self.assertEqual(data["results"][0]["id"], str(template.pk))
             self.assertEqual(data["results"][0]["name"], str(template.name))
             self.assertEqual(
@@ -750,6 +753,7 @@ class TestConfigApi(
             self.assertEqual(data["results"][0]["backend"], template.backend)
             self.assertEqual(data["results"][0]["default"], template.default)
             self.assertEqual(data["results"][0]["required"], template.required)
+            self.assertEqual(data["results"][0]["notes"], template.notes)
             if template.vpn:
                 self.assertEqual(data["results"][0]["vpn"], template.vpn.pk)
 
@@ -836,10 +840,11 @@ class TestConfigApi(
     def test_template_patch_api(self):
         t1 = self._create_template(name="t1")
         path = reverse("config_api:template_detail", args=[t1.pk])
-        data = dict(name="New t1")
+        data = dict(name="New t1", notes="updated template notes")
         r = self.client.patch(path, data, content_type="application/json")
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data["name"], "New t1")
+        self.assertEqual(r.data["notes"], "updated template notes")
 
     def test_template_download_api(self):
         t1 = self._create_template(name="t1")
@@ -862,9 +867,13 @@ class TestConfigApi(
         ca1 = self._create_ca()
         data = self._vpn_data
         data["ca"] = ca1.pk
+        data["webhook_endpoint"] = "https://vpn.testing.com/webhook"
+        data["auth_token"] = "test-auth-token"
         r = self.client.post(path, data, content_type="application/json")
         self.assertEqual(r.status_code, 201)
         self.assertEqual(Vpn.objects.count(), 1)
+        self.assertEqual(r.data["webhook_endpoint"], data["webhook_endpoint"])
+        self.assertEqual(r.data["auth_token"], data["auth_token"])
 
     def test_vpn_create_with_shared_objects(self):
         org1 = self._get_org()
@@ -882,11 +891,27 @@ class TestConfigApi(
 
     def test_vpn_list_api(self):
         org = self._get_org()
-        self._create_vpn(organization=org)
+        vpn = self._create_wireguard_vpn(organization=org)
+        vpn.webhook_endpoint = "https://vpn.testing.com/webhook"
+        vpn.auth_token = "test-auth-token"
+        vpn.save()
+        self._create_wireguard_vpn(
+            name="second-vpn",
+            organization=org,
+            subnet=vpn.subnet,
+        )
         path = reverse("config_api:vpn_list")
         with self.assertNumQueries(3):
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.data["count"], 2)
+        result = next(
+            result for result in r.data["results"] if result["id"] == str(vpn.pk)
+        )
+        self.assertEqual(result["subnet"], vpn.subnet.pk)
+        self.assertEqual(result["ip"], vpn.ip.pk)
+        self.assertNotIn("webhook_endpoint", result)
+        self.assertNotIn("auth_token", result)
 
     def test_vpn_list_api_filter(self):
         org1 = self._create_org()
@@ -899,10 +924,12 @@ class TestConfigApi(
             self.assertEqual(response.status_code, 200)
             data = response.data
             self.assertEqual(data["count"], 1)
-            self.assertEqual(len(data["results"][0]), 13)
+            self.assertEqual(len(data["results"][0]), 15)
             self.assertEqual(data["results"][0]["id"], str(vpn.pk))
             self.assertEqual(data["results"][0]["name"], str(vpn.name))
             self.assertEqual(data["results"][0]["organization"], vpn.organization.pk)
+            self.assertEqual(data["results"][0]["subnet"], vpn.subnet_id)
+            self.assertEqual(data["results"][0]["ip"], vpn.ip_id)
 
         with self.subTest("Test filtering using VPN backend"):
             r1 = self.client.get(
@@ -954,12 +981,20 @@ class TestConfigApi(
     # VPN detail having Org
     def test_vpn_detail_with_org_api(self):
         org = self._get_org()
-        vpn1 = self._create_vpn(name="test-vpn", organization=org)
+        vpn1 = self._create_wireguard_vpn(name="test-vpn", organization=org)
+        vpn1.webhook_endpoint = "https://vpn.testing.com/webhook"
+        vpn1.auth_token = "test-auth-token"
+        vpn1.full_clean()
+        vpn1.save()
         path = reverse("config_api:vpn_detail", args=[vpn1.pk])
         with self.assertNumQueries(2):
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data["organization"], org.pk)
+        self.assertEqual(r.data["subnet"], vpn1.subnet.pk)
+        self.assertEqual(r.data["ip"], vpn1.ip.pk)
+        self.assertEqual(r.data["webhook_endpoint"], vpn1.webhook_endpoint)
+        self.assertEqual(r.data["auth_token"], vpn1.auth_token)
 
     def test_vpn_put_api(self):
         vpn1 = self._create_vpn(name="test-vpn")
@@ -972,6 +1007,8 @@ class TestConfigApi(
             "organization": org.pk,
             "ca": ca1.pk,
             "backend": vpn1.backend,
+            "webhook_endpoint": "https://vpn1.changetest.com/webhook",
+            "auth_token": "test-auth-token",
             "config": vpn1.config,
         }
         r = self.client.put(path, data, content_type="application/json")
@@ -979,14 +1016,21 @@ class TestConfigApi(
         self.assertEqual(r.data["name"], "change-test-vpn")
         self.assertEqual(r.data["ca"], ca1.pk)
         self.assertEqual(r.data["organization"], org.pk)
+        self.assertEqual(r.data["webhook_endpoint"], data["webhook_endpoint"])
+        self.assertEqual(r.data["auth_token"], data["auth_token"])
 
     def test_vpn_patch_api(self):
-        vpn1 = self._create_vpn(name="test-vpn")
+        vpn1 = self._create_wireguard_vpn(name="test-vpn")
+        original_ip = vpn1.ip
+        other_ip = vpn1.subnet.request_ip()
         path = reverse("config_api:vpn_detail", args=[vpn1.pk])
-        data = dict(name="test-vpn-change")
+        data = dict(name="test-vpn-change", ip=other_ip.pk)
         r = self.client.patch(path, data, content_type="application/json")
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data["name"], "test-vpn-change")
+        vpn1.refresh_from_db()
+        self.assertEqual(vpn1.ip, original_ip)
+        self.assertEqual(r.data["ip"], original_ip.pk)
 
     def test_vpn_download_api(self):
         vpn1 = self._create_vpn(name="test-vpn")
@@ -1344,6 +1388,16 @@ class TestConfigApiTransaction(
         super().setUp()
         self._login()
 
+    def test_session_survives_default_cache_clear(self):
+        # The authenticated session must live in a cache separate from the
+        # default one: tests (e.g. whois) call cache.clear() on the default
+        # cache and parallel workers share it, so storing sessions there made
+        # the session disappear mid-test and produced flaky 401 responses.
+        path = reverse("config_api:device_list")
+        self.assertEqual(self.client.get(path).status_code, 200)
+        cache.clear()
+        self.assertEqual(self.client.get(path).status_code, 200)
+
     def _get_devicegroup_org_cert(self):
         org = self._get_org()
         device_group = self._create_device_group(organization=org)
@@ -1473,6 +1527,32 @@ class TestConfigApiTransaction(
         VpnClient.objects.filter(cert=cert).delete()
         response = self.client.get(path, data={"org": org.slug})
         self.assertEqual(response.status_code, 404)
+
+    def test_device_and_vpn_view_cache_invalidate_on_organization_delete(self):
+        """
+        Regression test for the Device and Vpn delete CacheDependency
+        declarations (``ConfigConfig.connect_cache_dependencies`` and
+        ``Vpn.get_cache_dependencies``): both are deferred to commit
+        (``post_delete`` + default ``on_commit=True``) and must keep working
+        when triggered as part of a larger Organization cascade delete, where
+        Django clears each deleted instance's pk before the on_commit
+        callback runs.
+        """
+        _, org, _ = self._get_devicegroup_org_cert()
+        device = Device.objects.get(organization=org)
+        vpn = Vpn.objects.get(organization=org)
+        device_view = DeviceChecksumView()
+        device_view.kwargs = {"pk": str(device.pk)}
+        self.assertEqual(device_view.get_device(), device)
+        vpn_view = VpnChecksumView()
+        vpn_view.kwargs = {"pk": str(vpn.pk)}
+        self.assertEqual(vpn_view.get_vpn(), vpn)
+
+        org.delete()
+        with self.assertRaises(Http404):
+            device_view.get_device()
+        with self.assertRaises(Http404):
+            vpn_view.get_vpn()
 
     def test_devicegroup_templates_change(self):
         org = self._get_org()

@@ -1,6 +1,6 @@
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
-from rest_framework import pagination, serializers
+from rest_framework import serializers
 from rest_framework.generics import (
     GenericAPIView,
     ListCreateAPIView,
@@ -9,6 +9,8 @@ from rest_framework.generics import (
 )
 from rest_framework.response import Response
 from swapper import load_model
+
+from openwisp_utils.api.pagination import OpenWispPagination
 
 from ...mixins import ProtectedAPIMixin
 from .serializers import (
@@ -24,16 +26,10 @@ Ca = load_model("django_x509", "Ca")
 Cert = load_model("django_x509", "Cert")
 
 
-class ListViewPagination(pagination.PageNumberPagination):
-    page_size = 10
-    page_size_query_param = "page_size"
-    max_page_size = 100
-
-
 class CaListCreateView(ProtectedAPIMixin, ListCreateAPIView):
     serializer_class = CaListSerializer
     queryset = Ca.objects.order_by("-created")
-    pagination_class = ListViewPagination
+    pagination_class = OpenWispPagination
 
 
 class CaDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
@@ -69,7 +65,7 @@ class CrlDownloadView(ProtectedAPIMixin, RetrieveAPIView):
 class CertListCreateView(ProtectedAPIMixin, ListCreateAPIView):
     serializer_class = CertListSerializer
     queryset = Cert.objects.order_by("-created")
-    pagination_class = ListViewPagination
+    pagination_class = OpenWispPagination
 
 
 class CertDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):

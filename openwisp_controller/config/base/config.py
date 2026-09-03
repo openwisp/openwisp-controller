@@ -6,9 +6,10 @@ from collections import defaultdict
 from cache_memoize import cache_memoize
 from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
+from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models, transaction
+from django.db.models import JSONField
 from django.utils.translation import gettext_lazy as _
-from jsonfield import JSONField
 from model_utils import Choices
 from model_utils.fields import StatusField
 from netjsonconfig import OpenWrt
@@ -26,6 +27,7 @@ from ..signals import (
 from ..sortedm2m.fields import SortedManyToManyField
 from ..utils import get_default_templates_queryset
 from .base import BaseConfig, ChecksumCacheMixin, get_cached_args_rewrite
+from .cache import CacheDependency, CacheInvalidationMixin
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +41,7 @@ class TemplatesThrough(object):
         return _("Relationship with {0}").format(self.template.name)
 
 
-class AbstractConfig(ChecksumCacheMixin, BaseConfig):
+class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
     """
     Abstract model implementing the
     NetJSON DeviceConfiguration object
@@ -90,8 +92,7 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
             '" target="_blank">'
             "configuration variables</a>"
         ),
-        load_kwargs={"object_pairs_hook": collections.OrderedDict},
-        dump_kwargs={"indent": 4},
+        encoder=DjangoJSONEncoder,
     )
     checksum_db = models.CharField(
         _("configuration checksum"),
@@ -167,6 +168,128 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
         """
         self.refresh_from_db(fields=["checksum_db"])
         return self.checksum_db
+
+    @classmethod
+    def _resolve_cert_dependency(cls, cert, **kwargs):
+        """
+        Returns the Config whose checksum depends on this client certificate.
+
+        Mirrors the previous ``certificate_updated`` handler: a revoked
+        certificate or a certificate not linked to a VpnClient does not affect
+        any configuration.
+        """
+        if cert.revoked:
+            return []
+        try:
+            return [cert.vpnclient.config]
+        except ObjectDoesNotExist:
+            return []
+
+    @classmethod
+    def _bulk_invalidate_configs(cls, filters):
+        """Bulk-recompute the checksums of the configs matching ``filters``."""
+        from ..tasks import bulk_invalidate_config_get_cached_checksum
+
+        bulk_invalidate_config_get_cached_checksum.delay(filters)
+
+    @classmethod
+    def _invalidate_configs_in_group(cls, group):
+        """Bulk-recompute checksums of configs in a group (context change)."""
+        cls._bulk_invalidate_configs({"device__group_id": str(group.id)})
+
+    @classmethod
+    def _invalidate_configs_in_org(cls, org_config_settings):
+        """Bulk-recompute checksums of an org's configs (context change)."""
+        cls._bulk_invalidate_configs(
+            {"device__organization_id": str(org_config_settings.organization_id)}
+        )
+
+    @classmethod
+    def _resolve_device_dependency(cls, device, **kwargs):
+        try:
+            return [device.config]
+        except ObjectDoesNotExist:
+            return []
+
+    @classmethod
+    def _resolve_template_dependency(cls, template, **kwargs):
+        """
+        Return configs that use ``template`` (captured before cascade delete).
+
+        Skipped when the delete originates from an Organization (e.g.
+        ``org.delete()``): a config using one of that organization's own
+        templates is necessarily in the same organization and will be
+        cascade-deleted in the same transaction, so there is nothing left
+        to invalidate.
+
+        Note this check only excludes an Organization origin, it does not
+        require the origin to be the Template itself. Template also cascades
+        from ``Vpn`` (``vpn`` FK, ``on_delete=CASCADE``): deleting a VPN
+        removes its VPN-type templates with ``origin`` set to the ``Vpn``
+        instance, not ``Template``. ``Config.templates`` is a many-to-many
+        field, so the configs using those templates are *not* deleted by
+        that cascade and still need their checksum recomputed. Narrowing
+        this to "only run when origin is Template" would silently skip that
+        case and leave those configs with a stale cached checksum.
+        """
+        origin = kwargs.get("origin")
+        if origin is not None:
+            Organization = load_model("openwisp_users", "Organization")
+            origin_model = (
+                origin.model if isinstance(origin, models.QuerySet) else type(origin)
+            )
+            if issubclass(origin_model, Organization):
+                return []
+        return list(cls.objects.filter(templates=template))
+
+    @classmethod
+    def get_cache_dependencies(cls):
+        return [
+            # A client certificate's content (re-issue / key change) feeds into
+            # Config.get_vpn_context(); recompute the owning Config's checksum.
+            CacheDependency(
+                source="django_x509.Cert",
+                signal="post_save",
+                resolve=cls._resolve_cert_dependency,
+                target="update_status_if_checksum_changed",
+            ),
+            # Device.os feeds into Config._should_use_dsa(); Device.group_id
+            # and Device.organization_id determine group/org-level context.
+            # Recompute the owning Config's checksum when any of them changes.
+            CacheDependency(
+                source="config.Device",
+                signal="post_save",
+                track_fields=["os", "group_id", "organization_id"],
+                resolve=cls._resolve_device_dependency,
+                target="update_status_if_checksum_changed",
+            ),
+            # Group-level configuration variables feed into Config.get_context();
+            # recompute checksums of all configs in the group when they change.
+            CacheDependency(
+                source="config.DeviceGroup",
+                signal="post_save",
+                track_fields=["context"],
+                target=cls._invalidate_configs_in_group,
+            ),
+            # Organization-level configuration variables feed into
+            # Config.get_context(); recompute checksums of all org configs.
+            CacheDependency(
+                source="config.OrganizationConfigSettings",
+                signal="post_save",
+                track_fields=["context"],
+                target=cls._invalidate_configs_in_org,
+            ),
+            # When a template is deleted, Django removes through-table
+            # rows without emitting m2m_changed. Capture the affected configs
+            # during pre_delete (while through rows still exist) and recompute
+            # their checksums on commit (after the cascade completes).
+            CacheDependency(
+                source="config.Template",
+                signal="pre_delete",
+                resolve=cls._resolve_template_dependency,
+                target="update_status_if_checksum_changed",
+            ),
+        ]
 
     @classmethod
     def bulk_invalidate_get_cached_checksum(cls, query_params):
@@ -342,40 +465,31 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
             return
 
         vpn_client_model = cls.vpn.through
-        # coming from signal
+        # Signals pass a set of template IDs.
         if isinstance(pk_set, set):
             template_model = cls.get_template_model()
             templates = template_model.objects.filter(pk__in=list(pk_set)).order_by(
                 "created"
             )
-        # coming from admin ModelForm
+        # Admin ModelForms pass template instances.
         else:
             templates = pk_set
 
-        # Check if all templates in pk_set are required templates. If they are,
-        # skip deletion of VpnClient objects at this point.
+        # SortedManyToManyField may clear templates and add required templates
+        # back before the final template set is restored. During that
+        # intermediate state we cannot know which VpnClient objects should be
+        # removed, so deletion is delayed until a later post_add event sees
+        # the final template set.
         if len(pk_set) != templates.filter(required=True).count():
-            # Explanation:
-            # SortedManyToManyField clears all existing templates before adding
-            # new ones. This triggers an m2m_changed signal with the "post_clear"
-            # action, which is handled by the "enforce_required_templates" signal
-            # receiver. That receiver re-adds the required templates.
-            #
-            # Re-adding required templates triggers another m2m_changed signal
-            # with the "post_add" action. At this stage, only required templates
-            # exist in the DB, so we cannot yet determine which VpnClient objects
-            # should be deleted based on the new selection.
-            #
-            # Therefore, we defer deletion of VpnClient objects until the "post_add"
-            # signal is triggered again—after all templates, including the required
-            # ones, have been fully added. At that point, we can identify and
-            # delete VpnClient objects not linked to the final template set.
             instance.vpnclient_set.exclude(
                 template_id__in=instance.templates.values_list("id", flat=True)
             ).delete()
 
         if action == "post_add":
-            for template in templates.filter(type="vpn"):
+            # A single template change can trigger multiple m2m_changed events.
+            # Use the full current template set instead of this event's pk_set so
+            # every attached VPN template has its VpnClient.
+            for template in instance.templates.filter(type="vpn"):
                 # Create VPN client if needed
                 if not vpn_client_model.objects.filter(
                     config=instance, vpn=template.vpn, template=template
@@ -474,17 +588,6 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
                 )
 
     @classmethod
-    def certificate_updated(cls, instance, created, **kwargs):
-        if created or instance.revoked:
-            return
-        try:
-            config = instance.vpnclient.config
-        except ObjectDoesNotExist:
-            return
-        else:
-            transaction.on_commit(config.update_status_if_checksum_changed)
-
-    @classmethod
     def register_context_function(cls, func):
         """
         Adds "func" to "_config_context_functions".
@@ -555,11 +658,11 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
         if len(self.error_reason) > 1024:
             self.error_reason = f"{self.error_reason[:1012]}\n[truncated]"
 
-    def full_clean(self, exclude=None, validate_unique=True):
+    def full_clean(self, exclude=None, validate_unique=True, **kwargs):
         # Modify the "error_reason" before the field validation
         # is executed by self.full_clean
         self.clean_error_reason()
-        return super().full_clean(exclude, validate_unique)
+        return super().full_clean(exclude, validate_unique, **kwargs)
 
     def clean(self):
         """
@@ -857,13 +960,15 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
         self._invalidate_backend_instance_cache()
         old_checksum = self.checksum
         self.add_default_templates()
-        if self.device._get_group():
-            self.device.manage_devices_group_templates(
-                device_ids=self.device.id,
-                old_group_ids=None,
-                group_id=self.device.group_id,
+        if self.device._has_group():
+            # Call manage_group_templates directly rather than going through
+            # manage_devices_group_templates, which would skip the device because
+            # it is still marked as deactivated at this point in the activation flow.
+            self.manage_group_templates(
+                self.device.group.templates.all(),
+                self.get_template_model().objects.none(),
             )
-        del self.backend_instance
+        self._invalidate_backend_instance_cache()
         if old_checksum == self.checksum:
             # Accelerate activation if the configuration remains
             # unchanged (i.e. empty configuration)
@@ -996,6 +1101,11 @@ class AbstractConfig(ChecksumCacheMixin, BaseConfig):
         Config = load_model("config", "Config")
         Template = load_model("config", "Template")
         config = Config.objects.get(pk=instance_id)
+        # All modification operations are blocked on deactivated devices.
+        # Thus, a user cannot edit the backend for device when it is deactivating.
+        # Therefore, it will be safe to block this operation here.
+        if config.is_deactivating_or_deactivated():
+            return
         device_group = config.device.group
         if not device_group:
             return

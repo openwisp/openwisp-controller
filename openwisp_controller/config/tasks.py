@@ -10,6 +10,7 @@ from swapper import load_model
 from openwisp_utils.tasks import OpenwispCeleryTask
 
 from .utils import handle_error_notification, handle_recovery_notification
+from .whois.tasks import cleanup_unreferenced_whois_records  # noqa: F401
 
 logger = logging.getLogger(__name__)
 
@@ -115,7 +116,7 @@ def invalidate_devicegroup_cache_delete(instance_id, model_name, **kwargs):
         )
     elif model_name == Cert._meta.model_name:
         DeviceGroupCommonName.certificate_delete_invalidates_cache(
-            kwargs["organization_id"], kwargs["common_name"]
+            kwargs["common_name"], kwargs.get("organization_slug")
         )
 
 

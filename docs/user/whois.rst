@@ -64,22 +64,23 @@ Setup Instructions
    - Set :ref:`OPENWISP_CONTROLLER_WHOIS_GEOIP_ACCOUNT` to **Account ID**.
    - Set :ref:`OPENWISP_CONTROLLER_WHOIS_GEOIP_KEY` to **License Key**.
 
-6. Restart the application/containers if using ansible-openwisp2 or
-   docker.
+6. Restart the application or containers if using :doc:`ansible-openwisp2
+   </ansible/index>` or :doc:`docker-openwisp </docker/index>`.
 7. Run the ``clear_last_ip`` management command to clear the last IP
    address of any active device which doesn't have WHOIS info yet across
    all organizations (which will trigger the WHOIS lookup at the next
    config checksum check).
 
-   - If using ansible-openwisp2 (default directory is /opt/openwisp2,
-     unless changed in Ansible playbook configuration):
+   - If using :doc:`ansible-openwisp2 </ansible/index>` (the default
+     directory is ``/opt/openwisp2``, unless changed in the Ansible
+     playbook configuration):
 
      .. code-block:: bash
 
          source /opt/openwisp2/env/bin/activate
          python /opt/openwisp2/manage.py clear_last_ip
 
-   - If using docker:
+   - If using :doc:`docker-openwisp </docker/index>`:
 
      .. code-block:: bash
 
@@ -119,11 +120,13 @@ The lookup will only run if the device's last IP address is **public** and
 WHOIS lookup is **enabled** for the device's organization.
 
 When a device updates its last IP address, a WHOIS lookup is triggered for
-the **new IP** and the **WHOIS record for the old IP** is deleted, unless
-any active devices are associated with that IP address.
+the **new IP**. WHOIS records which are no longer used by an active device
+are retained for the configured threshold to avoid repeated lookups when a
+device returns to a recently used IP address.
 
-.. note::
-
-    When a device with an associated WHOIS record is deleted, its WHOIS
-    record is automatically removed, but only if no other active devices
-    are associated with the same IP address.
+A periodic Celery Beat task removes expired unreferenced records. It is
+automatically configured by :doc:`ansible-openwisp2 </ansible/index>` and
+:doc:`docker-openwisp </docker/index>`. If you need to replicate this
+behavior in a custom installer, see ``CELERY_BEAT_SCHEDULE`` in the `test
+project settings
+<https://github.com/openwisp/openwisp-controller/blob/master/tests/openwisp2/settings.py>`_.

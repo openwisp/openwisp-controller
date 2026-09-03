@@ -23,6 +23,7 @@ Subnet = load_model("openwisp_ipam", "Subnet")
 IpAddress = load_model("openwisp_ipam", "IpAddress")
 SubnetDivisionRule = load_model("subnet_division", "SubnetDivisionRule")
 SubnetDivisionIndex = load_model("subnet_division", "SubnetDivisionIndex")
+Config = load_model("config", "Config")
 VpnClient = load_model("config", "VpnClient")
 Device = load_model("config", "Device")
 OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
@@ -61,6 +62,35 @@ class BaseSubnetDivisionRule:
             self.assertIn(f"{rule.label}_subnet{subnet_id}", context)
             for ip_id in range(1, rule.number_of_ips + 1):
                 self.assertIn(f"{rule.label}_subnet{subnet_id}_ip{ip_id}", context)
+
+    def test_vpn_client_ip_resolved_before_checksum_cached(self):
+        """
+        Regression test: VpnSubnetDivisionRuleType.post_provision_handler
+        used to call super().post_provision_handler() (which computes and
+        caches the Config checksum) before assigning the provisioned IP
+        address to the VpnClient. This left the "ip_address_<vpn_pk>"
+        template variable unresolved in the cached checksum.
+        """
+        self._get_vpn_subdivision_rule()
+        # "config={}" makes Template.clean() auto-generate the wireguard
+        # client config via Vpn.auto_client(), which is what embeds the
+        # "{{ip_address_<vpn_pk>}}" placeholder that must be resolved.
+        wireguard_template = self._create_template(
+            name="wireguard-auto-client",
+            type="vpn",
+            vpn=self.vpn_server,
+            organization=self.org,
+            auto_cert=True,
+            config={},
+        )
+        self.config.templates.add(wireguard_template)
+        vpnclient = self.config.vpnclient_set.get(vpn=self.vpn_server)
+        self.assertNotEqual(vpnclient.ip, None)
+        ip_address_key = f"ip_address_{self.vpn_server.pk.hex}"
+        context = self.config.get_context()
+        self.assertEqual(context[ip_address_key], vpnclient.ip.ip_address)
+        refreshed_config = Config.objects.get(pk=self.config.pk)
+        self.assertEqual(refreshed_config.checksum_db, refreshed_config.checksum)
 
 
 class TestSubnetDivisionRule(
@@ -178,7 +208,7 @@ class TestSubnetDivisionRule(
                 rule.full_clean()
             expected_message_dict = {
                 "number_of_subnets": [
-                    "The master subnet is too small to acommodate "
+                    "The master subnet is too small to accommodate "
                     'the requested "number of subnets" plus the '
                     "reserved subnet, please increase the size of "
                     "the master subnet or decrease the "
@@ -265,8 +295,23 @@ class TestSubnetDivisionRule(
         )
         self.assertEqual(index_queryset.count(), 1)
         index = index_queryset.first()
-        self.assertEqual(str(index.subnet.subnet), "10.0.0.1/32")
-        self.assertEqual(index.ip.ip_address, "10.0.0.1")
+        self.assertEqual(self.vpn_server.ip.ip_address, "10.0.0.1")
+        self.assertEqual(str(index.subnet.subnet), "10.0.0.2/32")
+        self.assertEqual(index.ip.ip_address, "10.0.0.2")
+
+    def test_slash_32_rule_ipv4_skips_parent_allocations(self):
+        self.master_subnet.request_ip()
+        self.master_subnet.request_ip()
+        rule = self._get_vpn_subdivision_rule(
+            size=32, number_of_ips=1, number_of_subnets=1
+        )
+        self.config.templates.add(self.template)
+        index = rule.subnetdivisionindex_set.get(
+            config_id=self.config.id, subnet_id__isnull=False, ip_id__isnull=False
+        )
+        self.assertEqual(self.vpn_server.ip.ip_address, "10.0.0.1")
+        self.assertEqual(str(index.subnet.subnet), "10.0.0.4/32")
+        self.assertEqual(index.ip.ip_address, "10.0.0.4")
 
     def test_slash_32_rule_ipv4_error(self):
         master_ipv4 = self._get_master_subnet(subnet="192.168.1.1/32")
@@ -279,7 +324,7 @@ class TestSubnetDivisionRule(
         except ValidationError as e:
             self.assertIn("number_of_subnets", e.message_dict)
             self.assertIn(
-                "The master subnet is too small to acommodate",
+                "The master subnet is too small to accommodate",
                 e.message_dict["number_of_subnets"][0],
             )
         else:
@@ -287,6 +332,8 @@ class TestSubnetDivisionRule(
 
     def test_slash_128_rule_ipv6(self):
         master_ipv6 = self._get_master_subnet(subnet="fd12:3456:7890::/48")
+        self.vpn_server.ip.delete()
+        self.vpn_server.ip = None
         self.vpn_server.subnet = master_ipv6
         self.vpn_server.save()
         rule = self._get_vpn_subdivision_rule(
@@ -298,8 +345,9 @@ class TestSubnetDivisionRule(
         )
         self.assertEqual(index_queryset.count(), 1)
         index = index_queryset.first()
-        self.assertEqual(str(index.subnet.subnet), "fd12:3456:7890::1/128")
-        self.assertEqual(index.ip.ip_address, "fd12:3456:7890::1")
+        self.assertEqual(self.vpn_server.ip.ip_address, "fd12:3456:7890::1")
+        self.assertEqual(str(index.subnet.subnet), "fd12:3456:7890::2/128")
+        self.assertEqual(index.ip.ip_address, "fd12:3456:7890::2")
 
     def test_slash_128_rule_ipv6_error(self):
         master_ipv6 = self._get_master_subnet(subnet="fd12:3456:7890::/128")
@@ -315,7 +363,7 @@ class TestSubnetDivisionRule(
         except ValidationError as e:
             self.assertIn("number_of_subnets", e.message_dict)
             self.assertIn(
-                "The master subnet is too small to acommodate",
+                "The master subnet is too small to accommodate",
                 e.message_dict["number_of_subnets"][0],
             )
         else:
@@ -333,8 +381,13 @@ class TestSubnetDivisionRule(
         )
         index_count = index_queryset.count()
         subnet_count = subnet_queryset.count()
-        rule.label = new_rule_label
-        rule.save()
+        with patch.object(Config, "bulk_invalidate_get_cached_checksum") as mocked:
+            rule.label = new_rule_label
+            rule.save()
+        # Regression test: renaming a rule's label rewrites the keywords of
+        # its SubnetDivisionIndex entries, which feed Config.get_context();
+        # the affected configs' checksums must be invalidated accordingly.
+        mocked.assert_called_once_with({"id__in": [self.config.id]})
         rule.refresh_from_db()
 
         self.assertEqual(rule.label, new_rule_label)
@@ -375,8 +428,13 @@ class TestSubnetDivisionRule(
         )
 
         new_number_of_ips = rule.number_of_ips + 2
-        rule.number_of_ips = new_number_of_ips
-        rule.save()
+        with patch.object(Config, "bulk_invalidate_get_cached_checksum") as mocked:
+            rule.number_of_ips = new_number_of_ips
+            rule.save()
+        # Regression test: provisioning extra IPs creates new
+        # SubnetDivisionIndex entries, which feed Config.get_context();
+        # the affected configs' checksums must be invalidated accordingly.
+        mocked.assert_called_once_with({"id__in": {self.config.id}})
         rule.refresh_from_db()
 
         self.assertEqual(rule.number_of_ips, new_number_of_ips)
@@ -495,7 +553,7 @@ class TestSubnetDivisionRule(
         subnet = self._get_master_subnet(
             "10.0.0.0/29", master_subnet=self.master_subnet
         )
-        # The master subnet can acommodate
+        # The master subnet can accommodate
         # this rule only once:
         # A /29 has 4 /31 slots available
         # Minus the reserved subnet = 3
@@ -814,6 +872,39 @@ class TestSubnetDivisionRule(
         self.assertEqual(
             self.ip_query.count(), (rule.number_of_subnets * rule.number_of_ips)
         )
+
+    def test_device_subnet_division_rule_existing_devices_includes_deactivated(self):
+        subnet_query = self.subnet_query.filter(organization_id=self.org.id).exclude(
+            id=self.master_subnet.id
+        )
+        self.config.device.deactivate()
+        self.assertEqual(subnet_query.count(), 0)
+        rule = self._get_device_subdivision_rule()
+        self.config.refresh_from_db()
+        self.assertTrue(self.config.device.is_deactivated())
+        # Subnets are provisioned even for deactivated devices so re-activation
+        # does not require extra provisioning logic.
+        self.assertEqual(subnet_query.count(), rule.number_of_subnets)
+        self.assertEqual(
+            self.ip_query.count(), rule.number_of_subnets * rule.number_of_ips
+        )
+        self.assertGreater(self.config.subnetdivisionindex_set.count(), 0)
+
+    def test_device_subnet_division_rule_provisions_deactivated_on_config_creation(
+        self,
+    ):
+        # A rule already exists; subnets must be provisioned even when the config
+        # is created for a device that is already deactivated.
+        self._get_device_subdivision_rule()
+        device = self._create_device(
+            organization=self.org,
+            name="deactivated-device",
+            mac_address="00:11:22:33:44:66",
+        )
+        device.deactivate()
+        config = self._create_config(device=device)
+        self.assertTrue(config.device.is_deactivated())
+        self.assertGreater(config.subnetdivisionindex_set.count(), 0)
 
     def test_vpn_subnet_division_rule_existing_devices(self):
         subnet_query = self.subnet_query.filter(organization_id=self.org.id).exclude(

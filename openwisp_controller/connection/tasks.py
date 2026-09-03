@@ -16,20 +16,25 @@ logger = logging.getLogger(__name__)
 _TASK_NAME = "openwisp_controller.connection.tasks.update_config"
 
 
-def _is_update_in_progress(device_id):
+def _is_update_in_progress(device_id, current_task_id=None):
     active = current_app.control.inspect().active()
     if not active:
         return False
     # check if there's any other running task before adding it
+    # exclude the current task by comparing task IDs
     for task_list in active.values():
         for task in task_list:
-            if task["name"] == _TASK_NAME and str(device_id) in task["args"]:
+            if (
+                task["name"] == _TASK_NAME
+                and str(device_id) in task["args"]
+                and task["id"] != current_task_id
+            ):
                 return True
     return False
 
 
-@shared_task
-def update_config(device_id):
+@shared_task(bind=True)
+def update_config(self, device_id):
     """
     Launches the ``update_config()`` operation
     of a specific device in the background
@@ -41,6 +46,9 @@ def update_config(device_id):
     time.sleep(2)
     try:
         device = Device.objects.select_related("config").get(pk=device_id)
+        if device.is_fully_deactivated():
+            logger.info(f"{device} (pk: {device_id}) is deactivated, skipping update")
+            return
         # abort operation if device shouldn't be updated
         if not device.can_be_updated():
             logger.info(f"{device} (pk: {device_id}) is not going to be updated")
@@ -48,7 +56,7 @@ def update_config(device_id):
     except ObjectDoesNotExist as e:
         logger.warning(f'update_config("{device_id}") failed: {e}')
         return
-    if _is_update_in_progress(device_id):
+    if _is_update_in_progress(device_id, current_task_id=self.request.id):
         return
     try:
         device_conn = DeviceConnection.get_working_connection(device)
@@ -76,18 +84,18 @@ def launch_command(command_id):
     except SoftTimeLimitExceeded:
         command.status = "failed"
         command._add_output(_("Background task time limit exceeded."))
-        command.save()
+        command._save_without_resurrecting()
     except CommandTimeoutException as e:
         command.status = "failed"
         command._add_output(_(f"The command took longer than expected: {e}"))
-        command.save()
+        command._save_without_resurrecting()
     except Exception as e:
         logger.exception(
             f"An exception was raised while executing command {command_id}"
         )
         command.status = "failed"
         command._add_output(_(f"Internal system error: {e}"))
-        command.save()
+        command._save_without_resurrecting()
 
 
 @shared_task(soft_time_limit=3600)
