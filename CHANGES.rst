@@ -1,10 +1,113 @@
 Changelog
 =========
 
-Version 1.3.0 [unreleased]
+Version 1.3.0 [2026-09-03]
 --------------------------
 
-Work in progress.
+Features
+~~~~~~~~
+
+- Added `WHOIS lookup and geographic location estimation
+  <https://github.com/openwisp/openwisp-controller/issues/1034>`_ for
+  devices, including WHOIS details in the admin UI, automatic refresh of
+  stale WHOIS data, estimated-location notifications and warnings, and
+  admin and API filters for estimated locations.
+- Added `WebSocket support for broadcasting all location updates
+  <https://github.com/openwisp/openwisp-controller/issues/1157>`_.
+- Added an `API endpoint for retrieving indoor device coordinates
+  <https://github.com/openwisp/openwisp-controller/issues/828>`_ for a
+  location.
+- Added `location and floorplan filters to the device list API
+  <https://github.com/openwisp/openwisp-controller/issues/1158>`_,
+  allowing searches by location name and filtering by location or
+  floorplan UUID.
+- Added `generic cache invalidation for configuration models
+  <https://github.com/openwisp/openwisp-controller/issues/1095>`_. Models
+  can declare cache dependencies using ``CacheDependency``, and the new
+  ``print_cache_dependencies`` management command can be used to inspect
+  the dependency graph.
+- Added `notes to configuration templates
+  <https://github.com/openwisp/openwisp-controller/issues/1412>`_.
+- Allowed devices to update their name during re-registration.
+
+Changes
+~~~~~~~
+
+Other changes
++++++++++++++
+
+- Enforced the `deactivated device state across OpenWISP Controller
+  <https://github.com/openwisp/openwisp-controller/issues/1338>`_.
+  Deactivated devices can no longer register, receive configuration
+  updates, run remote commands, or receive automatically assigned
+  templates. Cleanup and security operations continue to work normally.
+- Added `VPN subnet and IP address details to the REST API
+  <https://github.com/openwisp/openwisp-controller/issues/1003>`_.
+- Allowed deleting organizations containing active devices while
+  displaying a warning about the active devices that will be affected.
+- Replaced the third-party ``jsonfield`` implementation with Django's
+  built-in ``JSONField`` `#1061
+  <https://github.com/openwisp/openwisp-controller/issues/1061>`_,
+  including migration handling for databases upgraded from older OpenWISP
+  Controller versions.
+- Changed VPN synchronization errors and recovery events to use
+  ``generic_message`` notifications `#1049
+  <https://github.com/openwisp/openwisp-controller/issues/1049>`_.
+- Improved command status visibility in the admin interface by
+  highlighting statuses with different colors `#812
+  <https://github.com/openwisp/openwisp-controller/issues/812>`_.
+
+Dependencies
+++++++++++++
+
+- Bumped ``django-reversion`` from ``~=6.0.0`` to `~=6.3.0
+  <https://github.com/etianen/django-reversion/blob/v6.3.0/CHANGELOG.rst>`_.
+- Bumped ``netjsonconfig`` from ``~=1.2.0`` to `~=1.3.0
+  <https://github.com/openwisp/netjsonconfig/blob/master/CHANGES.rst>`__.
+- Bumped ``django-x509`` from ``~=1.3.0`` to `~=1.4.0
+  <https://github.com/openwisp/django-x509/blob/master/CHANGES.rst>`_.
+- Bumped ``django-loci`` from ``~=1.2.0`` to `~=1.3.0
+  <https://github.com/openwisp/django-loci/blob/master/CHANGES.rst>`__.
+- Bumped ``django-flat-json-widget`` from ``~=0.4.0`` to `~=0.5.0
+  <https://github.com/openwisp/django-flat-json-widget/blob/master/CHANGES.rst>`_.
+- Bumped ``openwisp-users`` from ``~=1.2.0`` to `~=1.3.0
+  <https://github.com/openwisp/openwisp-users/blob/master/CHANGES.rst>`__.
+- Bumped ``openwisp-utils[celery,channels]`` from ``~=1.2.0`` to `~=1.3.0
+  <https://github.com/openwisp/openwisp-utils/blob/master/CHANGES.rst>`__.
+- Bumped ``openwisp-notifications`` from ``~=1.2.0`` to `~=1.3.0
+  <https://github.com/openwisp/openwisp-notifications/blob/master/CHANGES.rst>`__.
+- Bumped ``openwisp-ipam`` from ``~=1.2.0`` to `~=1.3.1
+  <https://github.com/openwisp/openwisp-ipam/blob/master/CHANGES.rst>`_.
+- Bumped ``djangorestframework-gis`` from ``~=1.2.0`` to `~=1.3.0
+  <https://github.com/openwisp/django-rest-framework-gis/blob/master/CHANGES.rst>`__.
+- Bumped ``paramiko`` from ``~=4.0.0`` to `~=5.0.0
+  <https://www.paramiko.org/changelog.html>`_.
+- Bumped ``scp`` from ``~=0.15.0`` to `~=0.16.1
+  <https://github.com/jbardin/scp.py/releases/tag/v0.16.1>`_.
+- Bumped ``django-import-export`` from ``~=4.3.10`` to `~=4.4.1
+  <https://django-import-export.readthedocs.io/en/latest/changelog.html>`_.
+- Added `geoip2>=5.3.0,<6.0.0
+  <https://github.com/maxmind/GeoIP2-python/releases/tag/v5.3.0>`_.
+- Dropped support for Django ``4.2``.
+- Dropped support for Python ``3.9``.
+
+Bugfixes
+~~~~~~~~
+
+- Fixed `subnet-division rules allocating addresses already in use
+  <https://github.com/openwisp/openwisp-controller/issues/1464>`_ by
+  respecting existing child prefixes and pre-allocated IP addresses.
+- Fixed background command and connection operations potentially restoring
+  objects that had been deleted concurrently or causing foreign key
+  errors.
+- Fixed VPN client synchronization when switching VPN templates,
+  preventing inconsistent client state during repeated template updates.
+- Fixed SSH connections remaining open when ``update_config()`` failed.
+- Fixed `malformed UUID URLs returning HTTP 500 instead of HTTP 404
+  <https://github.com/openwisp/openwisp-controller/issues/682>`_.
+- Fixed the Device admin delete confirmation page when OpenWISP Controller
+  is extended by downstream applications.
+- Fixed a typo in the ``update_strategy`` validation error message.
 
 Version 1.2.3 [2026-04-09]
 --------------------------
