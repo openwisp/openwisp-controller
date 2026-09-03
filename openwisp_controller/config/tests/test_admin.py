@@ -2,7 +2,6 @@ import csv
 import io
 import json
 import os
-from types import SimpleNamespace
 from unittest.mock import Mock, patch
 from uuid import uuid4
 
