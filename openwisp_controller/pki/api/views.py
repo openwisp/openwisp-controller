@@ -1,5 +1,6 @@
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
+from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from rest_framework.generics import (
     GenericAPIView,
@@ -95,6 +96,11 @@ class CertRenewView(CertRevokeRenewBaseView):
         Renews the Certificate.
         """
         instance = self.get_object()
+        if instance.revoked:
+            return Response(
+                {"detail": _("Cannot renew a revoked certificate.")},
+                status=400,
+            )
         instance.renew()
         serializer = CertRevokeRenewSerializer(instance)
         return Response(serializer.data, status=200)

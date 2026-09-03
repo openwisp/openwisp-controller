@@ -63,3 +63,30 @@ class TestModels(TestAdminMixin, TestPkiMixin, TestOrganizationMixin, TestCase):
         self._create_cert(ca=ca)
         with self.assertRaises(ValidationError):
             self._create_cert(ca=ca)
+
+    def test_renew_revoked_cert_raises_validation_error(self):
+        cert = self._create_cert()
+        old_serial = cert.serial_number
+        cert.revoke()
+        crl_bytes_before = (
+            cert.ca.crl
+            if isinstance(cert.ca.crl, bytes)
+            else cert.ca.crl.encode("utf-8")
+        )
+        crl_before = x509.load_pem_x509_crl(crl_bytes_before, default_backend())
+        revoked_serials_before = [r.serial_number for r in crl_before]
+        self.assertIn(old_serial, revoked_serials_before)
+        with self.assertRaises(ValidationError):
+            cert.renew()
+        cert.refresh_from_db()
+        self.assertEqual(cert.serial_number, old_serial)
+        self.assertTrue(cert.revoked)
+        crl_bytes_after = (
+            cert.ca.crl
+            if isinstance(cert.ca.crl, bytes)
+            else cert.ca.crl.encode("utf-8")
+        )
+        crl_after = x509.load_pem_x509_crl(crl_bytes_after, default_backend())
+        revoked_serials_after = [r.serial_number for r in crl_after]
+        self.assertIn(old_serial, revoked_serials_after)
+        self.assertEqual(revoked_serials_after, revoked_serials_before)

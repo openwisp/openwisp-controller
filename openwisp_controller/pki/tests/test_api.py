@@ -1,3 +1,5 @@
+from cryptography import x509
+from cryptography.hazmat.backends import default_backend
 from django.test import TestCase, TransactionTestCase
 from django.urls import reverse
 from packaging.version import parse as parse_version
@@ -370,6 +372,35 @@ class TestTransactionPkiApi(
         cert1.refresh_from_db()
         self.assertNotEqual(cert1.serial_number, old_serial_num)
         self.assertNotEqual(r.data["serial_number"], old_serial_num)
+
+    def test_post_cert_renew_revoked_api(self):
+        cert1 = self._create_cert(name="cert1")
+        old_serial_num = cert1.serial_number
+        cert1.revoke()
+        crl_bytes_before = (
+            cert1.ca.crl
+            if isinstance(cert1.ca.crl, bytes)
+            else cert1.ca.crl.encode("utf-8")
+        )
+        crl_before = x509.load_pem_x509_crl(crl_bytes_before, default_backend())
+        revoked_serials_before = [r.serial_number for r in crl_before]
+        self.assertIn(old_serial_num, revoked_serials_before)
+        path = reverse("pki_api:cert_renew", args=[cert1.pk])
+        r = self.client.post(path)
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.data["detail"], "Cannot renew a revoked certificate.")
+        cert1.refresh_from_db()
+        self.assertEqual(cert1.serial_number, old_serial_num)
+        self.assertTrue(cert1.revoked)
+        crl_bytes_after = (
+            cert1.ca.crl
+            if isinstance(cert1.ca.crl, bytes)
+            else cert1.ca.crl.encode("utf-8")
+        )
+        crl_after = x509.load_pem_x509_crl(crl_bytes_after, default_backend())
+        revoked_serials_after = [r.serial_number for r in crl_after]
+        self.assertIn(old_serial_num, revoked_serials_after)
+        self.assertEqual(revoked_serials_after, revoked_serials_before)
 
     def test_post_cert_revoke_api(self):
         cert1 = self._create_cert(name="cert1")

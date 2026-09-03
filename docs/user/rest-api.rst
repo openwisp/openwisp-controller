@@ -1408,6 +1408,11 @@ Renew Cert
 
     POST /api/v1/controller/cert/{id}/renew/
 
+.. note::
+
+    Attempting to renew a revoked certificate will return an HTTP 400 Bad Request
+    response with localized error message (e.g., ``{"detail": "Cannot renew a revoked certificate."}``).
+
 Revoke Cert
 ~~~~~~~~~~~
 

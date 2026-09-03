@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django_x509.base.models import AbstractCa as BaseCa
@@ -38,3 +39,8 @@ class AbstractCert(ShareableOrgMixin, UnqiueCommonNameMixin, BaseCert):
 
     def clean(self):
         self._validate_org_relation("ca")
+
+    def renew(self, *args, **kwargs):
+        if self.revoked:
+            raise ValidationError(_("Cannot renew a revoked certificate."))
+        return super().renew(*args, **kwargs)
