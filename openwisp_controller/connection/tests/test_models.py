@@ -14,7 +14,7 @@ from swapper import load_model
 
 from openwisp_utils.tests import capture_any_output, catch_signal
 
-from .. import apps
+from .. import handlers
 from .. import settings as app_settings
 from ..commands import (
     COMMANDS,
@@ -28,6 +28,7 @@ from ..tasks import _TASK_NAME, update_config
 from .utils import CreateConnectionsMixin
 
 Config = load_model("config", "Config")
+LOGGER_NAME = "openwisp_controller.connection.base.models"
 Device = load_model("config", "Device")
 Credentials = load_model("connection", "Credentials")
 DeviceConnection = load_model("connection", "DeviceConnection")
@@ -641,7 +642,7 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
             self.assertIn("device", exception.message_dict)
             self.assertEqual(
                 exception.message_dict["device"],
-                ["Device has no credentials assigned"],
+                ["Device has no credentials assigned."],
             )
 
     def test_command_validation_deactivated_device(self):
@@ -673,7 +674,7 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
                 command.clean()
             self.assertIn("device", ctx.exception.message_dict)
             self.assertEqual(
-                ctx.exception.message_dict["device"], ["Device is deactivated"]
+                ctx.exception.message_dict["device"], ["Device is deactivated."]
             )
 
     @tag("skip_prod")
@@ -1090,7 +1091,27 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
                 [row["device"] for row in batch.get_skipped_rows(end=2)], pks[:2]
             )
             self.assertEqual(
-                [row["device"] for row in batch.get_skipped_rows(start=-1)], pks[-1:]
+                [row["device"] for row in batch.get_skipped_rows(start=1, end=3)],
+                pks[1:3],
+            )
+
+        with self.subTest("count and device ids"):
+            self.assertEqual(batch.skipped_count, 3)
+            self.assertEqual(list(batch.skipped_device_ids), pks)
+
+        with self.subTest("items are not copied when nothing is filtered"):
+            self.assertEqual(batch.get_skipped_items(), skipped.items())
+
+        with self.subTest("items filtered by name"):
+            self.assertEqual(
+                [pk for pk, _skipped in batch.get_skipped_items(query="DEVICE1")],
+                pks[1:2],
+            )
+
+        with self.subTest("items filtered by device id"):
+            self.assertEqual(
+                [pk for pk, _skipped in batch.get_skipped_items(device_ids={pks[2]})],
+                pks[2:],
             )
 
         with self.subTest("preview within the limit"):
@@ -1157,7 +1178,42 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
                     batch.clean()
                 self.assertIn("type", ctx.exception.message_dict)
                 self.assertIn(
-                    "not available for this organization",
+                    "not available for the target organization(s)",
+                    ctx.exception.message_dict["type"][0],
+                )
+
+        with self.subTest("no command enabled for the organization"):
+            with mock.patch.dict(
+                ORGANIZATION_ENABLED_COMMANDS,
+                {str(uuid4()): ("reboot",)},
+                clear=True,
+            ):
+                batch = BatchCommand(
+                    organization=org,
+                    type="reboot",
+                    input=None,
+                    label="test-label",
+                )
+                with self.assertRaises(ValidationError) as ctx:
+                    batch.clean()
+                self.assertIn("type", ctx.exception.message_dict)
+                self.assertIn(
+                    "not available for the target organization(s)",
+                    ctx.exception.message_dict["type"][0],
+                )
+
+        with self.subTest("no command enabled system wide"):
+            with mock.patch.dict(
+                ORGANIZATION_ENABLED_COMMANDS,
+                {str(uuid4()): ("reboot",)},
+                clear=True,
+            ):
+                batch = BatchCommand(type="reboot", input=None, label="test-label")
+                with self.assertRaises(ValidationError) as ctx:
+                    batch.clean()
+                self.assertIn("type", ctx.exception.message_dict)
+                self.assertIn(
+                    "not available for the target organization(s)",
                     ctx.exception.message_dict["type"][0],
                 )
 
@@ -1234,7 +1290,9 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
             device = Device.objects.get(pk=device.pk)
             batch = self._create_batch_command(organization=org)
             batch.devices.add(device)
-            batch.create_commands()
+            with self.assertLogs(LOGGER_NAME, level="WARNING") as logs:
+                batch.create_commands()
+            self.assertIn("Skipping device", logs.output[0])
             self.assertEqual(batch.batch_commands.count(), 0)
             self.assertIn(str(device.pk), batch.skipped_devices)
             self.assertIn(
@@ -1250,7 +1308,9 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
             organization=org,
             devices=[device],
         )
-        batch.create_commands()
+        with self.assertLogs(LOGGER_NAME, level="WARNING") as logs:
+            batch.create_commands()
+        self.assertIn("Skipping device", logs.output[0])
         batch.refresh_from_db()
         self.assertIn(str(device.pk), batch.skipped_devices)
         self.assertIn(
@@ -1285,11 +1345,13 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
                     organization=org,
                     devices=[device_a, device_b],
                 )
-                batch.create_commands()
+                with self.assertLogs(LOGGER_NAME, level="WARNING") as logs:
+                    batch.create_commands()
+                self.assertIn("Skipping device", logs.output[0])
                 batch.refresh_from_db()
                 self.assertIn(str(device_b.pk), batch.skipped_devices)
                 self.assertIn(
-                    '"custom" command is not available for this organization',
+                    "no longer belongs to the organization",
                     batch.skipped_devices[str(device_b.pk)]["error"],
                 )
                 db_batch = BatchCommand.objects.get(pk=batch.pk)
@@ -1297,6 +1359,25 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
                 command_qs = Command.objects.filter(batch_command=batch)
                 self.assertTrue(command_qs.filter(device=device_a).exists())
                 self.assertFalse(command_qs.filter(device=device_b).exists())
+
+        with self.subTest("org command not allowed on a system wide batch"):
+            with mock.patch.dict(
+                ORGANIZATION_ENABLED_COMMANDS,
+                {"__all__": ("custom",), str(org2.pk): ("reboot",)},
+            ):
+                batch = self._create_batch_command(
+                    organization=None,
+                    devices=[device_b],
+                )
+                with self.assertLogs(LOGGER_NAME, level="WARNING") as logs:
+                    batch.create_commands()
+                self.assertIn("Skipping device", logs.output[0])
+                batch.refresh_from_db()
+                self.assertIn(
+                    '"custom" command is not available for this organization',
+                    batch.skipped_devices[str(device_b.pk)]["error"],
+                )
+                self.assertFalse(Command.objects.filter(batch_command=batch).exists())
 
         with self.subTest("mixed skip scenario"):
             device_ok = self._create_device(
@@ -1328,7 +1409,9 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
                 organization=org,
                 devices=[device_ok, device_no_creds, device_deactivated],
             )
-            batch.create_commands()
+            with self.assertLogs(LOGGER_NAME, level="WARNING") as logs:
+                batch.create_commands()
+            self.assertEqual(len(logs.output), 2)
             batch.refresh_from_db()
             command_qs = Command.objects.filter(batch_command=batch)
             self.assertEqual(command_qs.count(), 1)
@@ -1664,6 +1747,17 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
                 ctx.exception.message_dict["devices"][0],
             )
 
+        with self.subTest("a system wide batch accepts devices of different orgs"):
+            batch = BatchCommand.execute(
+                type="custom",
+                input={"command": "echo test"},
+                label="test-label",
+                devices=[device_org1, device_org2],
+                system_wide=True,
+            )
+            self.assertIsNone(batch.organization_id)
+            self.assertEqual(set(batch.devices.all()), {device_org1, device_org2})
+
         with self.subTest("group org mismatch"):
             group_org2 = DeviceGroup.objects.create(
                 name="exec-mm-group",
@@ -1887,6 +1981,123 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
             batch2.calculate_and_update_status()
             batch2.refresh_from_db()
             self.assertEqual(batch2.modified, initial_modified)
+
+    def test_batch_command_status_rejects_a_stale_calculation(self):
+        org = self._get_org()
+        device = self._create_device(organization=org)
+        self._create_config(device=device)
+        dc = self._create_device_connection(device=device)
+        batch = self._create_batch_command(organization=org)
+        Command.objects.create(
+            batch_command=batch,
+            device=device,
+            connection=dc,
+            type=batch.type,
+            input={"command": "echo test"},
+            status="success",
+        )
+        BatchCommand.objects.filter(pk=batch.pk).update(status="in-progress")
+        batch.refresh_from_db()
+        original = BatchCommand._compute_status
+        calls = []
+
+        def compute(self):
+            calls.append(self.status)
+            if len(calls) == 1:
+                BatchCommand.objects.filter(pk=batch.pk).update(
+                    status="failed",
+                    skipped_devices={
+                        str(uuid4()): {"name": "device1", "error": "no credentials"}
+                    },
+                )
+                return "success"
+            return original(self)
+
+        with mock.patch.object(BatchCommand, "_compute_status", compute):
+            batch.calculate_and_update_status()
+        batch.refresh_from_db()
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(batch.status, "failed")
+
+    def test_batch_command_status_is_written_once(self):
+        org = self._get_org()
+        device = self._create_device(organization=org)
+        self._create_config(device=device)
+        dc = self._create_device_connection(device=device)
+        batch = self._create_batch_command(organization=org)
+        with mock.patch.object(Command, "_schedule_command"):
+            Command.objects.create(
+                batch_command=batch,
+                device=device,
+                connection=dc,
+                type=batch.type,
+                input={"command": "echo test"},
+                status="success",
+            )
+        BatchCommand.objects.filter(pk=batch.pk).update(status="in-progress")
+        batch.refresh_from_db()
+        modified = batch.modified
+
+        with mock.patch.object(BatchCommand, "save") as save:
+            with mock.patch.object(handlers, "send_batch_update") as publish:
+                batch.calculate_and_update_status()
+        save.assert_not_called()
+        publish.assert_called_once()
+        group, payload = publish.call_args[0]
+        self.assertEqual(group, f"config.batchcommand-{batch.pk}")
+        self.assertEqual(payload["status"], "success")
+        self.assertEqual(payload["type"], "batch_status")
+        batch.refresh_from_db()
+        self.assertEqual(batch.status, "success")
+        self.assertGreater(batch.modified, modified)
+
+    def test_batch_command_device_transferred_to_another_org(self):
+        org = self._get_org()
+        org2 = self._create_org(name="org2", slug="org2")
+        device = self._create_device(organization=org)
+        self._create_config(device=device)
+        dc = self._create_device_connection(device=device)
+        batch = self._create_batch_command(organization=org)
+        batch.devices.set([device])
+
+        with self.subTest("the transferred device is skipped at creation"):
+            device.organization = org2
+            device.save(update_fields=["organization"])
+            with mock.patch.object(Command, "_schedule_command"):
+                batch.create_commands()
+            batch.refresh_from_db()
+            self.assertIn(str(device.pk), batch.skipped_devices)
+            self.assertIn(
+                "no longer belongs to the organization",
+                batch.skipped_devices[str(device.pk)]["error"],
+            )
+            self.assertFalse(batch.batch_commands.exists())
+
+        with self.subTest("a command of a transferred device is not executed"):
+            device.organization = org
+            device.save(update_fields=["organization"])
+            with mock.patch.object(Command, "_schedule_command"):
+                command = Command.objects.create(
+                    batch_command=batch,
+                    device=device,
+                    connection=dc,
+                    type=batch.type,
+                    input={"command": "echo test"},
+                )
+            device.organization = org2
+            device.save(update_fields=["organization"])
+            with mock.patch.object(Command, "_exec_command") as exec_command:
+                with self.assertLogs(LOGGER_NAME, level="WARNING") as logs:
+                    command.execute()
+            exec_command.assert_not_called()
+            self.assertIn(
+                f"Not executing command {command.pk} of batch {batch.pk}",
+                logs.output[0],
+            )
+            self.assertIn(str(org2.pk), logs.output[0])
+            command.refresh_from_db()
+            self.assertEqual(command.status, "failed")
+            self.assertIn("no longer belongs to the organization", command.output)
 
     def test_batch_command_permissions(self):
         ct = ContentType.objects.get_by_natural_key(
@@ -2219,7 +2430,8 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
                     name="Mocked Credential", auto_add=True, organization=org
                 )
 
-    def test_batch_command_broadcast_deferred_to_commit(self):
+    @mock.patch.object(Command, "_schedule_command")
+    def test_batch_command_broadcast_deferred_to_commit(self, schedule_command):
         org = self._get_org()
         device = self._create_device(organization=org)
         self._create_config(device=device)
@@ -2232,18 +2444,36 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
             type=batch.type,
             input={"command": "echo test"},
         )
-        with mock.patch.object(Command, "_schedule_command"):
-            with self.subTest("nothing is sent before the transaction commits"):
-                with mock.patch.object(apps.layers, "get_channel_layer") as layer:
+
+        def channel_layer():
+            layer = mock.MagicMock()
+            layer.group_send = mock.AsyncMock()
+            return layer
+
+        with self.subTest("nothing is sent before the transaction commits"):
+            layer = channel_layer()
+            with mock.patch.object(
+                handlers.layers, "get_channel_layer", return_value=layer
+            ):
+                with transaction.atomic():
+                    command = Command.objects.create(**command_opts)
+                    layer.group_send.assert_not_called()
+                layer.group_send.assert_called_once()
+            group, event = layer.group_send.call_args[0]
+            self.assertEqual(group, f"config.batchcommand-{batch.pk}")
+            self.assertEqual(event["type"], "send.update")
+            self.assertEqual(event["data"]["type"], "command_update")
+            self.assertEqual(event["data"]["id"], str(command.pk))
+            self.assertEqual(event["data"]["device_name"], device.name)
+
+        with self.subTest("a rolled back command is never broadcast"):
+            layer = channel_layer()
+            with mock.patch.object(
+                handlers.layers, "get_channel_layer", return_value=layer
+            ):
+                with self.assertRaises(ValueError):
                     with transaction.atomic():
                         Command.objects.create(**command_opts)
-                        layer.assert_not_called()
-                    layer.assert_called()
-            with self.subTest("a rolled back command is never broadcast"):
-                with mock.patch.object(apps.layers, "get_channel_layer") as layer:
-                    with self.assertRaises(ValueError):
-                        with transaction.atomic():
-                            Command.objects.create(**command_opts)
-                            raise ValueError()
-                    layer.assert_not_called()
+                        raise ValueError()
+                layer.group_send.assert_not_called()
         self.assertEqual(batch.batch_commands.count(), 1)

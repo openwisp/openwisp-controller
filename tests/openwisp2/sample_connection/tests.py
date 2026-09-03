@@ -1,4 +1,7 @@
 from openwisp_controller.connection.tests.test_admin import (
+    TestBatchCommandAdmin as BaseTestBatchCommandAdmin,
+)
+from openwisp_controller.connection.tests.test_admin import (
     TestCommandInlines as BaseTestCommandInlines,
 )
 from openwisp_controller.connection.tests.test_admin import (
@@ -32,6 +35,10 @@ class TestCommandInlines(BaseTestCommandInlines):
     config_app_label = "sample_config"
 
 
+class TestBatchCommandAdmin(BaseTestBatchCommandAdmin):
+    app_label = "sample_connection"
+
+
 class TestModels(BaseTestModels):
     app_label = "sample_connection"
 
@@ -60,6 +67,7 @@ class TestConnectionApi(BaseTestConnectionApi):
     pass
 
 
+del BaseTestBatchCommandAdmin
 del BaseTestCommandInlines
 del BaseTestConnectionAdmin
 del BaseTestModels
