@@ -3186,15 +3186,8 @@ class TestTransactionAdmin(
         )
         request.resolver_match = resolve(url)
         request.user = user
-        # TODO: replace _registry with get_model_admin once Django 4.2 is dropped
-        device_admin = admin.site._registry[Device]
-        admin_site = SimpleNamespace(
-            _registry={first_org.__class__: admin.site._registry[first_org.__class__]}
-        )
-        with (
-            patch.object(device_admin, "admin_site", admin_site),
-            patch.object(device_admin, "message_user") as message_user,
-        ):
+        device_admin = admin.site.get_model_admin(Device)
+        with patch.object(device_admin, "message_user") as message_user:
             device_admin._add_active_device_delete_warning(request, first_device)
         message = str(message_user.call_args.args[1])
         self.assertIn("This organization contains active devices.", message)
@@ -3216,8 +3209,7 @@ class TestTransactionAdmin(
         )
         request = RequestFactory().get(url)
         request.resolver_match = resolve(url)
-        # TODO: replace _registry with get_model_admin once Django 4.2 is dropped
-        device_admin = admin.site._registry[Device]
+        device_admin = admin.site.get_model_admin(Device)
         with patch.object(
             Device.objects, "filter", wraps=Device.objects.filter
         ) as filter_:
