@@ -126,19 +126,27 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
         # Ensure that master subnet can accommodate
         # the required number of generated subnets
         available = 2 ** (self.size - master_subnet.prefixlen)
-        # Account for the reserved subnet
-        available -= 1
-        if self.number_of_subnets >= available:
-            raise ValidationError(
-                {
-                    "number_of_subnets": _(
-                        "The master subnet is too small to accommodate the "
-                        'requested "number of subnets" plus the reserved '
-                        "subnet, please increase the size of the master "
-                        'subnet or decrease the "size of subnets" field.'
-                    )
-                }
-            )
+        is_host_route = (
+            self.size == 32 if master_subnet.version == 4 else self.size == 128
+        )
+        if not is_host_route:
+            # Account for the reserved subnet
+            available -= 1
+        if self.number_of_subnets > available:
+            if is_host_route:
+                msg = _(
+                    "The master subnet is too small to accommodate the "
+                    'requested "number of subnets", please increase the size of '
+                    'the master subnet or decrease the "size of subnets" field.'
+                )
+            else:
+                msg = _(
+                    "The master subnet is too small to accommodate the "
+                    'requested "number of subnets" plus the reserved '
+                    "subnet, please increase the size of the master "
+                    'subnet or decrease the "size of subnets" field.'
+                )
+            raise ValidationError({"number_of_subnets": msg})
         # Validate organization of master subnet
         if (
             self.master_subnet.organization is not None

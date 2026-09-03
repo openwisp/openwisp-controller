@@ -5,6 +5,7 @@ from unittest.mock import patch
 from django.core.exceptions import ValidationError
 from django.test import TransactionTestCase
 from django.urls import reverse
+from netaddr import IPNetwork
 from swapper import load_model
 
 from openwisp_controller.config.tests.utils import (
@@ -296,8 +297,8 @@ class TestSubnetDivisionRule(
         self.assertEqual(index_queryset.count(), 1)
         index = index_queryset.first()
         self.assertEqual(self.vpn_server.ip.ip_address, "10.0.0.1")
-        self.assertEqual(str(index.subnet.subnet), "10.0.0.2/32")
-        self.assertEqual(index.ip.ip_address, "10.0.0.2")
+        self.assertEqual(str(index.subnet.subnet), "10.0.0.0/32")
+        self.assertEqual(index.ip.ip_address, "10.0.0.0")
 
     def test_slash_32_rule_ipv4_skips_parent_allocations(self):
         self.master_subnet.request_ip()
@@ -319,7 +320,7 @@ class TestSubnetDivisionRule(
         self.vpn_server.save()
         try:
             self._get_vpn_subdivision_rule(
-                size=32, number_of_ips=1, number_of_subnets=1, master_subnet=master_ipv4
+                size=32, number_of_ips=1, number_of_subnets=2, master_subnet=master_ipv4
             )
         except ValidationError as e:
             self.assertIn("number_of_subnets", e.message_dict)
@@ -329,6 +330,42 @@ class TestSubnetDivisionRule(
             )
         else:
             self.fail("Expected error not raised")
+
+    def test_slash_32_rule_ipv4_boundary(self):
+        # A /32 master subnet fits exactly 1 /32 subnet
+        # without reserved subnet overhead
+        master_ipv4 = self._get_master_subnet(subnet="192.168.1.1/32")
+        rule = self._get_vpn_subdivision_rule(
+            size=32, number_of_ips=1, number_of_subnets=1, master_subnet=master_ipv4
+        )
+        rule.full_clean()
+        self.assertEqual(rule.number_of_subnets, 1)
+
+        # A /24 master subnet fits exactly 256 /32 subnets
+        # without reserved subnet overhead
+        master_24 = self._get_master_subnet(subnet="172.16.0.0/24")
+        rule_24 = self._get_vpn_subdivision_rule(
+            size=32,
+            number_of_ips=1,
+            number_of_subnets=256,
+            master_subnet=master_24,
+            label="OW_24_MAX",
+        )
+        rule_24.full_clean()
+
+        # 257 subnets exceeds capacity and should raise ValidationError
+        rule_24_overflow = SubnetDivisionRule(
+            size=32,
+            number_of_ips=1,
+            number_of_subnets=257,
+            master_subnet=master_24,
+            label="OW_24_OVERFLOW",
+            type=rule_24.type,
+            organization=self.org,
+        )
+        with self.assertRaises(ValidationError) as error:
+            rule_24_overflow.full_clean()
+        self.assertIn("number_of_subnets", error.exception.message_dict)
 
     def test_slash_128_rule_ipv6(self):
         master_ipv6 = self._get_master_subnet(subnet="fd12:3456:7890::/48")
@@ -346,8 +383,8 @@ class TestSubnetDivisionRule(
         self.assertEqual(index_queryset.count(), 1)
         index = index_queryset.first()
         self.assertEqual(self.vpn_server.ip.ip_address, "fd12:3456:7890::1")
-        self.assertEqual(str(index.subnet.subnet), "fd12:3456:7890::2/128")
-        self.assertEqual(index.ip.ip_address, "fd12:3456:7890::2")
+        self.assertEqual(str(index.subnet.subnet), "fd12:3456:7890::/128")
+        self.assertEqual(index.ip.ip_address, "fd12:3456:7890::")
 
     def test_slash_128_rule_ipv6_error(self):
         master_ipv6 = self._get_master_subnet(subnet="fd12:3456:7890::/128")
@@ -357,7 +394,7 @@ class TestSubnetDivisionRule(
             self._get_vpn_subdivision_rule(
                 size=128,
                 number_of_ips=1,
-                number_of_subnets=1,
+                number_of_subnets=2,
                 master_subnet=master_ipv6,
             )
         except ValidationError as e:
@@ -368,6 +405,20 @@ class TestSubnetDivisionRule(
             )
         else:
             self.fail("Expected error not raised")
+
+    def test_slash_128_rule_ipv6_boundary(self):
+        # A /128 master subnet fits exactly 1 /128 subnet
+        # without reserved subnet overhead
+        master_ipv6 = self._get_master_subnet(subnet="fd12:3456:7890::/128")
+        rule = self._get_vpn_subdivision_rule(
+            size=128,
+            number_of_ips=1,
+            number_of_subnets=1,
+            master_subnet=master_ipv6,
+            label="OW_V6_BOUND",
+        )
+        rule.full_clean()
+        self.assertEqual(rule.number_of_subnets, 1)
 
     def test_rule_label_updated(self):
         new_rule_label = "TSDR"
@@ -732,6 +783,127 @@ class TestSubnetDivisionRule(
         )
         # Check 10.0.0.1 is not provisioned again
         self.assertEqual(SubnetDivisionIndex.objects.filter(ip_id=ip.id).count(), 0)
+
+    def test_no_reserved_subnet_for_host_routes(self):
+        # Test /32 IPv4 rule does not create a Reserved Subnet record
+        self._get_vpn_subdivision_rule(size=32, number_of_ips=1, number_of_subnets=1)
+        self.config.templates.add(self.template)
+        subnet_query = Subnet.objects.filter(master_subnet_id=self.master_subnet.id)
+        self.assertEqual(
+            subnet_query.filter(name__contains="Reserved Subnet").count(), 0
+        )
+        self.assertEqual(subnet_query.count(), 1)
+        self.assertEqual(
+            str(subnet_query.first().subnet),
+            str(next(IPNetwork(str(self.master_subnet.subnet)).subnet(32))),
+        )
+
+        # Test /128 IPv6 rule does not create a Reserved Subnet record
+        master_ipv6 = self._get_master_subnet(subnet="fd12:3456:7890::/48")
+        vpn_server_v6 = self._create_wireguard_vpn(
+            name="wg-v6", subnet=master_ipv6, organization=self.org
+        )
+        template_v6 = self._create_template(
+            name="vpn-v6-test", type="vpn", vpn=vpn_server_v6, organization=self.org
+        )
+        self._get_vpn_subdivision_rule(
+            size=128,
+            number_of_ips=1,
+            number_of_subnets=1,
+            master_subnet=master_ipv6,
+            label="OW_V6",
+        )
+        config_v6 = self._create_config(
+            device=self._create_device(
+                name="v6-test-device",
+                mac_address="00:11:22:33:44:77",
+                organization=self.org,
+            )
+        )
+        config_v6.templates.add(template_v6)
+        subnet_query_v6 = Subnet.objects.filter(master_subnet_id=master_ipv6.id)
+        self.assertEqual(
+            subnet_query_v6.filter(name__contains="Reserved Subnet").count(), 0
+        )
+        self.assertEqual(subnet_query_v6.count(), 1)
+        self.assertEqual(
+            str(subnet_query_v6.first().subnet),
+            str(next(IPNetwork(str(master_ipv6.subnet)).subnet(128))),
+        )
+
+    def test_concurrent_subnet_allocation(self):
+        import threading
+
+        from django.db import connections
+
+        rule = self._get_vpn_subdivision_rule(
+            size=28, number_of_ips=2, number_of_subnets=1
+        )
+        config1 = self.config
+        config2 = self._create_config(
+            device=self._create_device(
+                name="concurrent-dev2",
+                mac_address="00:11:22:33:44:88",
+                organization=self.org,
+            )
+        )
+        barrier = threading.Barrier(2)
+        results = [None, None]
+        errors = [None, None]
+
+        def _provision(index, config_obj):
+            connections.close_all()
+            try:
+                barrier.wait(timeout=5)
+                res = VpnSubnetDivisionRuleType.create_subnets_ips(config_obj, rule)
+                results[index] = res
+            except Exception as exc:
+                errors[index] = exc
+            finally:
+                connections.close_all()
+
+        t1 = threading.Thread(target=_provision, args=(0, config1))
+        t2 = threading.Thread(target=_provision, args=(1, config2))
+
+        t1.start()
+        t2.start()
+        t1.join()
+        t2.join()
+
+        self.assertIsNone(errors[0])
+        self.assertIsNone(errors[1])
+
+        subnets1 = [str(s.subnet) for s in results[0]["subnets"]]
+        subnets2 = [str(s.subnet) for s in results[1]["subnets"]]
+
+        self.assertEqual(len(subnets1), 1)
+        self.assertEqual(len(subnets2), 1)
+        self.assertNotEqual(subnets1[0], subnets2[0])
+
+        indexes1 = set(
+            SubnetDivisionIndex.objects.filter(config=config1).values_list(
+                "keyword", flat=True
+            )
+        )
+        indexes2 = set(
+            SubnetDivisionIndex.objects.filter(config=config2).values_list(
+                "keyword", flat=True
+            )
+        )
+        self.assertTrue(len(indexes1) > 0)
+        self.assertTrue(len(indexes2) > 0)
+        self.assertEqual(
+            SubnetDivisionIndex.objects.filter(
+                config=config1, subnet__subnet=subnets1[0]
+            ).count(),
+            1,
+        )
+        self.assertEqual(
+            SubnetDivisionIndex.objects.filter(
+                config=config2, subnet__subnet=subnets2[0]
+            ).count(),
+            1,
+        )
 
     def test_device_subnet_division_rule(self):
         self.config.delete()

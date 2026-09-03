@@ -139,15 +139,17 @@ class BaseSubnetDivisionRuleType(object):
             return
 
         master_subnet = division_rule.master_subnet
-        max_subnet = cls.get_max_subnet(master_subnet, division_rule)
-        generated_indexes = []
-        generated_subnets = cls.create_subnets(
-            config, division_rule, max_subnet, generated_indexes
-        )
-        generated_ips = cls.create_ips(
-            config, division_rule, generated_subnets, generated_indexes
-        )
-        SubnetDivisionIndex.objects.bulk_create(generated_indexes)
+        with transaction.atomic():
+            Subnet.objects.select_for_update().filter(id=master_subnet.id).first()
+            max_subnet = cls.get_max_subnet(master_subnet, division_rule)
+            generated_indexes = []
+            generated_subnets = cls.create_subnets(
+                config, division_rule, max_subnet, generated_indexes
+            )
+            generated_ips = cls.create_ips(
+                config, division_rule, generated_subnets, generated_indexes
+            )
+            SubnetDivisionIndex.objects.bulk_create(generated_indexes)
         return {"subnets": generated_subnets, "ip_addresses": generated_ips}
 
     @classmethod
@@ -190,32 +192,38 @@ class BaseSubnetDivisionRuleType(object):
         # "created" field is used for ordering the queryset.
         order_field = "-subnet" if connection.vendor == "postgresql" else "-created"
         try:
-            max_subnet = (
-                # Get the highest subnet created for this master_subnet
+            # Get the highest subnet created for this master_subnet
+            return (
                 Subnet.objects.filter(master_subnet_id=master_subnet.id)
                 .order_by(order_field)
                 .first()
                 .subnet
             )
         except AttributeError:
-            # If there is no existing subnet, create a reserved subnet
-            # and use it as starting point
+            # If there is no existing subnet, determine starting candidate prefix
+            # (creating a reserved subnet except for host routes /32 and /128)
             required_subnet = next(
                 IPNetwork(str(master_subnet.subnet)).subnet(
                     prefixlen=division_rule.size
                 )
             )
-            subnet_obj = Subnet(
-                name=f"Reserved Subnet {required_subnet}",
-                subnet=str(required_subnet),
-                description=_("Automatically generated reserved subnet."),
-                master_subnet_id=master_subnet.id,
-                organization_id=master_subnet.organization_id,
+            is_host_route = (
+                division_rule.size == 32
+                if IPNetwork(str(master_subnet.subnet)).version == 4
+                else division_rule.size == 128
             )
-            subnet_obj.full_clean()
-            subnet_obj.save()
-            max_subnet = subnet_obj.subnet
-        return max_subnet
+            if not is_host_route:
+                subnet_obj = Subnet(
+                    name=f"Reserved Subnet {required_subnet}",
+                    subnet=str(required_subnet),
+                    description=_("Automatically generated reserved subnet."),
+                    master_subnet_id=master_subnet.id,
+                    organization_id=master_subnet.organization_id,
+                )
+                subnet_obj.full_clean()
+                subnet_obj.save()
+                return subnet_obj.subnet
+            return str(required_subnet)
 
     @staticmethod
     def create_subnets(config, division_rule, max_subnet, generated_indexes):
@@ -227,7 +235,19 @@ class BaseSubnetDivisionRuleType(object):
                 subnet_id__in=master_subnet.get_related_subnet_pks()
             ).values_list("ip_address", flat=True)
         )
-        required_subnet = IPNetwork(str(max_subnet)).next()
+        is_host_route = (
+            division_rule.size == 32
+            if IPNetwork(str(master_subnet.subnet)).version == 4
+            else division_rule.size == 128
+        )
+        has_existing_subnets = Subnet.objects.filter(
+            master_subnet_id=master_subnet.id
+        ).exists()
+
+        if is_host_route and not has_existing_subnets:
+            required_subnet = IPNetwork(str(max_subnet))
+        else:
+            required_subnet = IPNetwork(str(max_subnet)).next()
         generated_subnets = []
 
         while len(generated_subnets) < division_rule.number_of_subnets:

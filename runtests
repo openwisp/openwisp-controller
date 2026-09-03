@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+export COVERAGE_RUN=1
+
 coverage erase
 
 echo "Starting standard tests"
