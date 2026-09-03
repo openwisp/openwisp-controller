@@ -241,9 +241,11 @@ superusers).
 
 .. note::
 
-    Commands are executed in the background, one device at a time, so a
-    mass command sent to many devices keeps updating for a while after the
-    page is opened.
+    Commands are executed asynchronously in the background: each device is
+    handled by an independent background task, so how many devices are
+    contacted at the same time depends on the concurrency of the Celery
+    workers. A mass command sent to many devices keeps updating for a
+    while after the page is opened.
 
 Finding Past Mass Commands
 ~~~~~~~~~~~~~~~~~~~~~~~~~~

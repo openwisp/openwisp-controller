@@ -1,12 +1,6 @@
-import logging
-
-from asgiref.sync import async_to_sync
-from channels import layers
 from django.apps import AppConfig
 from django.db import transaction
 from django.db.models.signals import post_save
-from django.utils.formats import date_format
-from django.utils.timezone import localtime
 from django.utils.translation import gettext_lazy as _
 from openwisp_notifications.signals import notify
 from openwisp_notifications.types import register_notification_type
@@ -16,8 +10,6 @@ from openwisp_utils.admin_theme.menu import register_menu_group, register_menu_s
 
 from ..config.signals import config_deactivating, config_modified
 from .signals import is_working_changed
-
-logger = logging.getLogger(__name__)
 
 
 class ConnectionConfig(AppConfig):
@@ -40,10 +32,10 @@ class ConnectionConfig(AppConfig):
         self.notification_cache_update()
         self.register_menu_groups()
 
+        from . import handlers  # noqa
+
         Config = load_model("config", "Config")
         Credentials = load_model("connection", "Credentials")
-        Command = load_model("connection", "Command")
-        BatchCommand = load_model("connection", "BatchCommand")
 
         config_modified.connect(
             self.config_modified_receiver, dispatch_uid="connection.update_config"
@@ -63,84 +55,9 @@ class ConnectionConfig(AppConfig):
             dispatch_uid="is_working_changed_receiver",
         )
 
-        post_save.connect(
-            self.command_save_receiver,
-            sender=Command,
-            dispatch_uid="command_save_handler",
-        )
-        post_save.connect(
-            self.batch_command_save_receiver,
-            sender=BatchCommand,
-            dispatch_uid="batch_command_save_handler",
-        )
-
     @classmethod
     def config_modified_receiver(cls, **kwargs):
         transaction.on_commit(lambda: cls._launch_update_config(kwargs["device"]))
-
-    @classmethod
-    def _send_batch_update(cls, group, data):
-        def send():
-            try:
-                async_to_sync(layers.get_channel_layer().group_send)(
-                    group, {"type": "send.update", "data": data}
-                )
-            except Exception:
-                logger.exception("Failed to send update to %s", group)
-
-        transaction.on_commit(send)
-
-    @classmethod
-    def command_save_receiver(cls, sender, created, instance, **kwargs):
-        from .api.serializers import CommandSerializer
-
-        if created and not instance.batch_command_id:
-            return
-        serialized_data = CommandSerializer(instance).data
-        if not created:
-            async_to_sync(layers.get_channel_layer().group_send)(
-                f"config.device-{instance.device_id}",
-                {"type": "send.update", "model": "Command", "data": serialized_data},
-            )
-        if instance.batch_command_id:
-            batch_data = dict(serialized_data)
-            batch_data.pop("input", None)
-            batch_data["device_name"] = instance.device.name
-            batch_data["status_display"] = instance.get_status_display()
-            batch_data["output"] = instance.output_preview
-            batch_data["modified"] = date_format(
-                localtime(instance.modified), "DATETIME_FORMAT"
-            )
-            batch_data["type"] = "command_update"
-            if created:
-                batch = instance.batch_command
-                index = getattr(instance, "_batch_index", None)
-                if index is None:
-                    index = batch.affected_devices - 1
-                affected_devices = index + 1
-                batch_data["index"] = index
-                batch_data["affected_devices"] = affected_devices
-                batch_data["total_rows"] = affected_devices + len(
-                    batch.skipped_devices or {}
-                )
-            cls._send_batch_update(
-                f"config.batchcommand-{instance.batch_command_id}", batch_data
-            )
-
-    @classmethod
-    def batch_command_save_receiver(cls, sender, instance, **kwargs):
-        from .api.serializers import BatchCommandSerializer
-
-        batch_data = BatchCommandSerializer(instance).data
-        batch_data["status_display"] = instance.get_status_display()
-        batch_data["type"] = "batch_status"
-        affected_devices = instance.affected_devices
-        skipped_count = len(batch_data.pop("skipped_devices", None) or {})
-        batch_data["affected_devices"] = affected_devices
-        batch_data["total_rows"] = affected_devices + skipped_count
-        batch_data["skipped_count"] = skipped_count
-        batch_data["skipped_preview"] = instance.get_skipped_preview()
-        cls._send_batch_update(f"config.batchcommand-{instance.pk}", batch_data)
 
     @classmethod
     def _launch_update_config(cls, device):

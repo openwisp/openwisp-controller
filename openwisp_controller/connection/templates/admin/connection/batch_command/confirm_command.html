@@ -84,7 +84,11 @@
     <div class="flex-container">
       <label>{% trans 'Will run on' %}</label>
       <div class="readonly">
-        <strong id="selected-count">{{ device_count }}</strong> {% trans 'devices' %}
+        {% blocktrans trimmed count counter=device_count %}
+        <strong id="selected-count">{{ counter }}</strong> <span id="selected-count-label">device</span>
+        {% plural %}
+        <strong id="selected-count">{{ counter }}</strong> <span id="selected-count-label">devices</span>
+        {% endblocktrans %}
       </div>
     </div>
   </div>
@@ -112,7 +116,7 @@
   <input type="hidden" name="excluded" id="id_excluded" value="">
   <input type="hidden" name="token" value="{{ wizard.token }}">
   <div class="submit-row">
-    <a class="button cancel-link" href="{% url batch_opts|admin_urlname:'execute' %}">{% trans 'Back' %}</a>
+    <a class="button cancel-link" href="{% url batch_opts|admin_urlname:'execute' %}?back=1">{% trans 'Back' %}</a>
     <button type="submit" class="default" id="execute-button">
       {% blocktrans trimmed count counter=device_count %}
       Execute on {{ counter }} device

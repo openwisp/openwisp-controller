@@ -13,7 +13,7 @@ from swapper import load_model
 
 from openwisp_controller.connection.tests.utils import CreateCommandMixin
 
-from .. import apps
+from .. import handlers
 from ..channels.consumers import BatchCommandConsumer
 from .test_models import BaseTestModels
 
@@ -133,27 +133,6 @@ class TestBatchCommandConsumer(BaseTestModels, CreateCommandMixin):
         connected, _ = await communicator.connect()
         return communicator, connected
 
-    async def _connect_through_route(self, admin_client, batch):
-        session_id = admin_client.cookies["sessionid"].value
-        communicator = WebsocketCommunicator(
-            self.application,
-            path=f"{self.path}/{batch.pk}",
-            headers=[(b"cookie", f"sessionid={session_id}".encode("ascii"))],
-        )
-        connected, _ = await communicator.connect()
-        return communicator, connected
-
-    async def _drain(self, communicator):
-        while not await communicator.receive_nothing():
-            await communicator.receive_json_from()
-
-    async def _receive_until(self, communicator, message_type, limit=4):
-        for _ in range(limit):
-            message = await communicator.receive_json_from()
-            if message.get("type") == message_type:
-                return message
-        raise AssertionError(f"{message_type} was never received")
-
     @database_sync_to_async
     def _create_batch(self, organization=None, **kwargs):
         return self._create_batch_command(organization=organization, **kwargs)
@@ -175,13 +154,24 @@ class TestBatchCommandConsumer(BaseTestModels, CreateCommandMixin):
             for index in range(count)
         }
         batch.save(update_fields=["skipped_devices"])
-        return list(batch.skipped_devices)
+        batch.refresh_from_db(fields=["skipped_devices"])
+        return batch.skipped_devices
 
     async def test_batch_command_consumer_authorization(self, admin_user, admin_client):
+        async def connect_through_route(batch):
+            session_id = admin_client.cookies["sessionid"].value
+            communicator = WebsocketCommunicator(
+                self.application,
+                path=f"{self.path}/{batch.pk}",
+                headers=[(b"cookie", f"sessionid={session_id}".encode("ascii"))],
+            )
+            connected, _ = await communicator.connect()
+            return communicator, connected
+
         org = await database_sync_to_async(self._get_org)()
         org2 = await database_sync_to_async(self._create_org)(name="org2", slug="org2")
         batch = await self._create_batch(organization=org)
-        communicator, connected = await self._connect_through_route(admin_client, batch)
+        communicator, connected = await connect_through_route(batch)
         assert connected is True
         await communicator.disconnect()
         communicator, connected = await self._connect(batch.pk)
@@ -241,7 +231,7 @@ class TestBatchCommandConsumer(BaseTestModels, CreateCommandMixin):
                 status="success",
                 output="line one\nline two",
             )
-        skipped_pks = await self._set_skipped(batch, 3)
+        skipped_pks = list(await self._set_skipped(batch, 3))
         await database_sync_to_async(batch.refresh_from_db)()
         communicator, connected = await self._connect(batch.pk, admin_user)
         assert connected is True
@@ -253,7 +243,8 @@ class TestBatchCommandConsumer(BaseTestModels, CreateCommandMixin):
             assert page1["type"] == "batch_state"
             assert page1["total_rows"] == 4
             batch_status = page1["batch_status"]
-            assert batch_status["status_display"] == batch.get_status_display()
+            assert batch_status["status"] == batch.status
+            assert "status_display" not in batch_status
             assert batch_status["affected_devices"] == 1
             assert batch_status["skipped_count"] == 3
             assert [row["device"] for row in batch_status["skipped_preview"]] == (
@@ -266,9 +257,13 @@ class TestBatchCommandConsumer(BaseTestModels, CreateCommandMixin):
             ]
             command_row = page1["commands"][0]
             assert command_row["device_name"] == device_conn.device.name
-            assert command_row["status_display"] == command.get_status_display()
+            assert command_row["status"] == command.status
+            assert "status_display" not in command_row
             assert command_row["output"] == "… line two"
-            assert command_row["modified"]
+            assert (
+                command_row["modified"]
+                == timezone.localtime(command.modified).isoformat()
+            )
             assert "input" not in command_row
             await communicator.send_json_to(
                 {"type": "request_current_state", "page": 2}
@@ -276,6 +271,23 @@ class TestBatchCommandConsumer(BaseTestModels, CreateCommandMixin):
             page2 = await communicator.receive_json_from()
             assert [row["device"] for row in page2["commands"]] == skipped_pks[1:]
             assert all(row["is_skipped"] for row in page2["commands"])
+            await communicator.send_json_to(
+                {
+                    "type": "request_current_state",
+                    "page": 1,
+                    "filters": {"group_id": str(uuid4())},
+                }
+            )
+            filtered = await communicator.receive_json_from()
+            assert filtered["total_rows"] == 0
+            assert filtered["commands"] == []
+            for value in ([1], "abc", 7):
+                await communicator.send_json_to(
+                    {"type": "request_current_state", "page": 1, "filters": value}
+                )
+                response = await communicator.receive_json_from()
+                assert response["type"] == "batch_state"
+                assert response["total_rows"] == page1["total_rows"]
             for page in (0, -1, "abc", None):
                 await communicator.send_json_to(
                     {"type": "request_current_state", "page": page}
@@ -297,6 +309,39 @@ class TestBatchCommandConsumer(BaseTestModels, CreateCommandMixin):
         assert await communicator.receive_nothing() is True
         await communicator.disconnect()
 
+    async def test_batch_command_consumer_access_revoked(self, admin_user):
+        org = await database_sync_to_async(self._get_org)()
+        batch = await self._create_batch(organization=org)
+
+        def push_batch_status():
+            batch.status = "in-progress"
+            batch.save(update_fields=["status"])
+
+        manager = await self._create_staff(
+            "revoked-manager", org=org, codenames=["view_batchcommand"]
+        )
+
+        communicator, connected = await self._connect(batch.pk, manager)
+        assert connected is True
+        await database_sync_to_async(manager.user_permissions.clear)()
+        await communicator.send_json_to({"type": "request_current_state", "page": 1})
+        assert await communicator.receive_output() == {"type": "websocket.close"}
+        await communicator.disconnect()
+
+        await database_sync_to_async(manager.user_permissions.set)(
+            await database_sync_to_async(list)(
+                Permission.objects.filter(codename="view_batchcommand")
+            )
+        )
+        communicator, connected = await self._connect(batch.pk, manager)
+        assert connected is True
+        await database_sync_to_async(
+            OrganizationUser.objects.filter(user=manager, organization=org).delete
+        )()
+        await database_sync_to_async(push_batch_status)()
+        assert await communicator.receive_output() == {"type": "websocket.close"}
+        await communicator.disconnect()
+
     async def test_batch_command_consumer_invalid_messages(self, admin_user):
         org = await database_sync_to_async(self._get_org)()
         batch = await self._create_batch(organization=org)
@@ -311,11 +356,24 @@ class TestBatchCommandConsumer(BaseTestModels, CreateCommandMixin):
             for message in ({"type": "unknown"}, {}):
                 await communicator.send_json_to(message)
                 assert await communicator.receive_nothing() is True
-            assert logger.warning.call_count == 6
+            await communicator.send_to(bytes_data=b"\x00\x01")
+            assert await communicator.receive_nothing() is True
+            assert logger.warning.call_count == 7
         await communicator.disconnect()
 
     @mock.patch("paramiko.SSHClient.connect")
     async def test_batch_command_consumer_updates(self, mocked_connect, admin_user):
+        async def drain(communicator):
+            while not await communicator.receive_nothing():
+                await communicator.receive_json_from()
+
+        async def receive_until(communicator, message_type, limit=4):
+            for _ in range(limit):
+                message = await communicator.receive_json_from()
+                if message.get("type") == message_type:
+                    return message
+            raise AssertionError(f"{message_type} was never received")
+
         org = await database_sync_to_async(self._get_org)()
         device_conn = await database_sync_to_async(self._create_device_connection)()
         batch = await self._create_batch(organization=org)
@@ -334,37 +392,39 @@ class TestBatchCommandConsumer(BaseTestModels, CreateCommandMixin):
                 type="custom",
                 input={"command": "echo test"},
             )
-        created = await self._receive_until(communicator, "command_update")
+        created = await receive_until(communicator, "command_update")
         assert created["id"] == str(command.pk)
+        assert created["status"] == command.status
+        assert "status_display" not in created
+        assert created["modified"] == timezone.localtime(command.modified).isoformat()
         assert created["index"] == 0
         assert created["affected_devices"] == 1
         assert created["total_rows"] == 1
         assert created["device_name"] == device_conn.device.name
         assert "input" not in created
-        assert await self._receive_until(watcher, "command_update") == created
+        assert await receive_until(watcher, "command_update") == created
         assert await communicator.receive_nothing() is True
         command.status = "success"
         command.output = "done"
         await database_sync_to_async(command.save)()
-        updated = await self._receive_until(communicator, "command_update")
+        updated = await receive_until(communicator, "command_update")
         assert updated["status"] == "success"
         assert updated["output"] == "done"
         assert "index" not in updated
-        await self._drain(communicator)
-        await self._set_skipped(batch, 2)
-        status = await self._receive_until(communicator, "batch_status")
+        await drain(communicator)
+        skipped = await self._set_skipped(batch, 2)
+        status = await receive_until(communicator, "batch_status")
         assert status["skipped_count"] == 2
         assert [row["device_name"] for row in status["skipped_preview"]] == [
-            "skipped0",
-            "skipped1",
+            row["name"] for row in skipped.values()
         ]
         assert status["affected_devices"] == 1
         assert status["total_rows"] == 3
         # updates are namespaced per batch
         assert await other.receive_nothing() is True
         with mock.patch.object(
-            apps.layers, "get_channel_layer", side_effect=RuntimeError("no layer")
-        ), mock.patch.object(apps, "logger") as logger, mock.patch.object(
+            handlers.layers, "get_channel_layer", side_effect=RuntimeError("no layer")
+        ), mock.patch.object(handlers, "logger") as logger, mock.patch.object(
             Command, "_schedule_command"
         ):
             await database_sync_to_async(Command.objects.create)(

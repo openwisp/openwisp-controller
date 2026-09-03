@@ -204,13 +204,23 @@ When the mass command itself changes, for example when it moves from
         "type": "batch_status",
         "id": "<uuid>",                  // Mass command identifier
         "label": "<string>",             // Label given when it was sent
+        "notes": "<string>",             // Notes given when it was sent
+        "input": { /* ... */ },          // Command input, masked for "change_password"
+        "organization": "<uuid>",        // Organization, null when system wide
+        "group": "<uuid>",               // Device group target, null when not used
+        "location": "<uuid>",            // Location target, null when not used
         "status": "<string>",            // "idle", "in-progress", "success" or "failed"
-        "status_display": "<string>",    // Status as shown in the user interface
+        "created": "<string>",           // ISO 8601 timestamp
+        "modified": "<string>",          // ISO 8601 timestamp
         "affected_devices": <integer>,   // Number of devices the command runs on
         "skipped_count": <integer>,      // Number of devices which were skipped
         "skipped_preview": [ /* ... */], // First and last skipped devices, with the reason
         "total_rows": <integer>          // Affected plus skipped devices
     }
+
+The status and the timestamps are sent as they are stored, without
+translation or formatting, so that each client can render them with its
+own language and time zone.
 
 When the command of one device changes:
 
@@ -221,11 +231,14 @@ When the command of one device changes:
         "id": "<uuid>",                  // Command identifier
         "device": "<uuid>",              // Device identifier
         "device_name": "<string>",       // Device name
+        "connection": "<uuid>",          // Device connection used, may be null
+        "batch_command": "<uuid>",       // Mass command this command belongs to
         "status": "<string>",            // "in-progress", "success" or "failed"
-        "status_display": "<string>",    // Status as shown in the user interface
         "output": "<string>",            // Output collected so far
-        "modified": "<string>",          // Last modification, formatted for display
+        "created": "<string>",           // ISO 8601 timestamp
+        "modified": "<string>",          // ISO 8601 timestamp
         "index": <integer>,              // Position of the row, sent only for new commands
+        "affected_devices": <integer>,   // Commands created so far, sent with "index"
         "total_rows": <integer>          // Affected plus skipped devices, sent with "index"
     }
 
@@ -239,8 +252,20 @@ for the results it missed:
 
     {
         "type": "request_current_state",
-        "page": 1                        // Page of results, 20 rows per page
+        "page": 1,                       // Page of results, 20 rows per page
+        "filters": {                     // Optional, the filters the page is showing
+            "q": "<string>",             // Search term matched against the device name
+            "status": "<string>",        // Command status, or "skipped"
+            "location_id": "<uuid>",     // Location of the device
+            "group_id": "<uuid>",        // Device group
+            "organization_id": "<uuid>"  // Organization of the device
+        }
     }
+
+Every filter is optional and an empty string means the filter is not
+active. The filters are applied before the results are paginated, so a
+client which is showing a filtered table receives the same rows it would
+get by reloading the page.
 
 The server replies with one message holding that page:
 
@@ -248,7 +273,13 @@ The server replies with one message holding that page:
 
     {
         "type": "batch_state",
-        "batch_status": { /* ... */ },   // Same fields as the "batch_status" message
-        "commands": [ /* ... */ ],       // Rows of the requested page
-        "total_rows": <integer>          // Affected plus skipped devices
+        "batch_status": { /* ... */ },   // Fields of the "batch_status" message,
+                                         // except "type" and "total_rows"
+        "commands": [ /* ... */ ],       // Rows of the requested page, in the shape
+                                         // of the "command_update" message
+        "total_rows": <integer>          // Rows matching the filters, for the paginator
     }
+
+Rows of devices which were skipped are included in ``commands`` with
+``is_skipped`` set to ``true``, a ``status`` of ``skipped`` and the reason
+in ``output``.

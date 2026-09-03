@@ -2,7 +2,6 @@
 
 import uuid
 
-import django
 import django.core.serializers.json
 import django.db.migrations.operations.special
 import django.db.models.deletion
@@ -71,11 +70,7 @@ class Migration(migrations.Migration):
                     "type",
                     models.CharField(
                         max_length=16,
-                        choices=(
-                            connection_config.commands.COMMAND_CHOICES
-                            if django.VERSION < (5, 0)
-                            else connection_config.commands.get_command_choices
-                        ),
+                        choices=connection_config.commands.get_command_choices,
                     ),
                 ),
                 (

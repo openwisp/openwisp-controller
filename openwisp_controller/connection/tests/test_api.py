@@ -423,7 +423,7 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
         )
         self.assertEqual(response.status_code, 400)
         self.assertIn(
-            "Device has no credentials assigned",
+            "Device has no credentials assigned.",
             response.data["device"][0],
         )
 
@@ -1176,7 +1176,7 @@ class TestBatchCommandsAPI(
             )
             self.assertEqual(response.status_code, 400)
             self.assertIn(
-                '"custom" command is not available for this organization',
+                '"custom" command is not available for the target organization(s)',
                 response.data["type"][0],
             )
 
@@ -2270,10 +2270,16 @@ class TestBatchCommandsAPITransaction(
             self.assertEqual(response.status_code, 201)
             batch = BatchCommand.objects.get(pk=response.data["batch"])
 
-            self.assertIn(str(device_b.pk), batch.skipped_devices)
-            self.assertIn(
-                '"custom" command is not available for this organization',
-                batch.skipped_devices[str(device_b.pk)]["error"],
+            self.assertEqual(
+                batch.skipped_devices,
+                {
+                    str(device_b.pk): {
+                        "name": device_b.name,
+                        "error": (
+                            '"custom" command is not available for' " this organization"
+                        ),
+                    }
+                },
             )
             command_qs = Command.objects.filter(batch_command=batch)
             self.assertTrue(command_qs.filter(device=device_a).exists())
@@ -2306,6 +2312,7 @@ class TestBatchCommandsAPITransaction(
             self.assertEqual(detail_resp.status_code, 200)
             self.assertEqual(detail_resp.data["device_count"], 2)
             self.assertEqual(len(detail_resp.data["devices"]), 2)
+            self.assertEqual(detail_resp.data["skipped_devices"], batch.skipped_devices)
 
         with self.subTest("skipped: no credentials"):
             device = self._create_device(
@@ -2314,26 +2321,33 @@ class TestBatchCommandsAPITransaction(
                 organization=org,
             )
             self._create_config(device=device)
-            response = self.client.post(
-                execute_url,
-                data=json.dumps(
-                    {
-                        "organization": str(org.pk),
-                        "type": "custom",
-                        "input": {"command": "echo test"},
-                        "label": "test-label",
-                        "devices": [str(device.pk)],
-                    }
-                ),
-                content_type="application/json",
-            )
+            with self.assertLogs(
+                "openwisp_controller.connection.base.models", level="WARNING"
+            ) as logs:
+                response = self.client.post(
+                    execute_url,
+                    data=json.dumps(
+                        {
+                            "organization": str(org.pk),
+                            "type": "custom",
+                            "input": {"command": "echo test"},
+                            "label": "test-label",
+                            "devices": [str(device.pk)],
+                        }
+                    ),
+                    content_type="application/json",
+                )
             self.assertEqual(response.status_code, 201)
             batch = BatchCommand.objects.get(pk=response.data["batch"])
-
-            self.assertIn(str(device.pk), batch.skipped_devices)
-            self.assertIn(
-                "Device has no credentials assigned",
-                batch.skipped_devices[str(device.pk)]["error"],
+            self.assertIn("Skipping device", "\n".join(logs.output))
+            self.assertEqual(
+                batch.skipped_devices,
+                {
+                    str(device.pk): {
+                        "name": device.name,
+                        "error": "Device has no credentials assigned",
+                    }
+                },
             )
             detail_url = reverse(
                 "connection_api:batch_command_detail",
@@ -2341,7 +2355,9 @@ class TestBatchCommandsAPITransaction(
             )
             detail_response = self.client.get(detail_url)
             self.assertEqual(detail_response.status_code, 200)
-            self.assertIn(str(device.pk), detail_response.data["skipped_devices"])
+            self.assertEqual(
+                detail_response.data["skipped_devices"], batch.skipped_devices
+            )
 
         with self.subTest("skipped: deactivated device"):
             device = self._create_device(
@@ -2356,26 +2372,33 @@ class TestBatchCommandsAPITransaction(
             )
             self._create_device_connection(device=device, credentials=dd_cred)
             device.deactivate()
-            response = self.client.post(
-                execute_url,
-                data=json.dumps(
-                    {
-                        "organization": str(org.pk),
-                        "type": "custom",
-                        "input": {"command": "echo test"},
-                        "label": "test-label",
-                        "devices": [str(device.pk)],
-                    }
-                ),
-                content_type="application/json",
-            )
+            with self.assertLogs(
+                "openwisp_controller.connection.base.models", level="WARNING"
+            ) as logs:
+                response = self.client.post(
+                    execute_url,
+                    data=json.dumps(
+                        {
+                            "organization": str(org.pk),
+                            "type": "custom",
+                            "input": {"command": "echo test"},
+                            "label": "test-label",
+                            "devices": [str(device.pk)],
+                        }
+                    ),
+                    content_type="application/json",
+                )
             self.assertEqual(response.status_code, 201)
             batch = BatchCommand.objects.get(pk=response.data["batch"])
-
-            self.assertIn(str(device.pk), batch.skipped_devices)
-            self.assertIn(
-                "Device is deactivated",
-                batch.skipped_devices[str(device.pk)]["error"],
+            self.assertIn("Skipping device", "\n".join(logs.output))
+            self.assertEqual(
+                batch.skipped_devices,
+                {
+                    str(device.pk): {
+                        "name": device.name,
+                        "error": "Device is deactivated",
+                    }
+                },
             )
             detail_url = reverse(
                 "connection_api:batch_command_detail",
@@ -2383,4 +2406,6 @@ class TestBatchCommandsAPITransaction(
             )
             detail_response = self.client.get(detail_url)
             self.assertEqual(detail_response.status_code, 200)
-            self.assertIn(str(device.pk), detail_response.data["skipped_devices"])
+            self.assertEqual(
+                detail_response.data["skipped_devices"], batch.skipped_devices
+            )

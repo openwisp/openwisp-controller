@@ -1,7 +1,9 @@
 "use strict";
 
 const DEFAULT_PER_PAGE = 20;
+const FILTERED_REFRESH_DELAY = 1000;
 const DEVICE_URL_PLACEHOLDER = "00000000-0000-0000-0000-000000000000";
+let filteredRefreshTimeout = null;
 
 django.jQuery(function ($) {
   const batchCommandWebSocket = new ReconnectingWebSocket(getWebSocketUrl(), null, {
@@ -15,7 +17,7 @@ django.jQuery(function ($) {
   batchCommandWebSocket.addEventListener("message", function (e) {
     const data = JSON.parse(e.data);
     if (data.type === "command_update") {
-      handleCommandMessage($, data);
+      handleCommandMessage($, data, batchCommandWebSocket);
     } else if (data.type === "batch_status") {
       handleBatchStatusMessage($, data, batchCommandWebSocket);
     } else if (data.type === "batch_state") {
@@ -23,6 +25,8 @@ django.jQuery(function ($) {
     }
   });
   batchCommandWebSocket.open();
+  // exposed so that a reconnect can be triggered from the browser tests
+  window.batchCommandWebSocket = batchCommandWebSocket;
 });
 
 function getWebSocketUrl() {
@@ -47,6 +51,7 @@ function requestCurrentState($, websocket) {
         type: "request_current_state",
         batch_id: batchCommandId,
         page: getCurrentPage($),
+        filters: getActiveFilters(),
       }),
     );
   } catch (error) {
@@ -54,18 +59,48 @@ function requestCurrentState($, websocket) {
   }
 }
 
-function handleCommandMessage($, data) {
+function handleCommandMessage($, data, websocket) {
   updateTotals($, data.affected_devices, data.total_rows);
   renderCommand($, data);
+  if (hasActiveFilters()) {
+    scheduleFilteredRefresh($, websocket);
+  }
+}
+
+function scheduleFilteredRefresh($, websocket) {
+  if (!websocket || filteredRefreshTimeout) {
+    return;
+  }
+  filteredRefreshTimeout = setTimeout(function () {
+    filteredRefreshTimeout = null;
+    requestCurrentState($, websocket);
+  }, FILTERED_REFRESH_DELAY);
+}
+
+function getStatusLabel(status) {
+  const element = document.getElementById("batch-status-labels");
+  const labels = element ? JSON.parse(element.textContent) : {};
+  return labels[status] || status;
+}
+
+function getFormattedDateTimeString(dateTimeString) {
+  if (!dateTimeString) {
+    return "-";
+  }
+  const formattedString = new Date(dateTimeString).strftime("%B %d, %Y %I:%M %p"),
+    stringArray = formattedString.split(" ");
+  stringArray[0] = stringArray[0].substring(0, 4) + ".";
+  stringArray[4] = stringArray[4] == "AM" ? "a.m." : "p.m.";
+  return stringArray.join(" ");
 }
 
 function handleBatchStatusMessage($, data, websocket) {
   const $status = $(".field-colored_status .readonly .command-status");
-  if ($status.length && data.status && data.status_display) {
+  if ($status.length && data.status) {
     $status
       .removeClass()
       .addClass("command-status " + data.status)
-      .text(data.status_display);
+      .text(getStatusLabel(data.status));
   }
   updateSkippedDevices($, data);
   updateTotals($, data.affected_devices, data.total_rows);
@@ -113,16 +148,30 @@ function handleBatchStateMessage($, data) {
     $,
     data.batch_status ? data.batch_status.affected_devices : null,
     data.total_rows,
+    true,
   );
   if (!data.commands || !Array.isArray(data.commands)) {
     return;
   }
-  data.commands.forEach(function (command) {
+  // the snapshot is built with the filters this page is showing, so it is the
+  // authoritative content of the table: rows missing from it no longer belong
+  reconcileRows($, data.commands);
+}
+
+function reconcileRows($, commands) {
+  const devices = {};
+  commands.forEach(function (command) {
+    devices[String(command.device)] = true;
     const $row = $("#batch-command-row-" + command.device);
     if ($row.length) {
       updateRow($, $row, command);
-    } else if (!hasActiveFilters()) {
+    } else {
       insertRow($, command);
+    }
+  });
+  $("#result_list tbody tr[data-device-pk]").each(function () {
+    if (!devices[String($(this).data("device-pk"))]) {
+      $(this).remove();
     }
   });
 }
@@ -167,9 +216,9 @@ function updateRow($, $row, data) {
     .find(".command-status")
     .removeClass()
     .addClass("command-status " + data.status)
-    .text(data.status_display);
+    .text(getStatusLabel(data.status));
   $row.find(".command-output pre").text(data.output || "-");
-  $row.find("td:last-child").text(data.modified || "-");
+  $row.find("td:last-child").text(getFormattedDateTimeString(data.modified));
 }
 
 function insertRow($, data) {
@@ -203,7 +252,7 @@ function insertRow($, data) {
     $("<td>").append(
       $("<span>")
         .addClass("command-status " + data.status)
-        .text(data.status_display),
+        .text(getStatusLabel(data.status)),
     ),
   );
   $row.append(
@@ -211,19 +260,19 @@ function insertRow($, data) {
       .addClass("command-output")
       .append($("<pre>").text(data.output || "-")),
   );
-  $row.append($("<td>").text(data.modified || "-"));
+  $row.append($("<td>").text(getFormattedDateTimeString(data.modified)));
   $tableBody.append($row);
 }
 
-function updateTotals($, affectedDevices, totalRows) {
+function updateTotals($, affectedDevices, totalRows, filtered) {
   if (affectedDevices != null) {
     const $affected = $(".field-affected_devices .readonly");
     if ($affected.length) {
       $affected.text(String(affectedDevices));
     }
   }
-  // counts are filtered server side, the totals pushed here are not
-  if (totalRows == null || hasActiveFilters()) {
+  // pushed totals are not filtered, only the reconnect snapshot is
+  if (totalRows == null || (!filtered && hasActiveFilters())) {
     return;
   }
   const $paginator = $(".results-container .paginator");
@@ -290,13 +339,22 @@ function getActiveStatusFilter($) {
   return $("#result_list").attr("data-active-status") || "";
 }
 
-function hasActiveFilters() {
+function getActiveFilters() {
   const params = new URLSearchParams(window.location.search);
-  return ["q", "status", "location_id", "group_id", "organization_id"].some(
+  const filters = {};
+  ["q", "status", "location_id", "group_id", "organization_id"].forEach(
     function (name) {
-      return !!params.get(name);
+      filters[name] = params.get(name) || "";
     },
   );
+  return filters;
+}
+
+function hasActiveFilters() {
+  const filters = getActiveFilters();
+  return Object.keys(filters).some(function (name) {
+    return !!filters[name];
+  });
 }
 
 function getCurrentPage($) {

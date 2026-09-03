@@ -136,6 +136,7 @@ function initDeviceSelection($) {
   const $table = $("#result_list");
   const $excludedField = $("#id_excluded");
   const $count = $("#selected-count");
+  const $countLabel = $("#selected-count-label");
   const $button = $("#execute-button");
   const totalDevices = parseInt($form.data("total-devices"), 10) || 0;
   const excluded = getStoredExclusions($, storageKey);
@@ -146,6 +147,7 @@ function initDeviceSelection($) {
     $excludedField.val(pks.join(","));
     setStoredExclusions(storageKey, pks);
     $count.text(selected);
+    $countLabel.text(ngettext("device", "devices", selected));
     $button.text(
       interpolate(ngettext("Execute on %s device", "Execute on %s devices", selected), [
         selected,
