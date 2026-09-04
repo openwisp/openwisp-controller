@@ -436,26 +436,18 @@ class TestTransactionPkiApi(
         cert1 = self._create_cert(name="cert1")
         old_serial_num = cert1.serial_number
         path = reverse("pki_api:cert_renew", args=[cert1.pk])
-        with self.assertNumQueries(10):
+        with self.assertNumQueries(7):
             r = self.client.post(path)
         self.assertEqual(r.status_code, 200)
         cert1.refresh_from_db()
         self.assertNotEqual(cert1.serial_number, old_serial_num)
         self.assertNotEqual(r.data["serial_number"], old_serial_num)
 
-    def test_post_revoked_cert_renew_api(self):
-        cert1 = self._create_cert(name="cert1")
-        cert1.revoke()
-        path = reverse("pki_api:cert_renew", args=[cert1.pk])
-        r = self.client.post(path)
-        self.assertEqual(r.status_code, 400)
-        self.assertEqual(r.data, ["Cannot renew a revoked certificate."])
-
     def test_post_cert_revoke_api(self):
         cert1 = self._create_cert(name="cert1")
         self.assertFalse(cert1.revoked)
         path = reverse("pki_api:cert_revoke", args=[cert1.pk])
-        with self.assertNumQueries(8):
+        with self.assertNumQueries(5):
             r = self.client.post(path)
         cert1.refresh_from_db()
         self.assertEqual(r.status_code, 200)

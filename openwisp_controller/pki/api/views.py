@@ -1,4 +1,3 @@
-from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models.deletion import RestrictedError
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
@@ -106,10 +105,7 @@ class CertRenewView(CertRevokeRenewBaseView):
         Renews the Certificate.
         """
         instance = self.get_object()
-        try:
-            instance.renew()
-        except DjangoValidationError as error:
-            raise serializers.ValidationError(error.messages) from error
+        instance.renew()
         serializer = CertRevokeRenewSerializer(instance)
         return Response(serializer.data, status=200)
 

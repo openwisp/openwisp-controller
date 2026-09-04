@@ -18,13 +18,6 @@ def _atomic_if_needed():
     return transaction.atomic()
 
 
-def _sync_generated_fields(instance, source):
-    for field in instance._meta.concrete_fields:
-        setattr(instance, field.attname, getattr(source, field.attname))
-    for attr in ("x509", "pkey", "x509_text"):
-        instance.__dict__.pop(attr, None)
-
-
 class AbstractCa(ShareableOrgMixin, UnqiueCommonNameMixin, BaseCa):
     class Meta(BaseCa.Meta):
         abstract = True
@@ -44,7 +37,10 @@ class AbstractCa(ShareableOrgMixin, UnqiueCommonNameMixin, BaseCa):
             self._sync_generated_fields(locked)
 
     def _sync_generated_fields(self, ca):
-        _sync_generated_fields(self, ca)
+        for field in self._meta.concrete_fields:
+            setattr(self, field.attname, getattr(ca, field.attname))
+        for attr in ("x509", "pkey", "x509_text"):
+            self.__dict__.pop(attr, None)
 
 
 class AbstractCert(ShareableOrgMixin, UnqiueCommonNameMixin, BaseCert):
@@ -74,34 +70,6 @@ class AbstractCert(ShareableOrgMixin, UnqiueCommonNameMixin, BaseCert):
         super().refresh_from_db(using=using, fields=fields, **kwargs)
         if fields is None or {"organization", "organization_id"}.intersection(fields):
             self._initial_organization_id = self.organization_id
-
-    def revoke(self):
-        if self._state.adding or not self.pk:
-            return super().revoke()
-        with _atomic_if_needed():
-            locked = self.__class__.objects.select_for_update().get(pk=self.pk)
-            if locked.revoked:
-                self._sync_generated_fields(locked)
-                return
-            BaseCert.revoke(locked)
-            self._sync_generated_fields(locked)
-
-    def renew(self):
-        if self._state.adding or not self.pk:
-            return super().renew()
-        with _atomic_if_needed():
-            locked = (
-                self.__class__.objects.select_related("ca")
-                .select_for_update(of=("self",))
-                .get(pk=self.pk)
-            )
-            if locked.revoked:
-                raise ValidationError(_("Cannot renew a revoked certificate."))
-            BaseCert.renew(locked)
-            self._sync_generated_fields(locked)
-
-    def _sync_generated_fields(self, cert):
-        _sync_generated_fields(self, cert)
 
     def save(self, *args, **kwargs):
         update_fields = kwargs.get("update_fields")
