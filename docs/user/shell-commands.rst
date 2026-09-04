@@ -221,13 +221,15 @@ A mass command can also be started from the device list: select the
 devices with their checkboxes, choose *Execute mass command* from the
 actions dropdown and click *Go*.
 
-The first step opens with the selection already applied: the devices it
-will run on are shown above the targets, and the organization is filled in
-and cannot be changed, while device group and location are not asked for,
-since the devices are already known.
+The first step opens with the selection already applied: a message at the
+top of the page states how many devices the command will run on, and the
+organization is filled in and cannot be changed, while device group and
+location are not asked for, since the devices are already known.
 
 The selected devices must belong to the same organization, otherwise the
-action refuses to start.
+action refuses to start. The exception is a superuser selecting every
+device of the system: the command then runs on all of them and no target
+is asked for.
 
 The rest of the workflow is the same as described below: the devices can
 still be reviewed and left out before executing.
