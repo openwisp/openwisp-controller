@@ -159,10 +159,7 @@ class BatchCommandExecutionForm(forms.ModelForm):
             )
         if len(self._organization_ids) > 1:
             raise ValidationError(
-                _(
-                    "All devices must belong to the same organization,"
-                    " unless it is a system wide command."
-                )
+                _("All devices must belong to the same organization.")
             )
         if self.request is None or self.request.user.is_superuser:
             return cleaned_data
@@ -593,7 +590,20 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
                 form = BatchCommandExecutionForm(request=request)
         return self._render_execute_page(request, form)
 
-    def _render_execute_page(self, request, form):
+    def _render_execute_page(self, request, form, system_wide=False):
+        device_count = len(form.device_ids)
+        if device_count:
+            messages.warning(
+                request,
+                ngettext(
+                    "The command will run on the device you selected.",
+                    "The command will run on the %(count)d devices you selected.",
+                    device_count,
+                )
+                % {"count": device_count},
+            )
+        elif system_wide:
+            messages.warning(request, _("The command will run on all devices."))
         context = {
             **self.admin_site.each_context(request),
             "title": _("Execute mass command"),
@@ -601,7 +611,8 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
             "form": form,
             "media": form.media,
             "has_view_permission": self.has_view_permission(request),
-            "device_count": len(form.device_ids),
+            "device_count": device_count,
+            "system_wide": system_wide,
         }
         return TemplateResponse(request, self.execute_command_template, context)
 
@@ -1116,46 +1127,36 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
             )
         return super().change_view(request, object_id, extra_context=extra_context)
 
+    @staticmethod
+    @admin.action(description=_("Execute mass command"), permissions=["change"])
+    def execute_mass_command_admin_action(modeladmin, request, queryset):
+        """Second entry point of the mass command workflow: the devices are
+        picked one by one instead of being matched by organization, group or
+        location. The selection travels in the form rather than in the session,
+        so it cannot outlive the wizard it belongs to.
+        """
+        batch_admin = modeladmin.admin_site.get_model_admin(BatchCommand)
+        batch_admin._check_add_permission(request)
+        organization_ids = set(queryset.values_list("organization_id", flat=True))
+        if len(organization_ids) > 1:
+            if request.user.is_superuser and queryset.count() == Device.objects.count():
+                return batch_admin._render_execute_page(
+                    request,
+                    BatchCommandExecutionForm(request=request),
+                    system_wide=True,
+                )
+            modeladmin.message_user(
+                request,
+                _("All devices must belong to the same organization."),
+                messages.ERROR,
+            )
+            return HttpResponseRedirect(request.get_full_path())
+        form = BatchCommandExecutionForm(
+            request=request,
+            device_ids=[str(pk) for pk in queryset.values_list("pk", flat=True)],
+        )
+        return batch_admin._render_execute_page(request, form)
+
 
 admin.site.register(BatchCommand, BatchCommandAdmin)
-
-
-@admin.action(
-    description=_("Execute mass command"),
-    permissions=["execute_mass_command"],
-)
-def execute_mass_command(modeladmin, request, queryset):
-    """Second entry point of the mass command workflow: the devices are
-    picked one by one instead of being matched by organization, group or
-    location. The selection travels in the form rather than in the session,
-    so it cannot outlive the wizard it belongs to.
-    """
-    # TODO: replace _registry with get_model_admin once Django 4.2 is dropped
-    batch_admin = modeladmin.admin_site._registry[BatchCommand]
-    batch_admin._check_add_permission(request)
-    organization_ids = set(queryset.values_list("organization_id", flat=True))
-    if len(organization_ids) > 1:
-        modeladmin.message_user(
-            request,
-            _(
-                "All devices must belong to the same organization,"
-                " unless it is a system wide command."
-            ),
-            messages.ERROR,
-        )
-        return HttpResponseRedirect(request.get_full_path())
-    form = BatchCommandExecutionForm(
-        request=request,
-        device_ids=[str(pk) for pk in queryset.values_list("pk", flat=True)],
-    )
-    return batch_admin._render_execute_page(request, form)
-
-
-def has_execute_mass_command_permission(self, request):
-    options = BatchCommand._meta
-    return request.user.has_perm(f"{options.app_label}.add_{options.model_name}")
-
-
-DeviceAdmin.execute_mass_command = execute_mass_command
-DeviceAdmin.has_execute_mass_command_permission = has_execute_mass_command_permission
-DeviceAdmin.actions += ["execute_mass_command"]
+DeviceAdmin.actions += [BatchCommandAdmin.execute_mass_command_admin_action]

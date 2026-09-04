@@ -66,14 +66,7 @@
       {% include "admin/connection/batch_command/form_row.html" with field=form.notes %}
     </fieldset>
 
-    {% if device_count %}
-    <ul class="messagelist selected-devices-message">
-      <li class="warning">
-        {% blocktrans count counter=device_count %}The command will run on the device you selected.{% plural %}The command will run on the {{ counter }} devices you selected.{% endblocktrans %}
-      </li>
-    </ul>
-    {% endif %}
-
+    {% if not system_wide %}
     <fieldset class="module aligned">
       <h2>{% trans "Targets" %}</h2>
       {% include "admin/connection/batch_command/form_row.html" with field=form.organization %}
@@ -82,6 +75,7 @@
       {% include "admin/connection/batch_command/form_row.html" with field=form.group %}
       {% endif %}
     </fieldset>
+    {% endif %}
 
     <div class="submit-row">
       <a class="button cancel-link" href="{% url opts|admin_urlname:'changelist' %}">{% trans "Cancel" %}</a>
