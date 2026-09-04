@@ -22,6 +22,7 @@ from .utils import CreateConfigTemplateMixin, TestVpnX509Mixin, TestWireguardVpn
 Device = load_model("config", "Device")
 DeviceGroup = load_model("config", "DeviceGroup")
 Cert = load_model("django_x509", "Cert")
+DeviceCertificate = load_model("config", "DeviceCertificate")
 
 
 class SeleniumTestMixin(BaseSeleniumTestMixin):
@@ -479,6 +480,78 @@ class TestDeviceAdmin(
             self.find_element(by=By.NAME, value="_save").click()
             self.wait_for_admin_success_message()
 
+    def test_e2e_certificate_provisioning(self):
+        """
+        End-to-end flow: create CA, create certificate
+        template, assign to device, verify certificate generation.
+        """
+        org = self._get_org()
+        ca = self._create_ca(
+            name="test-ca",
+            common_name="test-ca",
+            organization=org,
+        )
+        template = self._create_template(
+            organization=org, type="cert", ca=ca, auto_cert=True
+        )
+        device = self._create_device(organization=org, name="e2e-router")
+        self._create_config(device=device)
+
+        self.login()
+        self.open(
+            reverse(f"admin:{self.config_app_label}_device_change", args=[device.id])
+            + "#config-group"
+        )
+        self.hide_loading_overlay()
+        self.find_element(by=By.XPATH, value=f'//*[@value="{template.id}"]').click()
+        self.web_driver.execute_script(
+            'document.querySelector("#ow-user-tools").style.display="none"'
+        )
+        self.find_element(by=By.NAME, value="_continue").click()
+        self.wait_for_presence(By.CSS_SELECTOR, ".messagelist .success", timeout=5)
+        device.config.refresh_from_db()
+        device_cert = DeviceCertificate.objects.get(
+            config=device.config, template=template
+        )
+        self.assertIsNotNone(
+            device_cert.cert, "Certificate was not generated after UI assignment!"
+        )
+        self.assertFalse(device_cert.cert.revoked)
+        self.assertEqual(device_cert.cert.name, "e2e-router")
+
+    def test_device_identity_change_notification(self):
+        org = self._get_org()
+        ca = self._create_ca(
+            name="device-change-ca",
+            common_name="device-change-ca",
+            organization=org,
+        )
+        template = self._create_template(
+            organization=org, type="cert", ca=ca, auto_cert=True
+        )
+        device = self._create_device(organization=org, name="old-router-name")
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        self.login()
+        self.open(
+            reverse(f"admin:{self.config_app_label}_device_change", args=[device.id])
+        )
+        self.hide_loading_overlay()
+        name_input = self.find_element(by=By.NAME, value="name", wait_for="presence")
+        name_input.clear()
+        name_input.send_keys("renamed-router")
+        # Hide user tools because it covers the save button
+        self.web_driver.execute_script(
+            'document.querySelector("#ow-user-tools").style.display="none"'
+        )
+        self.find_element(by=By.NAME, value="_save").click()
+        self.wait_for_presence(By.CSS_SELECTOR, ".messagelist .success", timeout=5)
+        self.find_element(by=By.ID, value="openwisp_notifications").click()
+        notification = self.wait_for_visibility(
+            By.CLASS_NAME, "ow-notification-elem", timeout=10
+        )
+        self.assertIn("Device identity fields changed", notification.text)
+
 
 @tag("selenium_tests")
 class TestDeviceGroupAdmin(
@@ -760,3 +833,58 @@ class TestVpnAdmin(
             backend.select_by_visible_text("OpenVPN")
             self.wait_for_invisibility(by=By.CLASS_NAME, value="field-webhook_endpoint")
             self.wait_for_invisibility(by=By.CLASS_NAME, value="field-auth_token")
+
+
+@tag("selenium_tests")
+class TestTemplateAdmin(
+    SeleniumTestMixin,
+    CreateConfigTemplateMixin,
+    TestVpnX509Mixin,
+    StaticLiveServerTestCase,
+):
+    def test_certificate_fields_visibility(self):
+        """
+        Ensure CA and Blueprint fields are only visible when type is 'cert'.
+        """
+        self.login()
+        self.open(reverse(f"admin:{self.config_app_label}_template_add"))
+
+        # Wait for the Type dropdown to load
+        self.wait_for_presence(By.ID, "id_type")
+
+        with self.subTest("CA and Cert fields should be hidden by default (Generic)"):
+            self.wait_for_invisibility(By.CLASS_NAME, "field-ca")
+            self.wait_for_invisibility(By.CLASS_NAME, "field-blueprint_cert")
+
+        with self.subTest(
+            "Changing type to 'Certificate generator' should show fields"
+        ):
+            type_select = Select(self.find_element(by=By.ID, value="id_type"))
+            type_select.select_by_value("cert")
+
+            self.wait_for_visibility(By.CLASS_NAME, "field-ca")
+            self.wait_for_visibility(By.CLASS_NAME, "field-blueprint_cert")
+
+        with self.subTest("Changing type back to 'Generic' should hide fields"):
+            type_select.select_by_value("generic")
+
+            self.wait_for_invisibility(By.CLASS_NAME, "field-ca")
+            self.wait_for_invisibility(By.CLASS_NAME, "field-blueprint_cert")
+
+    def test_auto_cert_value_preserved_when_switching_template_type(self):
+        self.login()
+        self.open(reverse(f"admin:{self.config_app_label}_template_add"))
+        self.wait_for_presence(By.ID, "id_type")
+        type_select = Select(self.find_element(by=By.ID, value="id_type"))
+        type_select.select_by_value("vpn")
+        self.wait_for_visibility(By.CLASS_NAME, "field-auto_cert")
+        auto_cert = self.find_element(by=By.ID, value="id_auto_cert")
+        if auto_cert.is_selected():
+            auto_cert.click()
+        type_select.select_by_value("cert")
+        self.wait_for_invisibility(By.CLASS_NAME, "field-auto_cert")
+        type_select.select_by_value("vpn")
+        self.wait_for_visibility(By.CLASS_NAME, "field-auto_cert")
+        self.assertFalse(
+            self.find_element(by=By.ID, value="id_auto_cert").is_selected()
+        )

@@ -875,13 +875,13 @@ class TestConfig(
     def test_check_changes_query(self):
         config = self._create_config(organization=self._get_org())
         with self.subTest("No changes made to the config object"):
-            with self.assertNumQueries(3):
+            with self.assertNumQueries(4):
                 config._check_changes()
 
         with self.subTest("Changes made to the config object"):
             config.templates.add(self._create_template())
             config.config = {"general": {"description": "test"}}
-            with self.assertNumQueries(4):
+            with self.assertNumQueries(5):
                 config._check_changes()
 
     def test_config_get_system_context(self):
@@ -1070,6 +1070,59 @@ class TestConfig(
                 common_name=common_name,
             )
         mocked_invalidate.assert_called_once_with(common_name, None)
+
+    def test_revoke_standalone_cert_invalidates_config_and_context(self):
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        cert_template = self._create_template(
+            name="Standalone Cert Template",
+            type="cert",
+            ca=ca,
+            auto_cert=True,
+            organization=org,
+        )
+        prefix = f"cert_{cert_template.id.hex}"
+        cert_template.config = {
+            "files": [
+                {
+                    "path": "/etc/test.pem",
+                    "contents": f"{{{{ {prefix}_pem }}}}",
+                    "mode": "0600",
+                }
+            ]
+        }
+        cert_template.full_clean()
+        cert_template.save()
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        with self.captureOnCommitCallbacks(execute=True):
+            config.templates.add(cert_template)
+        config.set_status_applied()
+        cert_context = config.get_cert_context()
+        self.assertIn(f"{prefix}_pem", cert_context)
+        self.assertIn(f"{prefix}_key", cert_context)
+        dc = config.device_certificate_relations.get(template=cert_template)
+        cert = dc.cert
+        cert.revoked = True
+        with self.captureOnCommitCallbacks(execute=True):
+            cert.save()
+        config.refresh_from_db()
+        self.assertEqual(
+            config.status,
+            "modified",
+            "Config status did not change to 'modified' after certificate revocation.",
+        )
+        new_cert_context = config.get_cert_context()
+        self.assertNotIn(
+            f"{prefix}_pem",
+            new_cert_context,
+            "Revoked certificate PEM is still exposed in the config context.",
+        )
+        self.assertNotIn(
+            f"{prefix}_key",
+            new_cert_context,
+            "Revoked private key is still exposed in the config context.",
+        )
 
 
 class TestTransactionConfig(

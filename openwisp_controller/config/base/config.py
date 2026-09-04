@@ -24,7 +24,7 @@ from ..signals import (
     config_modified,
     config_status_changed,
 )
-from ..sortedm2m.fields import SortedManyToManyField
+from ..sortedm2m.fields import SORTED_M2M_SET_ATTR, SortedManyToManyField
 from ..utils import get_default_templates_queryset
 from .base import BaseConfig, ChecksumCacheMixin, get_cached_args_rewrite
 from .cache import CacheDependency, CacheInvalidationMixin
@@ -63,6 +63,13 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
         through=get_model_name("config", "VpnClient"),
         related_name="vpn_relations",
         blank=True,
+    )
+    device_certificates = models.ManyToManyField(
+        get_model_name("config", "Template"),
+        through=get_model_name("config", "DeviceCertificate"),
+        related_name="config_device_certificates",
+        blank=True,
+        verbose_name=_("device certificates"),
     )
 
     STATUS = Choices("modified", "applied", "error", "deactivating", "deactivated")
@@ -173,17 +180,17 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
     def _resolve_cert_dependency(cls, cert, **kwargs):
         """
         Returns the Config whose checksum depends on this client certificate.
-
-        Mirrors the previous ``certificate_updated`` handler: a revoked
-        certificate or a certificate not linked to a VpnClient does not affect
-        any configuration.
         """
-        if cert.revoked:
-            return []
-        try:
-            return [cert.vpnclient.config]
-        except ObjectDoesNotExist:
-            return []
+        configs = set()
+        if not cert.revoked:
+            try:
+                configs.add(cert.vpnclient.config)
+            except ObjectDoesNotExist:
+                pass
+        DeviceCertificate = load_model("config", "DeviceCertificate")
+        for dc in DeviceCertificate.objects.filter(cert=cert).select_related("config"):
+            configs.add(dc.config)
+        return list(configs)
 
     @classmethod
     def _bulk_invalidate_configs(cls, filters):
@@ -377,6 +384,35 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
             raise ValidationError("\n".join(str(line) for line in error_lines))
 
     @classmethod
+    def clean_certificate_templates(cls, action, instance, templates):
+        """
+        Validates generated certificates before certificate templates are assigned.
+        """
+        if action != "pre_add":
+            return
+        cert_templates = templates.filter(type="cert").select_related(
+            "ca", "blueprint_cert"
+        )
+        if not cert_templates:
+            return
+        DeviceCertificate = load_model("config", "DeviceCertificate")
+        for template in cert_templates:
+            device_cert = DeviceCertificate(config=instance, template=template)
+            cert = device_cert._build_cert(
+                name=instance.device.name,
+                common_name=device_cert._get_common_name(),
+            )
+            try:
+                cert.full_clean()
+            except ValidationError as e:
+                raise ValidationError(
+                    _(
+                        'Certificate generation for template "{template}" failed: '
+                        "{error}"
+                    ).format(template=template.name, error=" ".join(e.messages))
+                )
+
+    @classmethod
     def clean_templates(cls, action, instance, pk_set, raw_data=None, **kwargs):
         """
         validates resulting configuration of config + templates
@@ -397,6 +433,7 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
         cls.clean_duplicate_vpn_client_templates(
             action, instance, templates, raw_data=raw_data
         )
+        cls.clean_certificate_templates(action, instance, templates)
         backend = instance.get_backend_instance(template_instances=templates)
         try:
             cls.clean_netjsonconfig_backend(backend)
@@ -574,18 +611,20 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
             # retrieve required templates related to this
             # device and ensure they're always present
             organization = raw_data.get("organization", instance.device.organization)
-            required_templates = (
-                cls.get_template_model()
-                .objects.filter(template_query)
-                .filter(
-                    models.Q(organization=organization) | models.Q(organization=None)
-                )
-            )
+            required_templates = cls._get_required_templates(instance, organization)
             if required_templates.exists():
                 instance._is_enforcing_required_templates = True
                 instance.templates.add(
                     *required_templates.order_by("name").values_list("pk", flat=True)
                 )
+
+    @classmethod
+    def _get_required_templates(cls, instance, organization):
+        return (
+            cls.get_template_model()
+            .objects.filter(required=True, backend=instance.backend)
+            .filter(models.Q(organization=organization) | models.Q(organization=None))
+        )
 
     @classmethod
     def register_context_function(cls, func):
@@ -597,6 +636,55 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
         """
         if func not in cls._config_context_functions:
             cls._config_context_functions.append(func)
+
+    @classmethod
+    def manage_device_certs(cls, sender, instance, action, pk_set, **kwargs):
+        """
+        Syncs DeviceCertificate objects when templates are added/removed
+        """
+        # ignore signals during initial creation or for irrelevant M2M actions
+        if instance._state.adding or action not in [
+            "post_add",
+            "post_remove",
+            "post_clear",
+        ]:
+            return
+        # handle full cleanup if the device configuration profile is being wiped
+        if action == "post_clear":
+            if instance.is_deactivating_or_deactivated():
+                instance.device_certificate_relations.all().delete()
+            elif not getattr(instance, SORTED_M2M_SET_ATTR, False):
+                required_cert_templates = (
+                    cls._get_required_templates(instance, instance.device.organization)
+                    .filter(type="cert")
+                    .values_list("id", flat=True)
+                )
+                instance.device_certificate_relations.exclude(
+                    template_id__in=required_cert_templates
+                ).delete()
+            return
+        # normalize templates across standard M2M sets vs Admin ModelForm querysets
+        if isinstance(pk_set, set):
+            template_model = cls.get_template_model()
+            templates = template_model.objects.filter(pk__in=list(pk_set)).order_by(
+                "created"
+            )
+        else:
+            templates = pk_set
+        # deletes orphaned certificates that are no
+        # longer assigned in the templates list.
+        if (
+            getattr(instance, SORTED_M2M_SET_ATTR, False)
+            or len(pk_set) != templates.filter(required=True).count()
+        ):
+            instance.device_certificate_relations.exclude(
+                template_id__in=instance.templates.values_list("id", flat=True)
+            ).delete()
+        # allocate new DeviceCertificate associations
+        # for newly added certificate templates
+        if action == "post_add":
+            for template in templates.filter(type="cert"):
+                instance.device_certificate_relations.get_or_create(template=template)
 
     def get_default_templates(self):
         """
@@ -975,8 +1063,7 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
             self.set_status_applied()
 
     def _invalidate_backend_instance_cache(self):
-        if hasattr(self, "backend_instance"):
-            del self.backend_instance
+        self.__dict__.pop("backend_instance", None)
 
     def _has_device(self):
         return hasattr(self, "device")
@@ -1027,6 +1114,51 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
                 context[vpn_context_keys["secret"]] = vpnclient.secret
         return context
 
+    def get_cert_context(self):
+        """
+        Retrieves standalone certificates generated by Certificate Templates
+        and exposes them as UUID-namespaced variables for the configuration engine.
+        """
+        cert_context = collections.OrderedDict()
+        cert_template_ids = [t.id for t in self.templates.all() if t.type == "cert"]
+        if not cert_template_ids:
+            return cert_context
+        prefetched = getattr(self, "_prefetched_objects_cache", {}).get(
+            "device_certificate_relations"
+        )
+        if prefetched is not None and all(
+            not dc.cert_id or "cert" in dc._state.fields_cache for dc in prefetched
+        ):
+            device_certificates = (
+                dc
+                for dc in prefetched
+                if dc.cert_id
+                and not dc.cert.revoked
+                and dc.template_id in cert_template_ids
+            )
+        else:
+            device_certificates = self.device_certificate_relations.filter(
+                cert__revoked=False,
+                template_id__in=cert_template_ids,
+            ).select_related("cert")
+        for dc in device_certificates:
+            template_hex = dc.template_id.hex
+            prefix = f"cert_{template_hex}"
+            cert_filename = "cert-{0}.pem".format(template_hex)
+            cert_path = "{0}/{1}".format(app_settings.CERT_PATH, cert_filename)
+            key_filename = "key-{0}.pem".format(template_hex)
+            key_path = "{0}/{1}".format(app_settings.CERT_PATH, key_filename)
+            cert_context.update(
+                {
+                    f"{prefix}_path": cert_path,
+                    f"{prefix}_pem": dc.cert.certificate,
+                    f"{prefix}_key_path": key_path,
+                    f"{prefix}_key": dc.cert.private_key,
+                    f"{prefix}_id": str(dc.cert.id),
+                }
+            )
+        return cert_context
+
     def get_context(self, system=False):
         """
         additional context passed to netjsonconfig
@@ -1054,6 +1186,7 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
                 context.update(self.device._get_group().get_context())
             # Add predefined variables
             context.update(self.get_vpn_context())
+            context.update(self.get_cert_context())
             for func in self._config_context_functions:
                 context.update(func(config=self))
             if app_settings.HARDWARE_ID_ENABLED:

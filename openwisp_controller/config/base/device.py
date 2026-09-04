@@ -30,7 +30,13 @@ class AbstractDevice(OrgMixin, BaseModel):
     physical properties of a network device
     """
 
-    _changed_checked_fields = ["name", "group_id", "management_ip", "organization_id"]
+    _changed_checked_fields = [
+        "name",
+        "mac_address",
+        "group_id",
+        "management_ip",
+        "organization_id",
+    ]
 
     name = models.CharField(
         max_length=64,
@@ -294,6 +300,11 @@ class AbstractDevice(OrgMixin, BaseModel):
             else:
                 self.key = self.generate_key(shared_secret)
         state_adding = self._state.adding
+        update_fields = kwargs.get("update_fields")
+        if update_fields is None and len(args) > 3:
+            update_fields = args[3]
+        if not state_adding:
+            self._load_deferred_initial_values()
         super().save(*args, **kwargs)
         if app_settings.WHOIS_CONFIGURED:
             self._check_last_ip(creating=state_adding)
@@ -303,7 +314,7 @@ class AbstractDevice(OrgMixin, BaseModel):
         # after performing the save operation. Hence, the actual value
         # is stored in the "state_adding" variable.
         if not state_adding:
-            self._check_changed_fields()
+            self._check_changed_fields(update_fields=update_fields)
 
     def delete(self, using=None, keep_parents=False, check_deactivated=True):
         if check_deactivated and (not self.is_fully_deactivated()):
@@ -312,13 +323,13 @@ class AbstractDevice(OrgMixin, BaseModel):
             )
         return super().delete(using, keep_parents)
 
-    def _check_changed_fields(self):
-        self._get_initial_values_for_checked_fields()
+    def _check_changed_fields(self, update_fields=None):
+        self._load_deferred_initial_values()
         # Execute method for checked for each field in self._changed_checked_fields
         for field in self._changed_checked_fields:
             method = getattr(self, f"_check_{field}_changed", None)
             if callable(method):
-                method()
+                method(update_fields=update_fields)
 
     def _is_deferred(self, field):
         """
@@ -326,33 +337,28 @@ class AbstractDevice(OrgMixin, BaseModel):
         """
         return field in self.get_deferred_fields()
 
-    def _get_initial_values_for_checked_fields(self):
-        # Refresh values from database only when the checked field
-        # was initially deferred, but is no longer deferred now.
-        # Store the present value of such fields because they will
-        # be overwritten fetching values from database
-        # NOTE: Initial value of a field will only remain deferred
-        # if the current value of the field is still deferred. This
-        present_values = dict()
+    def _load_deferred_initial_values(self):
+        fields_to_fetch = []
         for field in self._changed_checked_fields:
             if getattr(
                 self, f"_initial_{field}"
             ) == models.DEFERRED and not self._is_deferred(field):
-                present_values[field] = getattr(self, field)
-        # Skip fetching values from database if all of the checked fields are
-        # still deferred, or were not deferred from the begining.
-        if not present_values:
+                fields_to_fetch.append(field)
+        if not fields_to_fetch:
             return
-        self.refresh_from_db(fields=present_values.keys())
-        for field, value in present_values.items():
-            setattr(self, f"_initial_{field}", getattr(self, field))
-            setattr(self, field, value)
+        old_values = (
+            self.__class__.objects.filter(pk=self.pk).values(*fields_to_fetch).first()
+        )
+        if old_values:
+            for field in fields_to_fetch:
+                setattr(self, f"_initial_{field}", old_values[field])
 
-    def _check_name_changed(self):
+    def _check_name_changed(self, update_fields=None):
         if self._initial_name == models.DEFERRED:
             return
 
-        if self._initial_name != self.name:
+        field_saved = update_fields is None or "name" in update_fields
+        if field_saved and self._initial_name != self.name:
             device_name_changed.send(
                 sender=self.__class__,
                 instance=self,
@@ -361,7 +367,21 @@ class AbstractDevice(OrgMixin, BaseModel):
             if self._has_config():
                 self.config.set_status_modified()
 
-    def _check_group_id_changed(self):
+        if field_saved:
+            self._initial_name = self.name
+
+    def _check_mac_address_changed(self, update_fields=None):
+        if self._initial_mac_address == models.DEFERRED:
+            return
+        field_saved = update_fields is None or "mac_address" in update_fields
+        if field_saved and self._initial_mac_address != self.mac_address:
+            if self._has_config():
+                self.config.set_status_modified()
+
+        if field_saved:
+            self._initial_mac_address = self.mac_address
+
+    def _check_group_id_changed(self, update_fields=None):
         if self._initial_group_id == models.DEFERRED:
             return
 
@@ -370,10 +390,11 @@ class AbstractDevice(OrgMixin, BaseModel):
                 self, self.group_id, self._initial_group_id
             )
 
-    def _check_management_ip_changed(self):
+    def _check_management_ip_changed(self, update_fields=None):
         if self._initial_management_ip == models.DEFERRED:
             return
-        if self.management_ip != self._initial_management_ip:
+        field_saved = update_fields is None or "management_ip" in update_fields
+        if field_saved and self.management_ip != self._initial_management_ip:
             management_ip_changed.send(
                 sender=self.__class__,
                 management_ip=self.management_ip,
@@ -381,9 +402,10 @@ class AbstractDevice(OrgMixin, BaseModel):
                 instance=self,
             )
 
-        self._initial_management_ip = self.management_ip
+        if field_saved:
+            self._initial_management_ip = self.management_ip
 
-    def _check_organization_id_changed(self):
+    def _check_organization_id_changed(self, update_fields=None):
         """
         Returns "True" if the device's organization has changed.
         """
