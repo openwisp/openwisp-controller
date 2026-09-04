@@ -394,6 +394,14 @@ class TestController(
         self.assertEqual(device.organization, org1)
         self.assertNotEqual(device.organization, org2)
 
+    def test_register_ignores_disallowed_fields(self):
+        # a registrant must not be able to mass-assign internal device fields
+        # such as the primary key: choosing an arbitrary UUID would let a
+        # registrant probe for cross-organization device existence
+        forged_id = "0" * 32
+        device = self.test_register(id=forged_id)
+        self.assertNotEqual(device.pk.hex, forged_id)
+
     def test_register_exceeds_org_device_limit(self):
         org = self._get_org()
         org.config_limits.device_limit = 1
