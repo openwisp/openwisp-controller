@@ -2064,8 +2064,10 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
             device.organization = org2
             device.save(update_fields=["organization"])
             with mock.patch.object(Command, "_schedule_command"):
-                batch.create_commands()
+                with self.assertLogs(LOGGER_NAME, level="WARNING") as logs:
+                    batch.create_commands()
             batch.refresh_from_db()
+            self.assertIn("Skipping device", logs.output[0])
             self.assertIn(str(device.pk), batch.skipped_devices)
             self.assertIn(
                 "no longer belongs to the organization",
