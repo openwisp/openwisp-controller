@@ -1413,9 +1413,7 @@ class TestBatchCommandAdmin(
             self.find_element(by=By.ID, value="execute-button").click()
             batch = BatchCommand.objects.get(label="uci-show")
             self._wait_for_url(
-                reverse(
-                    f"admin:{self.app_label}_batchcommand_change", args=[batch.pk]
-                )
+                reverse(f"admin:{self.app_label}_batchcommand_change", args=[batch.pk])
             )
             self.assertEqual(batch.type, "uci_show")
             self.assertEqual(batch.input, {"config": "network"})

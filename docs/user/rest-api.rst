@@ -506,7 +506,8 @@ Parameter        Description
                  ``?type=custom&input=%7B%22command%22%3A%22uptime%22%7D``
 ``devices``      Repeated ``devices`` query parameter, each a device UUID
                  (optional; when provided, ``group`` and ``location`` are
-                 ignored; all devices must belong to the same organization)
+                 ignored; all devices must belong to the same
+                 organization)
 ``group``        Device group UUID (optional)
 ``location``     Location UUID (optional)
 ================ =========================================================
