@@ -198,23 +198,29 @@ class BaseSubnetDivisionRuleType(object):
                 .subnet
             )
         except AttributeError:
-            # If there is no existing subnet, create a reserved subnet
-            # and use it as starting point
+            # If there is no existing subnet, determine the starting point.
             required_subnet = next(
                 IPNetwork(str(master_subnet.subnet)).subnet(
                     prefixlen=division_rule.size
                 )
             )
-            subnet_obj = Subnet(
-                name=f"Reserved Subnet {required_subnet}",
-                subnet=str(required_subnet),
-                description=_("Automatically generated reserved subnet."),
-                master_subnet_id=master_subnet.id,
-                organization_id=master_subnet.organization_id,
+            is_host_route = (
+                division_rule.size == 32
+                if master_subnet.subnet.version == 4
+                else division_rule.size == 128
             )
-            subnet_obj.full_clean()
-            subnet_obj.save()
-            max_subnet = subnet_obj.subnet
+            if not is_host_route:
+                subnet_obj = Subnet(
+                    name=f"Reserved Subnet {required_subnet}",
+                    subnet=str(required_subnet),
+                    description=_("Automatically generated reserved subnet."),
+                    master_subnet_id=master_subnet.id,
+                    organization_id=master_subnet.organization_id,
+                )
+                subnet_obj.full_clean()
+                subnet_obj.save()
+                return subnet_obj.subnet
+            return required_subnet
         return max_subnet
 
     @staticmethod
