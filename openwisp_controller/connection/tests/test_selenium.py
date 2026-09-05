@@ -12,7 +12,7 @@ from django.test import override_settings, tag
 from django.urls import reverse
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support.ui import Select, WebDriverWait
 from swapper import load_model
 
 from openwisp_users.migrations import (
@@ -180,6 +180,9 @@ class TestBatchCommandAdmin(
         self.execute_url = reverse(f"admin:{self.app_label}_batchcommand_execute")
         self.confirm_url = reverse(f"admin:{self.app_label}_batchcommand_confirm")
         self.changelist_url = reverse(f"admin:{self.app_label}_batchcommand_changelist")
+        self.device_changelist_url = reverse(
+            f"admin:{self.config_app_label}_device_changelist"
+        )
 
     # this is a TransactionTestCase: the flush performed after every test
     # restores what post_migrate creates (permissions, content types) but
@@ -260,6 +263,13 @@ class TestBatchCommandAdmin(
             self.open(self.execute_url)
             self._wait_for_url(self.execute_url)
         self.hide_loading_overlay()
+        # the editor is rebuilt when the schema request lands, discarding
+        # whatever was typed before it did
+        WebDriverWait(self.web_driver, 5).until(
+            lambda driver: driver.execute_script(
+                "return Object.keys(django._schemas).length > 0;"
+            )
+        )
         self.web_driver.execute_script(
             "django.jQuery('#id_group, #id_location').val('').trigger('change');"
         )
@@ -389,6 +399,21 @@ class TestBatchCommandAdmin(
             lambda driver: urlparse(driver.current_url).path == path
         )
         self.assertEqual(urlparse(self.web_driver.current_url).path, path)
+
+    def _execute_mass_command_action(self, devices):
+        self.open(self.device_changelist_url)
+        self._wait_for_url(self.device_changelist_url)
+        self.hide_loading_overlay()
+        for device in devices:
+            self.find_element(
+                by=By.CSS_SELECTOR, value=f'.action-select[value="{device.pk}"]'
+            ).click()
+        Select(self.find_element(by=By.NAME, value="action")).select_by_value(
+            "execute_mass_command_admin_action"
+        )
+        self.find_element(by=By.CSS_SELECTOR, value='button[name="index"]').click()
+        self.wait_for_visibility(By.ID, "review-command-btn", timeout=5)
+        self.hide_loading_overlay()
 
     def _wait_for_review_page(self):
         self._wait_for_url(self.confirm_url)
@@ -684,6 +709,226 @@ class TestBatchCommandAdmin(
             execute_button.click()
             self._wait_for_batch_result("small-swapped", "failed", 1)
             self.assertEqual(self._command_device_names(), [located_device.name])
+
+        self.assertEqual(self.get_browser_errors(), [])
+
+    def test_execute_batch_command_from_device_changelist(self):
+        org = self._get_org()
+        devices = self._create_devices(
+            org,
+            2,
+            credentials=self._create_credentials_with_key(
+                organization=org, port=self.ssh_server.port
+            ),
+        )
+        self.login()
+        self._execute_mass_command_action(devices)
+
+        with self.subTest("the selection replaces the wider targets"):
+            self.assertEqual(
+                self.find_element(
+                    by=By.CSS_SELECTOR, value=".messagelist li.warning"
+                ).text,
+                "The command will run on the 2 devices you selected.",
+            )
+            devices_field = self.find_element(
+                by=By.ID, value="id_devices", wait_for="presence"
+            )
+            self.assertEqual(
+                set(devices_field.get_attribute("value").split(",")),
+                {str(device.pk) for device in devices},
+            )
+            self.assertTrue(
+                self.find_element(
+                    by=By.ID, value="id_organization", wait_for="presence"
+                ).get_attribute("disabled")
+            )
+            self.assertEqual(self.web_driver.find_elements(By.ID, "id_group"), [])
+            self.assertEqual(self.web_driver.find_elements(By.ID, "id_location"), [])
+
+        with self.subTest("the command runs on the selected devices"):
+            self._fill_wizard(
+                type="Custom commands",
+                label="selection-custom",
+                command_input={"command": "echo test"},
+                open_page=False,
+            )
+            self.find_element(by=By.ID, value="review-command-btn").click()
+            self._wait_for_review_page()
+            summary = self._summary()
+            self.assertEqual(summary["Targets"], "2 selected devices")
+            self.assertEqual(summary["Will run on"], "2 devices")
+            self.assertEqual(self._device_names(), [device.name for device in devices])
+            self.find_element(by=By.ID, value="execute-button").click()
+            self._wait_for_batch_result("selection-custom", "success", 2)
+            self.assertEqual(
+                sorted(self._command_device_names()),
+                sorted(device.name for device in devices),
+            )
+
+    def test_execute_system_wide_batch_command_from_device_changelist(self):
+        org1 = self._get_org()
+        org2 = self._create_org(name="org2", slug="org2")
+        devices = self._create_devices(
+            org1,
+            2,
+            credentials=self._create_credentials_with_key(
+                organization=org1, port=self.ssh_server.port
+            ),
+        ) + self._create_devices(
+            org2,
+            1,
+            credentials=self._create_credentials_with_key(
+                organization=org2, port=self.ssh_server.port
+            ),
+        )
+        self.login()
+        self._execute_mass_command_action(devices)
+
+        with self.subTest("the targets are hidden and the scope announced"):
+            self.assertEqual(
+                self.find_element(
+                    by=By.CSS_SELECTOR, value="ul.messagelist li.warning"
+                ).text,
+                "The command will run on all devices.",
+            )
+            self.assertEqual(
+                self.web_driver.find_elements(By.ID, "id_organization"), []
+            )
+            self.assertEqual(self.web_driver.find_elements(By.ID, "id_group"), [])
+            self.assertEqual(self.web_driver.find_elements(By.ID, "id_location"), [])
+            self.assertEqual(
+                self.find_element(
+                    by=By.ID, value="id_devices", wait_for="presence"
+                ).get_attribute("value"),
+                "",
+            )
+
+        with self.subTest("the command runs on every device"):
+            self._fill_wizard(
+                type="Custom commands",
+                label="system-wide-custom",
+                command_input={"command": "echo test"},
+                open_page=False,
+            )
+            # the editor commits what was typed only when the field is left
+            WebDriverWait(self.web_driver, 5).until(
+                lambda driver: not driver.execute_script(
+                    "return django._jsonEditors.id_input_jsoneditor.validate();"
+                )
+            )
+            self.find_element(by=By.ID, value="review-command-btn").click()
+            self._wait_for_review_page()
+            summary = self._summary()
+            self.assertEqual(summary["Targets"], "All devices")
+            self.assertEqual(summary["Will run on"], "3 devices")
+            self.assertEqual(
+                sorted(self._device_names()),
+                sorted(device.name for device in devices),
+            )
+            self.find_element(by=By.ID, value="execute-button").click()
+            self._wait_for_batch_result("system-wide-custom", "success", 3)
+
+        self.assertEqual(self.get_browser_errors(), [])
+
+    def test_device_action_organization_isolation_and_permissions(self):
+        org1 = self._get_org()
+        org2 = self._create_org(name="org2", slug="org2")
+        devices1 = self._create_devices(
+            org1,
+            2,
+            credentials=self._create_credentials_with_key(
+                organization=org1, port=self.ssh_server.port
+            ),
+        )
+        self._create_devices(org2, 1)
+        operator = self._create_operator(organizations=[org1])
+        self.login(username=operator.username, password="tester")
+        self._execute_mass_command_action(devices1)
+
+        with self.subTest("the selection is scoped to the managed organization"):
+            self.assertEqual(
+                self.find_element(
+                    by=By.CSS_SELECTOR, value="ul.messagelist li.warning"
+                ).text,
+                "The command will run on the 2 devices you selected.",
+            )
+            organization = self.find_element(
+                by=By.ID, value="id_organization", wait_for="presence"
+            )
+            self.assertTrue(organization.get_attribute("disabled"))
+            self.assertEqual(organization.get_attribute("value"), str(org1.pk))
+            self.assertEqual(self.web_driver.find_elements(By.ID, "id_group"), [])
+            self.assertEqual(self.web_driver.find_elements(By.ID, "id_location"), [])
+
+        with self.subTest("the command runs on the selected devices"):
+            self._fill_wizard(
+                type="Custom commands",
+                label="operator-selection",
+                command_input={"command": "echo test"},
+                open_page=False,
+            )
+            self.find_element(by=By.ID, value="review-command-btn").click()
+            self._wait_for_review_page()
+            summary = self._summary()
+            self.assertEqual(summary["Targets"], "2 selected devices")
+            self.assertEqual(self._device_names(), [device.name for device in devices1])
+            self.find_element(by=By.ID, value="execute-button").click()
+            self._wait_for_batch_result("operator-selection", "success", 2)
+            batch = BatchCommand.objects.get(label="operator-selection")
+            self.assertEqual(batch.organization_id, org1.pk)
+
+        with self.subTest("the batch command add permission is enforced"):
+            restricted = self._create_operator(
+                organizations=[org1],
+                username="restricted",
+                email="restricted@test.com",
+            )
+            restricted.groups.clear()
+            restricted.user_permissions.set(
+                Permission.objects.filter(codename__in=["view_device", "change_device"])
+            )
+            self.web_driver.delete_all_cookies()
+            self.login(username=restricted.username, password="tester")
+            self.open(self.device_changelist_url)
+            self._wait_for_url(self.device_changelist_url)
+            self.hide_loading_overlay()
+            self.find_element(
+                by=By.CSS_SELECTOR, value=f'.action-select[value="{devices1[0].pk}"]'
+            ).click()
+            Select(self.find_element(by=By.NAME, value="action")).select_by_value(
+                "execute_mass_command_admin_action"
+            )
+            self.find_element(by=By.CSS_SELECTOR, value='button[name="index"]').click()
+            self.assertEqual(
+                self.find_element(by=By.TAG_NAME, value="body").text,
+                "403 Forbidden",
+            )
+
+        with self.subTest("the view permission does not offer the action"):
+            viewer = self._create_operator(
+                organizations=[org1], username="viewer", email="viewer@test.com"
+            )
+            viewer.groups.clear()
+            viewer.user_permissions.set(
+                Permission.objects.filter(
+                    codename__in=["view_device", "view_batchcommand"]
+                )
+            )
+            self.web_driver.delete_all_cookies()
+            self.login(username=viewer.username, password="tester")
+            self.open(self.device_changelist_url)
+            self._wait_for_url(self.device_changelist_url)
+            self.hide_loading_overlay()
+            self.assertNotIn(
+                "Execute mass command",
+                [
+                    option.text
+                    for option in self.web_driver.find_elements(
+                        By.CSS_SELECTOR, "select[name='action'] option"
+                    )
+                ],
+            )
 
         self.assertEqual(self.get_browser_errors(), [])
 

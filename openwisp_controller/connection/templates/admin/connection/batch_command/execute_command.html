@@ -30,8 +30,10 @@
 
 {% block content %}
 <div id="content-main">
-  <form method="post" novalidate class="execute-form">
+  {# the action renders this page from the device changelist, so the target is explicit #}
+  <form method="post" novalidate action="{% url opts|admin_urlname:'execute' %}">
     {% csrf_token %}
+    {{ form.devices }}
     <nav class="stepper" aria-label="{% trans 'Execution progress' %}">
       <div class="stepper-step active" aria-current="step">
         <span class="stepper-badge">1</span>
@@ -64,12 +66,16 @@
       {% include "admin/connection/batch_command/form_row.html" with field=form.notes %}
     </fieldset>
 
+    {% if not system_wide %}
     <fieldset class="module aligned">
       <h2>{% trans "Targets" %}</h2>
       {% include "admin/connection/batch_command/form_row.html" with field=form.organization %}
+      {% if not device_count %}
       {% include "admin/connection/batch_command/form_row.html" with field=form.location %}
       {% include "admin/connection/batch_command/form_row.html" with field=form.group %}
+      {% endif %}
     </fieldset>
+    {% endif %}
 
     <div class="submit-row">
       <a class="button cancel-link" href="{% url opts|admin_urlname:'changelist' %}">{% trans "Cancel" %}</a>
