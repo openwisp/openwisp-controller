@@ -1,0 +1,312 @@
+/* ==== Mass Command Change Page CSS ==== */
+#batchcommand_form .submit-row {
+  display: none;
+}
+.commands-title {
+  font-size: 22px;
+  font-weight: 300;
+  margin: 0;
+  padding: 0;
+}
+.search-section {
+  padding: 20px;
+}
+.search-form {
+  display: flex;
+  align-items: center;
+}
+#main #content .search-icon {
+  width: 20px;
+  height: 20px;
+  margin-right: 15px;
+  font-size: 16px;
+  margin-top: -3px;
+}
+#main #content .search-input {
+  padding: 10px 15px;
+}
+#main #content .search-button {
+  padding: 10px 20px;
+  margin-left: 15px;
+}
+.filter-clear-link:hover {
+  color: var(--ow-color-fg-darker);
+}
+.results-table {
+  width: 100%;
+  border-collapse: collapse;
+  /* the output column takes whatever these three leave over */
+  --device-column: 23%;
+  --status-column: 15%;
+  --modified-column: 15%;
+}
+.results-table th:nth-child(1),
+.results-table td:nth-child(1):not(.empty-results) {
+  width: var(--device-column);
+}
+.results-table th:nth-child(2),
+.results-table td:nth-child(2) {
+  width: var(--status-column);
+  white-space: nowrap;
+}
+.results-table th:nth-child(4),
+.results-table td:nth-child(4) {
+  width: var(--modified-column);
+  white-space: nowrap;
+}
+#main #content .device-link {
+  color: var(--ow-color-primary);
+  font-weight: bold;
+}
+.device-name-disabled {
+  color: var(--body-quiet-color);
+  font-style: italic;
+}
+.empty-results {
+  padding: 40px;
+  text-align: center;
+  color: var(--body-quiet-color);
+  font-style: italic;
+}
+.pagination {
+  padding: 15px 20px;
+  text-align: right;
+  border-top: 2px solid var(--hairline-color);
+  background: var(--darkened-bg);
+}
+.pagination a {
+  color: var(--body-fg);
+  text-decoration: none;
+  margin: 0 5px;
+}
+.pagination .current-page {
+  margin: 0 10px;
+  color: var(--body-quiet-color);
+}
+.paginator {
+  color: var(--body-quiet-color);
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--hairline-color);
+  margin: 0;
+}
+.command-status {
+  font-weight: bold;
+}
+.command-status.success {
+  color: var(--ow-color-success);
+}
+.command-status.failed {
+  color: var(--error-fg);
+}
+.command-status.in-progress {
+  color: var(--body-quiet-color);
+}
+.command-status.skipped {
+  color: var(--body-quiet-color);
+  opacity: 0.7;
+}
+.command-output pre {
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  margin: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+}
+.skipped-devices-list {
+  line-height: 1.7;
+}
+.field-display_skipped_devices .readonly.readonly {
+  padding: 0;
+}
+
+/* List Filters */
+#main #content .left-arrow {
+  left: -1.125rem;
+}
+#main #content .right-arrow {
+  right: -1.125rem;
+}
+#main #content #ow-changelist-filter {
+  padding: 1.25rem 0rem;
+}
+#main #content .filters-top {
+  margin-bottom: 0.5rem;
+}
+
+/* ==== Stepper CSS ==== */
+.stepper {
+  --step-active-bg: var(--ow-color-primary);
+  --step-active-text: var(--ow-color-white);
+  --step-inactive-bg: var(--ow-color-fg-light);
+  --step-inactive-text: var(--ow-color-fg-dark);
+  --arrow-color: var(--ow-color-fg-dark);
+
+  display: inline-flex;
+  align-items: stretch;
+  overflow: hidden;
+  margin-bottom: 1.75rem;
+}
+.stepper-step {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.875rem 1.5rem 0.875rem 0;
+  position: relative;
+}
+.stepper-badge {
+  align-items: center;
+  border-radius: 50%;
+  display: flex;
+  flex-shrink: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  height: 2rem;
+  justify-content: center;
+  position: relative;
+  width: 2rem;
+  z-index: 1;
+}
+.stepper-step.active .stepper-badge {
+  background-color: var(--step-active-bg);
+  color: var(--step-active-text);
+}
+.stepper-step.inactive .stepper-badge {
+  background-color: var(--step-inactive-bg);
+  color: var(--step-inactive-text);
+}
+.stepper-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+.stepper-label-text {
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.stepper-step.active .stepper-label-text {
+  color: var(--step-active-bg);
+  font-weight: 600;
+}
+.stepper-step.inactive .stepper-label-text {
+  color: var(--step-inactive-text);
+  font-weight: 500;
+}
+.stepper-divider {
+  align-items: center;
+  display: flex;
+  flex-shrink: 0;
+  justify-content: center;
+  padding: 0.5rem 1rem 0.5rem 0;
+}
+.stepper-arrow {
+  color: var(--arrow-color);
+  display: block;
+  flex-shrink: 0;
+  height: 1rem;
+  width: 1rem;
+}
+
+/* ==== Confirm Page CSS ==== */
+.confirm-command .stepper {
+  margin-bottom: 1.5rem;
+}
+.command-summary {
+  margin-bottom: 1.5rem;
+}
+.command-summary .form-row {
+  padding: 8px 12px;
+}
+.devices-heading {
+  margin-bottom: 1rem;
+}
+.confirm-command #changelist {
+  margin-top: 0;
+}
+/* no admin actions on this changelist, so the row would be empty */
+.confirm-command #changelist .actions {
+  display: none;
+}
+/* Django styles its own rows with "tr:has(.action-select:checked)", which cannot match here */
+.confirm-command #changelist tbody tr:has(.device-checkbox:checked) {
+  background-color: var(--selected-row);
+}
+@media (forced-colors: active) {
+  .confirm-command #changelist tbody tr:has(.device-checkbox:checked) {
+    background-color: SelectedItem;
+  }
+}
+.confirm-command #result_list th.column-select_device,
+.confirm-command #result_list td.field-select_device {
+  text-align: center;
+  width: 2rem;
+}
+#main .execute-form .submit-row {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+.execute-batch-command .jsoneditor-wrapper > fieldset.module {
+  background: none;
+  border: none;
+  margin: 0;
+  padding: 0;
+}
+.execute-batch-command .jsoneditor-wrapper > fieldset > h2,
+.execute-batch-command .jsoneditor h3 {
+  display: none !important;
+}
+.execute-batch-command.no-command-type .jsoneditor-wrapper {
+  display: none;
+}
+.execute-batch-command #main .jsoneditor-wrapper div.jsoneditor .form-row {
+  display: flex;
+  flex-wrap: wrap;
+  padding: 15px;
+}
+.execute-batch-command .jsoneditor-wrapper div.jsoneditor label {
+  font-weight: bold;
+  margin-left: 0;
+}
+.execute-batch-command .jsoneditor .form-row > .help {
+  flex-basis: 100%;
+}
+.execute-batch-command .jsoneditor .errorlist {
+  display: none;
+}
+.execute-batch-command .jsoneditor.command-errors .errorlist {
+  display: block;
+}
+.execute-batch-command .jsoneditor .form-row.errors input,
+.execute-batch-command .jsoneditor .form-row.errors select,
+.execute-batch-command .jsoneditor .form-row.errors textarea {
+  border-color: var(--border-color);
+}
+.execute-batch-command .jsoneditor.command-errors .form-row.errors input,
+.execute-batch-command .jsoneditor.command-errors .form-row.errors select,
+.execute-batch-command .jsoneditor.command-errors .form-row.errors textarea {
+  border-color: var(--ow-color-danger);
+}
+.execute-batch-command .jsoneditor .form-row > ul.errorlist {
+  order: -1;
+  flex-basis: calc(100% - 160px);
+  margin-left: 160px;
+  padding-left: 10px;
+}
+.execute-batch-command .form-row.field-input {
+  display: none;
+}
+.execute-batch-command .form-row.field-input.errors {
+  display: block !important;
+}
+.execute-batch-command .form-row.field-input.errors .flex-container {
+  display: none;
+}
+#main .form-row .ow-text-field {
+  width: 320px;
+}

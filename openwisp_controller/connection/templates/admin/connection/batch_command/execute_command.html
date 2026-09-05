@@ -1,0 +1,80 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{# step one: collects the command details and targets, saves them in the session, #}
+{# then redirects to the confirm page #}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" type="text/css" href="{% static "admin/css/forms.css" %}">
+<link rel="stylesheet" type="text/css" href="{% static "connection/css/batch-command.css" %}">
+{{ media.css }}
+{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<script src="{% url 'admin:jsi18n' %}"></script>
+{{ media.js }}
+{% endblock %}
+
+{% block bodyclass %}{{ block.super }} app-{{ opts.app_label }} model-{{ opts.model_name }} execute-batch-command{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+  &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+  &rsaquo; <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+  &rsaquo; {% trans 'Execute mass command' %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+  <form method="post" novalidate class="execute-form">
+    {% csrf_token %}
+    <nav class="stepper" aria-label="{% trans 'Execution progress' %}">
+      <div class="stepper-step active" aria-current="step">
+        <span class="stepper-badge">1</span>
+        <span class="stepper-label">
+          <span class="stepper-label-text">{% trans 'Configure' %}</span>
+        </span>
+      </div>
+      <div class="stepper-divider" aria-hidden="true">
+        <svg class="stepper-arrow" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M6 3.5L10.5 8L6 12.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="stepper-step inactive">
+        <span class="stepper-badge">2</span>
+        <span class="stepper-label">
+          <span class="stepper-label-text">{% trans 'Review' %}</span>
+        </span>
+      </div>
+    </nav>
+
+    {% if form.non_field_errors %}
+    <p class="errornote">{{ form.non_field_errors|join:" " }}</p>
+    {% endif %}
+
+    <fieldset class="module aligned">
+      <h2>{% trans "Command" %}</h2>
+      {% include "admin/connection/batch_command/form_row.html" with field=form.type %}
+      {% include "admin/connection/batch_command/form_row.html" with field=form.input %}
+      {% include "admin/connection/batch_command/form_row.html" with field=form.label %}
+      {% include "admin/connection/batch_command/form_row.html" with field=form.notes %}
+    </fieldset>
+
+    <fieldset class="module aligned">
+      <h2>{% trans "Targets" %}</h2>
+      {% include "admin/connection/batch_command/form_row.html" with field=form.organization %}
+      {% include "admin/connection/batch_command/form_row.html" with field=form.location %}
+      {% include "admin/connection/batch_command/form_row.html" with field=form.group %}
+    </fieldset>
+
+    <div class="submit-row">
+      <a class="button cancel-link" href="{% url opts|admin_urlname:'changelist' %}">{% trans "Cancel" %}</a>
+      <button type="submit" class="default" id="review-command-btn">{% trans "Review command" %}</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

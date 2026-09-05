@@ -1,0 +1,129 @@
+{% extends device_changelist_template|default:"admin/change_list.html" %}
+{% load i18n admin_urls static %}
+
+{# step two: extends the changelist template of the registered Device admin, #}
+{# so the assets of columns added by other modules load too #}
+{# see BatchCommandAdmin.get_device_changelist_template() #}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" type="text/css" href="{% static "admin/css/forms.css" %}">
+<link rel="stylesheet" type="text/css" href="{% static "connection/css/batch-command.css" %}">
+{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<script src="{% url 'admin:jsi18n' %}"></script>
+<script src="{% static "connection/js/execute-command.js" %}" defer></script>
+{% endblock %}
+
+{% block bodyclass %}{{ block.super }} confirm-command{% endblock %}
+
+{# hides the changelist's "Add device" button #}
+{% block object-tools %}{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+  &rsaquo; <a href="{% url 'admin:app_list' app_label=batch_opts.app_label %}">{{ batch_opts.app_config.verbose_name }}</a>
+  &rsaquo; <a href="{% url batch_opts|admin_urlname:'changelist' %}">{{ batch_opts.verbose_name_plural|capfirst }}</a>
+  &rsaquo; {% trans 'Review mass command' %}
+</div>
+{% endblock %}
+
+{% block content %}
+<nav class="stepper" aria-label="{% trans 'Execution progress' %}">
+  <div class="stepper-step inactive">
+    <span class="stepper-badge">1</span>
+    <span class="stepper-label">
+      <span class="stepper-label-text">{% trans 'Configure' %}</span>
+    </span>
+  </div>
+  <div class="stepper-divider" aria-hidden="true">
+    <svg class="stepper-arrow" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M6 3.5L10.5 8L6 12.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </div>
+  <div class="stepper-step active" aria-current="step">
+    <span class="stepper-badge">2</span>
+    <span class="stepper-label">
+      <span class="stepper-label-text">{% trans 'Review' %}</span>
+    </span>
+  </div>
+</nav>
+
+<fieldset class="module aligned command-summary">
+  <h2>{% trans 'Summary' %}</h2>
+  <div class="form-row">
+    <div class="flex-container">
+      <label>{% trans 'Type' %}</label>
+      <div class="readonly">{{ command_type_display }}</div>
+    </div>
+  </div>
+  {% if command_description %}
+  <div class="form-row">
+    <div class="flex-container">
+      <label>{% trans 'Command' %}</label>
+      <div class="readonly">{{ command_description }}</div>
+    </div>
+  </div>
+  {% endif %}
+  <div class="form-row">
+    <div class="flex-container">
+      <label>{% trans 'Label' %}</label>
+      <div class="readonly">{{ wizard.label }}</div>
+    </div>
+  </div>
+  <div class="form-row">
+    <div class="flex-container">
+      <label>{% trans 'Targets' %}</label>
+      <div class="readonly">{{ targets_display }}</div>
+    </div>
+  </div>
+  <div class="form-row">
+    <div class="flex-container">
+      <label>{% trans 'Will run on' %}</label>
+      <div class="readonly">
+        {% blocktrans trimmed count counter=device_count %}
+        <strong id="selected-count">{{ counter }}</strong> <span id="selected-count-label">device</span>
+        {% plural %}
+        <strong id="selected-count">{{ counter }}</strong> <span id="selected-count-label">devices</span>
+        {% endblocktrans %}
+      </div>
+    </div>
+  </div>
+  <div class="form-row">
+    <div class="flex-container">
+      <label>{% trans 'Triggered by' %}</label>
+      <div class="readonly">{{ request.user }} &mdash; {% now "DATETIME_FORMAT" %}</div>
+    </div>
+  </div>
+</fieldset>
+
+<fieldset class="module aligned devices-heading">
+  <h2>{% trans 'Affected devices' %}</h2>
+</fieldset>
+
+{# renders the changelist: the device table, its pagination, and the <form> wrapping both #}
+{# HTML does not allow nested forms, so the execute form below is a sibling of that one: #}
+{# nesting it made the browser drop the opening tag, leaving the button outside any form #}
+{{ block.super }}
+
+<form method="post" id="execute-form" class="execute-form"
+  data-total-devices="{{ device_count }}"
+  data-wizard-token="{{ wizard.token }}">
+  {% csrf_token %}
+  <input type="hidden" name="excluded" id="id_excluded" value="">
+  <input type="hidden" name="token" value="{{ wizard.token }}">
+  <div class="submit-row">
+    <a class="button cancel-link" href="{% url batch_opts|admin_urlname:'execute' %}?back=1">{% trans 'Back' %}</a>
+    <button type="submit" class="default" id="execute-button">
+      {% blocktrans trimmed count counter=device_count %}
+      Execute on {{ counter }} device
+      {% plural %}
+      Execute on {{ counter }} devices
+      {% endblocktrans %}
+    </button>
+  </div>
+</form>
+{% endblock %}

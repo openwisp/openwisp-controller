@@ -1,0 +1,186 @@
+{% extends "admin/change_form.html" %}
+{% load i18n admin_urls static admin_list ow_tags %}
+
+{% block extrahead %}
+{{ block.super }}
+<link rel="stylesheet" type="text/css" href="{% static "admin/css/changelists.css" %}">
+<link rel="stylesheet" type="text/css" href="{% static "admin/css/ow-filters.css" %}">
+<link rel="stylesheet" type="text/css" href="{% static "connection/css/batch-command.css" %}">
+<script>
+{% if OPENWISP_CONTROLLER_API_HOST %}
+    const owControllerApiHost = new URL('{{ OPENWISP_CONTROLLER_API_HOST }}');
+{% else %}
+    const owControllerApiHost = window.location;
+{% endif %}
+    const batchCommandId = '{{ original.pk }}';
+</script>
+{{ status_labels|json_script:"batch-status-labels" }}
+{% endblock %}
+
+{% block content %}
+{{ block.super }}
+
+<h1 class="commands-title">{% trans "Commands" %}</h1>
+
+{% if filter_specs %}
+<div id="ow-changelist-filter">
+  <div class="filters-bottom">
+    <span class="left-arrow">
+      <img src="{% static "ui/openwisp/images/left-arrow.svg" %}" alt="{% trans 'left' %}">
+    </span>
+    <span class="right-arrow">
+      <img src="{% static "ui/openwisp/images/right-arrow.svg" %}" alt="{% trans 'right' %}">
+    </span>
+    <div aria-label="{% trans 'changelist filters region' %}" tabindex="0" class="ow-filter-slider">
+      <div class="slider">
+        {% for spec in filter_specs %}
+        <div class="ow-filter {{ spec.title|join_string }}">
+          {% for choice in spec.choices %}
+          {% if choice.selected %}
+          <div id="{{ spec.title|join_string }}" aria-label="{% trans 'by' %} {{ spec.title }}" tabindex="0"
+            aria-controls="choices-{{ spec.title|join_string }}" role="button" aria-expanded="false"
+            class="filter-title">
+            <h3>
+              {% blocktrans with filter_title=spec.title %} By {{ filter_title }} {% endblocktrans %}
+            </h3>
+            <div class="selected-option" tabindex="0" title="{{ choice.display }}">
+              {{ choice.display }}
+            </div>
+          </div>
+          {% endif %}
+          {% endfor %}
+          <div id="choices-{{ spec.title|join_string }}" role="region" aria-labelledby="{{ spec.title|join_string }}"
+            class="filter-options">
+            <ul>
+              {% for choice in spec.choices %}
+              <li>
+                <a {% if choice.selected %} class="selected" {% endif %}
+                  title="{{ choice.display | default_if_none:'------'}}" href="{{ choice.query_string|iriencode }}">
+                  {{ choice.display | default_if_none:'------' }}
+                </a>
+              </li>
+              {% endfor %}
+            </ul>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  <div class="filters-top">
+    <h2>{% trans 'Filter' %}</h2>
+    <div class="filters-control">
+      {% if has_active_filters %}
+      <h3 id="changelist-filter-clear" class="filter-clear-heading">
+        <a href="?{% if request.GET.q %}q={{ request.GET.q|urlencode }}{% endif %}" class="filter-clear-link">&#10006; {% trans "Clear all filters" %}</a>
+      </h3>
+      {% endif %}
+      {% if filter_specs|length > 4 %}
+      <button id="ow-apply-filter" class="danger-btn">{% trans "Apply Filters" %}</button>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div class="search-section">
+  <form method="get" class="search-form">
+    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="11" cy="11" r="8"></circle>
+      <path d="m21 21-4.35-4.35"></path>
+    </svg>
+    <input type="text" id="searchbar" name="q" aria-label="{% trans 'Search devices...' %}"
+      placeholder="{% trans 'Search devices...' %}" value="{{ request.GET.q }}" class="search-input">
+    <button type="submit" class="search-button">{% trans "Search" %}</button>
+    {% for param, value in request.GET.items %}
+    {% if param != 'q' and param != 'page' %}
+    <input type="hidden" name="{{ param }}" value="{{ value }}">
+    {% endif %}
+    {% endfor %}
+  </form>
+</div>
+
+<div class="results-container">
+  {# Allows screen readers to announce live batch progress without reading the whole result table. #}
+  <div id="batch-command-live-status" role="status" aria-live="polite" aria-atomic="true"></div>
+  <table id="result_list" class="results-table"
+    data-device-url="{% url device_opts|admin_urlname:'change' '00000000-0000-0000-0000-000000000000' %}"
+    data-active-status="{{ request.GET.status|default:'' }}"
+    data-per-page="{{ paginator.per_page }}"
+    data-current-page="{{ page_obj.number }}">
+    <thead>
+      <tr>
+        <th>{% trans "Device" %}</th>
+        <th>{% trans "Status" %}</th>
+        <th>{% trans "Output" %}</th>
+        <th>{% trans "Modified" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for command in commands %}
+      <tr id="batch-command-row-{{ command.device }}"
+          data-device-pk="{{ command.device }}"
+          class="{% cycle 'row1' 'row2' %}">
+        <td>
+          {% if command.is_skipped %}
+          <span class="device-name-disabled">{{ command.device_name }}</span>
+          {% else %}
+          <a href="{% url device_opts|admin_urlname:'change' command.device %}#command_set-2-group"
+            class="device-link" aria-label="{% trans 'View recent commands' %} {{ command.device_name }}">
+            {{ command.device_name }}
+          </a>
+          {% endif %}
+        </td>
+        <td>
+          <span class="command-status {{ command.status }}">{{ command.status_display }}</span>
+        </td>
+        <td class="command-output">
+          <pre>{{ command.output|default:"-" }}</pre>
+        </td>
+        <td>{{ command.modified|date:"DATETIME_FORMAT"|default:"-" }}</td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="4" class="empty-results">{% trans "No commands found." %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if paginator %}
+  <p class="paginator">
+    {% blocktrans count counter=paginator.count %}
+      {{ counter }} command
+      {% plural %}{{ counter }} commands
+    {% endblocktrans %}
+  </p>
+  {% endif %}
+
+  {% if page_obj.has_other_pages %}
+  <div class="pagination">
+    <span class="step-links">
+      {% if page_obj.has_previous %}
+      <a href="?{% for key,value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value|urlencode }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}">
+        {% trans 'Previous' %}
+      </a>
+      {% endif %}
+      <span class="current-page">
+        {% blocktrans with current=page_obj.number total=page_obj.paginator.num_pages %}Page {{ current }} of {{ total }}{% endblocktrans %}
+      </span>
+      {% if page_obj.has_next %}
+      <a href="?{% for key,value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value|urlencode }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}">
+        {% trans 'Next' %}
+      </a>
+      {% endif %}
+    </span>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block footer %}
+{{ block.super }}
+<script src="{% static "admin/js/ow-filter.js" %}"></script>
+<script src="{% static "connection/js/lib/reconnecting-websocket.min.js" %}"></script>
+<script src="{% static "connection/js/batch-command.js" %}"></script>
+{% endblock %}

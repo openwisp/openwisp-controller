@@ -1,12 +1,15 @@
 import os
 
+from django.contrib.messages import get_messages
 from mockssh import Server
 from swapper import load_model
 
 from openwisp_users.tests.utils import TestOrganizationMixin
 
 from ...config.tests.utils import CreateConfigTemplateMixin
+from ...tests.utils import TestAdminMixin
 from .. import settings as app_settings
+from ..admin import BatchCommandAdmin
 
 Credentials = load_model("connection", "Credentials")
 DeviceConnection = load_model("connection", "DeviceConnection")
@@ -151,6 +154,34 @@ class CreateCommandMixin(CreateConnectionsMixin):
         return Command.objects.create(**opts)
 
 
+class BatchCommandMixin(TestAdminMixin, CreateConnectionsMixin):
+    def _post_execute(self, **overrides):
+        data = {
+            "type": "custom",
+            "input": '{"command": "echo test"}',
+            "label": "test-label",
+            "notes": "",
+            "organization": "",
+            "group": "",
+            "location": "",
+        }
+        data.update(overrides)
+        return self.client.post(self.execute_url, data)
+
+    def _start_wizard(self, **overrides):
+        response = self._post_execute(**overrides)
+        assert response.status_code == 302, response.context["form"].errors
+        return self.client.session[BatchCommandAdmin.session_key]
+
+    def _post_confirm(self, token, excluded=""):
+        return self.client.post(
+            self.confirm_url, {"token": token, "excluded": excluded}
+        )
+
+    def _messages(self, response):
+        return [str(message) for message in get_messages(response.wsgi_request)]
+
+
 def _ping_command_callable(destination_address, interface_name=None):
     command = f"ping -c 4 {destination_address}"
     if interface_name:
@@ -160,3 +191,7 @@ def _ping_command_callable(destination_address, interface_name=None):
 
 def _restart_network_command_callable():
     return "/etc/init.d/networking restart"
+
+
+def _uci_show_command_callable(config):
+    return f"uci show {config}"

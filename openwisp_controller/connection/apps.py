@@ -1,5 +1,3 @@
-from asgiref.sync import async_to_sync
-from channels import layers
 from django.apps import AppConfig
 from django.db import transaction
 from django.db.models.signals import post_save
@@ -8,7 +6,7 @@ from openwisp_notifications.signals import notify
 from openwisp_notifications.types import register_notification_type
 from swapper import get_model_name, load_model
 
-from openwisp_utils.admin_theme.menu import register_menu_subitem
+from openwisp_utils.admin_theme.menu import register_menu_group, register_menu_subitem
 
 from ..config.signals import config_deactivating, config_modified
 from .signals import is_working_changed
@@ -34,9 +32,10 @@ class ConnectionConfig(AppConfig):
         self.notification_cache_update()
         self.register_menu_groups()
 
+        from . import handlers  # noqa
+
         Config = load_model("config", "Config")
         Credentials = load_model("connection", "Credentials")
-        Command = load_model("connection", "Command")
 
         config_modified.connect(
             self.config_modified_receiver, dispatch_uid="connection.update_config"
@@ -56,29 +55,9 @@ class ConnectionConfig(AppConfig):
             dispatch_uid="is_working_changed_receiver",
         )
 
-        post_save.connect(
-            self.command_save_receiver,
-            sender=Command,
-            dispatch_uid="command_save_handler",
-        )
-
     @classmethod
     def config_modified_receiver(cls, **kwargs):
         transaction.on_commit(lambda: cls._launch_update_config(kwargs["device"]))
-
-    @classmethod
-    def command_save_receiver(cls, sender, created, instance, **kwargs):
-        from .api.serializers import CommandSerializer
-
-        channel_layer = layers.get_channel_layer()
-        if created:
-            # Trigger websocket message only when command status is updated
-            return
-        serialized_data = CommandSerializer(instance).data
-        async_to_sync(channel_layer.group_send)(
-            f"config.device-{instance.device_id}",
-            {"type": "send.update", "model": "Command", "data": serialized_data},
-        )
 
     @classmethod
     def _launch_update_config(cls, device):
@@ -186,5 +165,26 @@ class ConnectionConfig(AppConfig):
                 "model": get_model_name("connection", "Credentials"),
                 "name": "changelist",
                 "icon": "ow-access-credential",
+            },
+        )
+        register_menu_group(
+            position=35,
+            config={
+                "label": _("Network Operations"),
+                "icon": "ow-build",
+                "items": {
+                    1: {
+                        "label": _("Mass command admin"),
+                        "model": get_model_name("connection", "BatchCommand"),
+                        "name": "changelist",
+                        "icon": "ow-mass-upgrade",
+                    },
+                    2: {
+                        "label": _("Mass command execute"),
+                        "model": get_model_name("connection", "BatchCommand"),
+                        "name": "execute",
+                        "icon": "ow-mass-upgrade",
+                    },
+                },
             },
         )

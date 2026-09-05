@@ -1,10 +1,13 @@
 import logging
+from itertools import islice
+from uuid import UUID
 
 import jsonschema
 from django.core.exceptions import ValidationError
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import DatabaseError, models, transaction
 from django.db.models import JSONField
+from django.db.models.signals import post_save
 from django.utils import timezone
 from django.utils.functional import cached_property
 from django.utils.module_loading import import_string
@@ -484,7 +487,7 @@ class AbstractCommand(TimeStampedEditableModel):
         Returns a list of allowed commands for the given organization
         """
         allowed_commands = ORGANIZATION_ENABLED_COMMANDS.get(
-            str(organization_id), ORGANIZATION_ENABLED_COMMANDS.get("__all__")
+            str(organization_id), ORGANIZATION_ENABLED_COMMANDS.get("__all__", ())
         )
         commands_map = dict(COMMAND_CHOICES)
         return [
@@ -534,13 +537,24 @@ class AbstractCommand(TimeStampedEditableModel):
             raise ValidationError(
                 {
                     "input": _(
-                        (
-                            '"{command}" command is not available '
-                            "for this organization"
-                        ).format(command=self.type)
-                    )
+                        '"{command}" command is not available for this organization'
+                    ).format(command=self.type)
                 }
             )
+
+    @property
+    def output_preview(self):
+        """Last line of the output, for tables which list many commands."""
+        lines = (self.output or "").strip().splitlines()
+        if not lines:
+            return ""
+        max_length = 100
+        line = lines[-1]
+        truncated = len(lines) > 1
+        if len(line) > max_length:
+            line = line[-max_length:]
+            truncated = True
+        return f"… {line}" if truncated else line
 
     @property
     def is_custom(self):
@@ -599,6 +613,27 @@ class AbstractCommand(TimeStampedEditableModel):
         if self.device.is_fully_deactivated():
             self.status = "failed"
             self._add_output("Device is deactivated.")
+        elif (
+            self.batch_command_id
+            and self.batch_command.organization_id
+            and self.batch_command.organization_id != self.device.organization_id
+        ):
+            self.status = "failed"
+            self._add_output(
+                gettext(
+                    "The device no longer belongs to the organization of this"
+                    " mass command."
+                )
+            )
+            logger.warning(
+                "Not executing command %s of batch %s: device %s belongs to"
+                " organization %s instead of %s",
+                self.pk,
+                self.batch_command_id,
+                self.device_id,
+                self.device.organization_id,
+                self.batch_command.organization_id,
+            )
         else:
             exit_code = self._exec_command()
             # if output is None, the commands couldn't execute
@@ -747,7 +782,7 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
     )
     type = models.CharField(
         max_length=16,
-        choices=(COMMAND_CHOICES if django.VERSION < (5, 0) else get_command_choices),
+        choices=get_command_choices,
     )
     input = JSONField(blank=True, null=True, encoder=DjangoJSONEncoder)
     group = models.ForeignKey(
@@ -784,10 +819,10 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
         blank=True,
         null=True,
         default=dict,
-        verbose_name=_("Skipped devices"),
+        verbose_name=_("skipped devices"),
         help_text=_(
-            "Maps device UUIDs to validation error messages for devices "
-            "that were skipped during command creation."
+            "Maps device UUIDs to the name of the device and the validation "
+            "error that caused it to be skipped during command creation."
         ),
     )
 
@@ -799,8 +834,119 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
     def __str__(self):
         return self.label
 
-    @cached_property
+    @property
     def total_devices(self):
+        return self.affected_devices + self.skipped_count
+
+    @property
+    def skipped_count(self):
+        return len(self.skipped_devices or {})
+
+    @property
+    def skipped_device_ids(self):
+        return (self.skipped_devices or {}).keys()
+
+    @staticmethod
+    def build_skipped_row(device_pk, skipped):
+        return {
+            "device": str(device_pk),
+            "device_name": skipped["name"],
+            "status": "skipped",
+            "status_display": gettext("skipped"),
+            "output": skipped["error"],
+            "modified": None,
+            "is_skipped": True,
+        }
+
+    @staticmethod
+    def normalize_filters(filters):
+        if not isinstance(filters, dict):
+            filters = {}
+        filters = {
+            key: str(filters.get(key) or "")
+            for key in ("q", "status", "location_id", "group_id", "organization_id")
+        }
+        # Sanitize UUID filters to ignore malformed client data.
+        for key in ("location_id", "group_id", "organization_id"):
+            if not filters[key]:
+                continue
+            try:
+                filters[key] = str(UUID(filters[key]))
+            except ValueError:
+                filters[key] = ""
+        return filters
+
+    def filter_skipped_items(self, filters):
+        related = (
+            filters["organization_id"],
+            filters["group_id"],
+            filters["location_id"],
+        )
+        device_ids = None
+        if any(related):
+            organization_id, group_id, location_id = related
+            Device = load_model("config", "Device")
+            devices = Device.objects.filter(pk__in=self.skipped_device_ids)
+            if organization_id:
+                devices = devices.filter(organization_id=organization_id)
+            if group_id:
+                devices = devices.filter(group_id=group_id)
+            if location_id:
+                devices = devices.filter(devicelocation__location_id=location_id)
+            device_ids = {str(pk) for pk in devices.values_list("pk", flat=True)}
+        return self.get_skipped_items(query=filters["q"], device_ids=device_ids)
+
+    def filter_commands(self, queryset, filters):
+        status = filters["status"]
+        if status == "skipped":
+            return queryset.none()
+        if filters["q"]:
+            queryset = queryset.filter(device__name__icontains=filters["q"])
+        if status:
+            queryset = queryset.filter(status=status)
+        if filters["location_id"]:
+            queryset = queryset.filter(
+                device__devicelocation__location_id=filters["location_id"]
+            )
+        if filters["group_id"]:
+            queryset = queryset.filter(device__group_id=filters["group_id"])
+        if filters["organization_id"]:
+            queryset = queryset.filter(
+                device__organization_id=filters["organization_id"]
+            )
+        return queryset
+
+    def get_skipped_items(self, query="", device_ids=None):
+        skipped_devices = self.skipped_devices or {}
+        if not query and device_ids is None:
+            return skipped_devices.items()
+        query = query.lower()
+        return [
+            (pk, skipped)
+            for pk, skipped in skipped_devices.items()
+            if (device_ids is None or pk in device_ids)
+            and (not query or query in skipped["name"].lower())
+        ]
+
+    def get_skipped_rows(self, start=0, end=None, items=None):
+        if items is None:
+            items = (self.skipped_devices or {}).items()
+        return [
+            self.build_skipped_row(pk, skipped)
+            for pk, skipped in islice(items, start, end)
+        ]
+
+    def get_skipped_preview(self, limit=10):
+        skipped = self.skipped_devices or {}
+        if len(skipped) <= limit:
+            return self.get_skipped_rows()
+        last_pk = next(reversed(skipped))
+        return self.get_skipped_rows(end=2) + [
+            self.build_skipped_row(last_pk, skipped[last_pk])
+        ]
+
+    @property
+    def affected_devices(self):
         return self.batch_commands.count()
 
     @property
@@ -815,18 +961,17 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
     def _validate_device_org(device, organization_id):
         if organization_id and device.organization_id != organization_id:
             raise ValidationError(
-                {
-                    "devices": _(
-                        "All devices must belong to the same "
-                        "organization as the batch command."
-                    )
-                }
+                {"devices": _("All devices must belong to the same organization.")}
             )
 
     @classmethod
-    def _validate_devices_org(cls, devices, organization_id):
+    def _validate_devices_org(cls, devices, organization_id, system_wide=False):
         if not devices:
             return
+        if not organization_id:
+            if system_wide:
+                return
+            organization_id = devices[0].organization_id
         for device in devices:
             cls._validate_device_org(device, organization_id)
 
@@ -835,16 +980,11 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
             return
         self._validate_org_relation("group", field_error="group")
         self._validate_org_relation("location", field_error="location")
-        if self.pk and self.devices.exists():
+        if not self._state.adding and self.devices.exists():
             org_mismatch = self.devices.exclude(organization=self.organization).exists()
             if org_mismatch:
                 raise ValidationError(
-                    {
-                        "devices": _(
-                            "All devices must belong to the same "
-                            "organization as the batch command."
-                        )
-                    }
+                    {"devices": _("All devices must belong to the same organization.")}
                 )
 
     def clean(self):
@@ -863,7 +1003,8 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
             raise ValidationError(
                 {
                     "type": _(
-                        '"{command}" command is not available for this organization'
+                        '"{command}" command is not available for the target'
+                        " organization(s)"
                     ).format(command=self.type)
                 }
             )
@@ -876,12 +1017,16 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
 
     def resolve_devices(self):
         """
-        Returns an iterator of devices targeted by this batch command,
+        Returns a queryset of devices targeted by this batch command,
         resolved from explicit M2M devices or filtered by organization,
-        group, and location. Returns an empty iterator if no devices match.
+        group, and location. Callers which walk the whole result should
+        consume it with iterator().
         """
         if self.pk and self.devices.exists():
-            return self.devices.select_related("config").iterator()
+            qs = self.devices.select_related("config")
+            if self.organization_id:
+                qs = qs.filter(organization_id=self.organization_id)
+            return qs
         Device = load_model("config", "Device")
         qs = Device.objects.select_related("config")
         if self.organization_id:
@@ -890,7 +1035,7 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
             qs = qs.filter(group=self.group)
         if self.location:
             qs = qs.filter(devicelocation__location=self.location)
-        return qs.iterator()
+        return qs
 
     @classmethod
     def execute(cls, **kwargs):
@@ -900,16 +1045,21 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
         devices match the criteria.
         """
         devices_list = kwargs.pop("devices", None)
+        system_wide = kwargs.pop("system_wide", False)
         batch = cls(**kwargs)
         with transaction.atomic():
             batch.full_clean()
             batch.save()
-            if devices_list is not None:
+            if devices_list is None:
+                devices_list = list(batch.resolve_devices())
+                batch.devices.set(devices_list)
+            else:
+                cls._validate_devices_org(
+                    devices_list, batch.organization_id, system_wide=system_wide
+                )
                 batch.devices.set(devices_list)
                 batch._validate_org_relations()
-            else:
-                batch.devices.set(list(batch.resolve_devices()))
-            if not batch.devices.exists():
+            if not devices_list:
                 raise ValidationError(
                     _("No devices match the specified criteria."),
                 )
@@ -938,11 +1088,30 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
         cls._validate_devices_org(devices_list, batch.organization_id)
         if devices_list is not None:
             return {"devices": list(devices_list)}
-        return {"devices": list(batch.resolve_devices())}
+        return {"devices": batch.resolve_devices()}
 
     def _clean_sensitive_info(self):
         if self.type == "change_password":
             self.input = {"password": "********"}
+
+    def _skip_transferred_devices(self):
+        if not self.pk or not self.organization_id:
+            return
+        transferred = self.devices.exclude(organization_id=self.organization_id)
+        for device in transferred.iterator():
+            self.skipped_devices[str(device.pk)] = {
+                "name": device.name,
+                "error": gettext(
+                    "The device no longer belongs to the organization of this"
+                    " mass command"
+                ),
+            }
+            logger.warning(
+                "Skipping device %s for batch %s: transferred to another"
+                " organization",
+                device.pk,
+                self.pk,
+            )
 
     def create_commands(self):
         """
@@ -956,12 +1125,15 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
         )
         if not updated:
             return
-        self.refresh_from_db(fields=["status"])
+        self.status = "in-progress"
+        self.save(update_fields=["status"])
         Command = load_model("connection", "Command")
         Device = load_model("config", "Device")
         self.skipped_devices = {}
         device_pks = []
-        for device in self.resolve_devices():
+        created_count = 0
+        self._skip_transferred_devices()
+        for device in self.resolve_devices().iterator():
             device_pks.append(device.pk)
             command = Command(
                 device=device,
@@ -970,15 +1142,16 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
                 batch_command=self,
             )
             try:
-                # Validate before the atomic block so errors like
-                # ValidationError don't create/rollback
                 command.full_clean()
-                with transaction.atomic():
-                    command.save()
+                command._batch_index = created_count
+                command.save()
+                created_count += 1
             except ValidationError as e:
-                self.skipped_devices[str(device.pk)] = (
-                    e.messages if hasattr(e, "messages") else [str(e)]
-                )
+                messages = e.messages if hasattr(e, "messages") else [str(e)]
+                self.skipped_devices[str(device.pk)] = {
+                    "name": device.name,
+                    "error": ", ".join(message.rstrip(".") for message in messages),
+                }
                 logger.warning(
                     "Skipping device %s for batch %s: %s",
                     device.pk,
@@ -994,6 +1167,48 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
         if self.type == "change_password":
             self.save(update_fields=["input"])
 
+    def _compute_status(self):
+        stats = self.batch_commands.aggregate(
+            total_operations=models.Count("id"),
+            in_progress=models.Count(
+                models.Case(
+                    models.When(status="in-progress", then=1),
+                    output_field=models.IntegerField(),
+                )
+            ),
+            completed=models.Count(
+                models.Case(
+                    models.When(~models.Q(status="in-progress"), then=1),
+                    output_field=models.IntegerField(),
+                )
+            ),
+            successful=models.Count(
+                models.Case(
+                    models.When(status="success", then=1),
+                    output_field=models.IntegerField(),
+                )
+            ),
+            failed=models.Count(
+                models.Case(
+                    models.When(status="failed", then=1),
+                    output_field=models.IntegerField(),
+                )
+            ),
+        )
+        if stats["total_operations"] == 0:
+            if self.skipped_devices:
+                return "failed"
+            return "idle"
+        if stats["in_progress"] > 0:
+            return "in-progress"
+        if stats["failed"] > 0:
+            return "failed"
+        if stats["successful"] > 0 and stats["completed"] == stats["total_operations"]:
+            if self.skipped_devices:
+                return "failed"
+            return "success"
+        return self.status
+
     def calculate_and_update_status(self):
         """
         Calculate batch status based on individual command statuses and update if
@@ -1004,52 +1219,22 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
         - All commands completed successfully: status set to "success".
         - Status unchanged: no database write performed.
         """
-        with transaction.atomic():
-            batch = self.__class__.objects.select_for_update().get(pk=self.pk)
-            stats = batch.batch_commands.aggregate(
-                total_operations=models.Count("id"),
-                in_progress=models.Count(
-                    models.Case(
-                        models.When(status="in-progress", then=1),
-                        output_field=models.IntegerField(),
-                    )
-                ),
-                completed=models.Count(
-                    models.Case(
-                        models.When(~models.Q(status="in-progress"), then=1),
-                        output_field=models.IntegerField(),
-                    )
-                ),
-                successful=models.Count(
-                    models.Case(
-                        models.When(status="success", then=1),
-                        output_field=models.IntegerField(),
-                    )
-                ),
-                failed=models.Count(
-                    models.Case(
-                        models.When(status="failed", then=1),
-                        output_field=models.IntegerField(),
-                    )
-                ),
-            )
-            if stats["total_operations"] == 0:
-                if batch.skipped_devices:
-                    new_status = "failed"
-                else:
-                    new_status = "idle"
-            elif stats["in_progress"] > 0:
-                new_status = "in-progress"
-            elif stats["failed"] > 0:
-                new_status = "failed"
-            elif (
-                stats["successful"] > 0
-                and stats["completed"] == stats["total_operations"]
-            ):
-                if batch.skipped_devices:
-                    new_status = "failed"
-                else:
-                    new_status = "success"
-            if batch.status != new_status:
-                batch.status = new_status
-                batch.save(update_fields=["status"])
+        batch = self.__class__.objects.get(pk=self.pk)
+        new_status = batch._compute_status()
+        if batch.status == new_status:
+            return
+        modified = timezone.now()
+        if not self.__class__.objects.filter(pk=self.pk, status=batch.status).update(
+            status=new_status, modified=modified
+        ):
+            return
+        batch.status = new_status
+        batch.modified = modified
+        post_save.send(
+            sender=self.__class__,
+            instance=batch,
+            created=False,
+            raw=False,
+            using=self._state.db,
+            update_fields=frozenset({"status"}),
+        )

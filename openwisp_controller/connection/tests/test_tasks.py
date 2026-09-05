@@ -1,13 +1,13 @@
 import json
 import uuid
-from contextlib import redirect_stderr
-from io import StringIO
 from unittest import mock
 
 from celery.exceptions import SoftTimeLimitExceeded
 from django.db import DatabaseError
 from django.test import TestCase, TransactionTestCase
 from swapper import load_model
+
+from openwisp_utils.tests import capture_stderr
 
 from ...config.tests.test_controller import TestRegistrationMixin
 from .. import tasks
@@ -185,6 +185,30 @@ class TestTasks(CreateConnectionsMixin, TestCase):
         command.refresh_from_db()
         self.assertEqual(command.status, "failed")
         self.assertEqual(command.output, "Internal system error: test error\n")
+
+    def test_launch_command_failure_cleans_change_password_input(self):
+        dc = self._create_device_connection()
+        password = "SuperSecret123"
+        errors = (
+            SoftTimeLimitExceeded(),
+            CommandTimeoutException("connection timed out after 30s"),
+            RuntimeError("test error"),
+        )
+        for error in errors:
+            with self.subTest(type(error).__name__):
+                command = Command(
+                    device=dc.device,
+                    connection=dc,
+                    type="change_password",
+                    input={"password": password, "confirm_password": password},
+                )
+                command.full_clean()
+                command.save()
+                with mock.patch.object(Command, "execute", side_effect=error):
+                    with redirect_stderr(StringIO()):
+                        tasks.launch_command(command.pk)
+                command.refresh_from_db()
+                self.assertNotIn(password, json.dumps(command.input))
 
     @mock.patch(
         "openwisp_controller.connection.base.models.AbstractCommand._exec_command"
@@ -405,12 +429,13 @@ class TestTransactionTasks(
         batch.refresh_from_db()
         self.assertEqual(batch.status, "failed")
 
+    @capture_stderr()
     @mock.patch(
         "openwisp_controller.connection.base.models.AbstractBatchCommand"
         ".create_commands",
         side_effect=RuntimeError("test error"),
     )
-    def test_launch_batch_command_exception(self, mocked_create_commands):
+    def test_launch_batch_command_exception(self, stderr, mocked_create_commands):
         org = self._get_org()
         device = self._create_device(organization=org)
         self._create_config(device=device)
@@ -424,12 +449,11 @@ class TestTransactionTasks(
             )
             batch.full_clean()
             batch.save()
-            with redirect_stderr(StringIO()) as stderr:
-                tasks.launch_batch_command(batch_id=batch.pk)
-                self.assertIn(
-                    f"An exception was raised while executing batch command {batch.pk}",
-                    stderr.getvalue(),
-                )
+            tasks.launch_batch_command(batch_id=batch.pk)
+            self.assertIn(
+                f"An exception was raised while executing batch command {batch.pk}",
+                stderr.getvalue(),
+            )
             batch.refresh_from_db()
             self.assertEqual(batch.status, "failed")
 
@@ -444,12 +468,17 @@ class TestTransactionTasks(
             batch.full_clean()
             batch.save()
             tasks.launch_batch_command(batch_id=batch.pk)
+            self.assertIn(
+                f"An exception was raised while executing batch command {batch.pk}",
+                stderr.getvalue(),
+            )
             batch.refresh_from_db()
             self.assertEqual(batch.status, "failed")
             self.assertNotIn(password, json.dumps(batch.input))
 
+    @capture_stderr()
     @mock.patch("openwisp_controller.connection.tasks.launch_command.delay")
-    def test_launch_batch_command_all_devices_skipped(self, mocked_delay):
+    def test_launch_batch_command_all_devices_skipped(self, stderr, mocked_delay):
         org = self._get_org()
         device = self._create_device(organization=org)
         self._create_config(device=device)
@@ -470,6 +499,7 @@ class TestTransactionTasks(
         self.assertIn(str(device.pk), batch.skipped_devices)
         self.assertEqual(batch.status, "failed")
         mocked_delay.assert_not_called()
+        self.assertIn("Skipping device", stderr.getvalue())
 
     @mock.patch("openwisp_controller.connection.tasks.launch_command.delay")
     def test_launch_batch_command_already_processed(self, mocked_delay):
