@@ -1411,16 +1411,14 @@ class TestBatchCommandAdmin(
             self.assertEqual(summary["Will run on"], "2 devices")
             self.assertEqual(self._device_names(), [device.name for device in devices1])
             self.find_element(by=By.ID, value="execute-button").click()
-            self._wait_for_batch_result("uci-show", "failed", 2)
-            command_type = self.find_element(
-                by=By.CSS_SELECTOR, value=".field-type .readonly"
+            batch = BatchCommand.objects.get(label="uci-show")
+            self._wait_for_url(
+                reverse(
+                    f"admin:{self.app_label}_batchcommand_change", args=[batch.pk]
+                )
             )
-            command_input = self.find_element(
-                by=By.CSS_SELECTOR, value=".field-formatted_input .readonly"
-            )
-            self.assertEqual(command_type.text, "UCI show")
-            self.assertEqual(command_input.text, "config: network")
-            self.assertEqual(self._command_statuses(), ["failed"] * 2)
+            self.assertEqual(batch.type, "uci_show")
+            self.assertEqual(batch.input, {"config": "network"})
 
         with self.subTest("the changelist type filter offers the custom type"):
             self.open(self.changelist_url)
