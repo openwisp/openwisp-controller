@@ -1,13 +1,13 @@
 import json
 import uuid
-from contextlib import redirect_stderr
-from io import StringIO
 from unittest import mock
 
 from celery.exceptions import SoftTimeLimitExceeded
 from django.db import DatabaseError
 from django.test import TestCase, TransactionTestCase
 from swapper import load_model
+
+from openwisp_utils.tests import capture_stderr
 
 from ...config.tests.test_controller import TestRegistrationMixin
 from .. import tasks
@@ -429,12 +429,13 @@ class TestTransactionTasks(
         batch.refresh_from_db()
         self.assertEqual(batch.status, "failed")
 
+    @capture_stderr()
     @mock.patch(
         "openwisp_controller.connection.base.models.AbstractBatchCommand"
         ".create_commands",
         side_effect=RuntimeError("test error"),
     )
-    def test_launch_batch_command_exception(self, mocked_create_commands):
+    def test_launch_batch_command_exception(self, stderr, mocked_create_commands):
         org = self._get_org()
         device = self._create_device(organization=org)
         self._create_config(device=device)
@@ -448,12 +449,11 @@ class TestTransactionTasks(
             )
             batch.full_clean()
             batch.save()
-            with redirect_stderr(StringIO()) as stderr:
-                tasks.launch_batch_command(batch_id=batch.pk)
-                self.assertIn(
-                    f"An exception was raised while executing batch command {batch.pk}",
-                    stderr.getvalue(),
-                )
+            tasks.launch_batch_command(batch_id=batch.pk)
+            self.assertIn(
+                f"An exception was raised while executing batch command {batch.pk}",
+                stderr.getvalue(),
+            )
             batch.refresh_from_db()
             self.assertEqual(batch.status, "failed")
 
@@ -468,12 +468,17 @@ class TestTransactionTasks(
             batch.full_clean()
             batch.save()
             tasks.launch_batch_command(batch_id=batch.pk)
+            self.assertIn(
+                f"An exception was raised while executing batch command {batch.pk}",
+                stderr.getvalue(),
+            )
             batch.refresh_from_db()
             self.assertEqual(batch.status, "failed")
             self.assertNotIn(password, json.dumps(batch.input))
 
+    @capture_stderr()
     @mock.patch("openwisp_controller.connection.tasks.launch_command.delay")
-    def test_launch_batch_command_all_devices_skipped(self, mocked_delay):
+    def test_launch_batch_command_all_devices_skipped(self, stderr, mocked_delay):
         org = self._get_org()
         device = self._create_device(organization=org)
         self._create_config(device=device)
@@ -494,6 +499,7 @@ class TestTransactionTasks(
         self.assertIn(str(device.pk), batch.skipped_devices)
         self.assertEqual(batch.status, "failed")
         mocked_delay.assert_not_called()
+        self.assertIn("Skipping device", stderr.getvalue())
 
     @mock.patch("openwisp_controller.connection.tasks.launch_command.delay")
     def test_launch_batch_command_already_processed(self, mocked_delay):

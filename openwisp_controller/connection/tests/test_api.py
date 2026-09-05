@@ -2262,12 +2262,16 @@ class TestBatchCommandsAPITransaction(
                 "input": {"command": "echo test"},
                 "label": "test-label",
             }
-            response = self.client.post(
-                execute_url,
-                data=json.dumps(payload),
-                content_type="application/json",
-            )
+            with self.assertLogs(
+                "openwisp_controller.connection.base.models", level="WARNING"
+            ) as logs:
+                response = self.client.post(
+                    execute_url,
+                    data=json.dumps(payload),
+                    content_type="application/json",
+                )
             self.assertEqual(response.status_code, 201)
+            self.assertIn("Skipping device", "\n".join(logs.output))
             batch = BatchCommand.objects.get(pk=response.data["batch"])
 
             self.assertEqual(
