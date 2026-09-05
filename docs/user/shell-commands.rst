@@ -273,6 +273,7 @@ Using the API
 ~~~~~~~~~~~~~
 
 The same operations are available over the REST API, which also accepts an
-explicit list of devices instead of the targets described above. Refer to
-the :ref:`Batch Command API <controller_batch_command_api>` documentation
-for the available endpoints, request parameters and examples.
+explicit list of devices instead of the targets described above. All
+explicit devices must belong to the same organization. Refer to the
+:ref:`Batch Command API <controller_batch_command_api>` documentation for
+the available endpoints, request parameters and examples.

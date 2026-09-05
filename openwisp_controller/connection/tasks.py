@@ -84,10 +84,12 @@ def launch_command(command_id):
     except SoftTimeLimitExceeded:
         command.status = "failed"
         command._add_output(_("Background task time limit exceeded."))
+        command._clean_sensitive_info()
         command._save_without_resurrecting()
     except CommandTimeoutException as e:
         command.status = "failed"
         command._add_output(_(f"The command took longer than expected: {e}"))
+        command._clean_sensitive_info()
         command._save_without_resurrecting()
     except Exception as e:
         logger.exception(
@@ -95,6 +97,7 @@ def launch_command(command_id):
         )
         command.status = "failed"
         command._add_output(_(f"Internal system error: {e}"))
+        command._clean_sensitive_info()
         command._save_without_resurrecting()
 
 

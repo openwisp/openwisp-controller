@@ -8,6 +8,12 @@ from openwisp_controller.connection.tests.test_admin import (
     TestConnectionAdmin as BaseTestConnectionAdmin,
 )
 from openwisp_controller.connection.tests.test_api import (
+    TestBatchCommandsAPI as BaseTestBatchCommandsAPI,
+)
+from openwisp_controller.connection.tests.test_api import (
+    TestBatchCommandsAPITransaction as BaseTestBatchCommandsAPITransaction,
+)
+from openwisp_controller.connection.tests.test_api import (
     TestConnectionApi as BaseTestConnectionApi,
 )
 from openwisp_controller.connection.tests.test_models import (
@@ -67,6 +73,14 @@ class TestConnectionApi(BaseTestConnectionApi):
     pass
 
 
+class TestBatchCommandsAPI(BaseTestBatchCommandsAPI):
+    pass
+
+
+class TestBatchCommandsAPITransaction(BaseTestBatchCommandsAPITransaction):
+    pass
+
+
 del BaseTestBatchCommandAdmin
 del BaseTestCommandInlines
 del BaseTestConnectionAdmin
@@ -77,3 +91,5 @@ del BaseTestTasks
 del BaseTestNotifications
 del BaseTestNotificationTransaction
 del BaseTestConnectionApi
+del BaseTestBatchCommandsAPI
+del BaseTestBatchCommandsAPITransaction

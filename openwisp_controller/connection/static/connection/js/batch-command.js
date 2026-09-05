@@ -62,6 +62,17 @@ function requestCurrentState($, websocket) {
 function handleCommandMessage($, data, websocket) {
   updateTotals($, data.affected_devices, data.total_rows);
   renderCommand($, data);
+  announceUpdate(
+    $,
+    interpolate(
+      gettext("Updated %(device)s: %(status)s"),
+      {
+        device: data.device_name,
+        status: getStatusLabel(data.status),
+      },
+      true,
+    ),
+  );
   if (hasActiveFilters()) {
     scheduleFilteredRefresh($, websocket);
   }
@@ -104,6 +115,18 @@ function handleBatchStatusMessage($, data, websocket) {
   }
   updateSkippedDevices($, data);
   updateTotals($, data.affected_devices, data.total_rows);
+  if (data.status) {
+    announceUpdate(
+      $,
+      interpolate(
+        gettext("Mass command status: %(status)s"),
+        {
+          status: getStatusLabel(data.status),
+        },
+        true,
+      ),
+    );
+  }
   const $table = $("#result_list");
   if (
     websocket &&
@@ -141,6 +164,9 @@ function updateSkippedDevices($, data) {
 }
 
 function handleBatchStateMessage($, data) {
+  if (data.page) {
+    $("#result_list").attr("data-current-page", data.page);
+  }
   if (data.batch_status) {
     handleBatchStatusMessage($, data.batch_status);
   }
@@ -174,6 +200,20 @@ function reconcileRows($, commands) {
       $(this).remove();
     }
   });
+  if (!commands.length && !$("#result_list td.empty-results").length) {
+    $("#result_list tbody").append(
+      $("<tr>").append(
+        $("<td>")
+          .attr("colspan", 4)
+          .addClass("empty-results")
+          .text(gettext("No commands found.")),
+      ),
+    );
+  }
+}
+
+function announceUpdate($, message) {
+  $("#batch-command-live-status").text(message);
 }
 
 function renderCommand($, data) {

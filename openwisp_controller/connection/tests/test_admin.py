@@ -632,14 +632,6 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
             str(uuid4()): {"name": "skipped-device", "error": "no credentials"}
         }
         batch.save(update_fields=["skipped_devices"])
-        more_devices = [
-            self._create_device(
-                name=f"budget-more{index}",
-                mac_address=f"00:11:22:33:56:{index:02x}",
-                organization=org,
-            )
-            for index in range(8)
-        ]
         self._login()
 
         with self.subTest("the confirm page"):
@@ -647,6 +639,14 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
             self.client.get(self.confirm_url)
             with CaptureQueriesContext(db_connection) as few:
                 self.client.get(self.confirm_url)
+            more_devices = [
+                self._create_device(
+                    name=f"budget-more{index}",
+                    mac_address=f"00:11:22:33:56:{index:02x}",
+                    organization=org,
+                )
+                for index in range(8)
+            ]
             self._start_wizard(organization=str(org.pk))
             self.client.get(self.confirm_url)
             with CaptureQueriesContext(db_connection) as many:
