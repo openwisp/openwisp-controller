@@ -186,6 +186,30 @@ class TestTasks(CreateConnectionsMixin, TestCase):
         self.assertEqual(command.status, "failed")
         self.assertEqual(command.output, "Internal system error: test error\n")
 
+    def test_launch_command_failure_cleans_change_password_input(self):
+        dc = self._create_device_connection()
+        password = "SuperSecret123"
+        errors = (
+            SoftTimeLimitExceeded(),
+            CommandTimeoutException("connection timed out after 30s"),
+            RuntimeError("test error"),
+        )
+        for error in errors:
+            with self.subTest(type(error).__name__):
+                command = Command(
+                    device=dc.device,
+                    connection=dc,
+                    type="change_password",
+                    input={"password": password, "confirm_password": password},
+                )
+                command.full_clean()
+                command.save()
+                with mock.patch.object(Command, "execute", side_effect=error):
+                    with redirect_stderr(StringIO()):
+                        tasks.launch_command(command.pk)
+                command.refresh_from_db()
+                self.assertNotIn(password, json.dumps(command.input))
+
     @mock.patch(
         "openwisp_controller.connection.base.models.AbstractCommand._exec_command"
     )
