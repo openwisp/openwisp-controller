@@ -1,5 +1,6 @@
 import logging
 from itertools import islice
+from uuid import UUID
 
 import jsonschema
 from django.core.exceptions import ValidationError
@@ -861,10 +862,19 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
     def normalize_filters(filters):
         if not isinstance(filters, dict):
             filters = {}
-        return {
+        filters = {
             key: str(filters.get(key) or "")
             for key in ("q", "status", "location_id", "group_id", "organization_id")
         }
+        # Sanitize UUID filters to ignore malformed client data.
+        for key in ("location_id", "group_id", "organization_id"):
+            if not filters[key]:
+                continue
+            try:
+                filters[key] = str(UUID(filters[key]))
+            except ValueError:
+                filters[key] = ""
+        return filters
 
     def filter_skipped_items(self, filters):
         related = (
@@ -1224,5 +1234,7 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
             sender=self.__class__,
             instance=batch,
             created=False,
+            raw=False,
+            using=self._state.db,
             update_fields=frozenset({"status"}),
         )

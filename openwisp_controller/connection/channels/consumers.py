@@ -115,6 +115,8 @@ class BatchCommandConsumer(BaseDeviceConsumer):
             page = max(int(page), 1)
         except (TypeError, ValueError):
             page = 1
+        total_rows = commands_count + len(skipped_items)
+        page = min(page, max((total_rows - 1) // self.per_page + 1, 1))
         start = (page - 1) * self.per_page
         end = start + self.per_page
         commands = []
@@ -136,7 +138,8 @@ class BatchCommandConsumer(BaseDeviceConsumer):
                     "type": "batch_state",
                     "batch_status": batch_status,
                     "commands": commands,
-                    "total_rows": commands_count + len(skipped_items),
+                    "page": page,
+                    "total_rows": total_rows,
                 }
             )
         )

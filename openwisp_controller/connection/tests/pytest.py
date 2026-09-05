@@ -272,6 +272,12 @@ class TestBatchCommandConsumer(BaseTestModels, CreateCommandMixin):
             assert [row["device"] for row in page2["commands"]] == skipped_pks[1:]
             assert all(row["is_skipped"] for row in page2["commands"])
             await communicator.send_json_to(
+                {"type": "request_current_state", "page": 3}
+            )
+            clamped_page = await communicator.receive_json_from()
+            assert clamped_page["page"] == 2
+            assert clamped_page["commands"] == page2["commands"]
+            await communicator.send_json_to(
                 {
                     "type": "request_current_state",
                     "page": 1,
@@ -281,6 +287,16 @@ class TestBatchCommandConsumer(BaseTestModels, CreateCommandMixin):
             filtered = await communicator.receive_json_from()
             assert filtered["total_rows"] == 0
             assert filtered["commands"] == []
+            for field_name in ("group_id", "location_id", "organization_id"):
+                await communicator.send_json_to(
+                    {
+                        "type": "request_current_state",
+                        "page": 1,
+                        "filters": {field_name: "not-a-uuid"},
+                    }
+                )
+                response = await communicator.receive_json_from()
+                assert response["commands"] == page1["commands"]
             for value in ([1], "abc", 7):
                 await communicator.send_json_to(
                     {"type": "request_current_state", "page": 1, "filters": value}

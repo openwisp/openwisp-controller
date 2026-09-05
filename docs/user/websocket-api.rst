@@ -273,10 +273,14 @@ The server replies with one message holding that page:
 
     {
         "type": "batch_state",
-        "batch_status": { /* ... */ },   // Fields of the "batch_status" message,
-                                         // except "type" and "total_rows"
-        "commands": [ /* ... */ ],       // Rows of the requested page, in the shape
-                                         // of the "command_update" message
+        "batch_status": { /* ... */ },   // Batch serializer fields, including
+                                         // the command type, but without
+                                         // "skipped_devices" or "total_rows"
+        "commands": [ /* ... */ ],       // Rows of the requested page. Command
+                                         // rows include the command type and omit
+                                         // event-only fields such as "index".
+                                         // Their "output" is a 100-character tail.
+        "page": <integer>,               // Effective page after bounds checking
         "total_rows": <integer>          // Rows matching the filters, for the paginator
     }
 
