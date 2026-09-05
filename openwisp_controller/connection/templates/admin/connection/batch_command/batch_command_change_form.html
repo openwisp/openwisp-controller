@@ -101,7 +101,7 @@
 </div>
 
 <div class="results-container">
-  {% comment "Allows screen readers to announce live batch progress without reading the whole result table." %}
+  {# Allows screen readers to announce live batch progress without reading the whole result table. #}
   <div id="batch-command-live-status" role="status" aria-live="polite" aria-atomic="true"></div>
   <table id="result_list" class="results-table"
     data-device-url="{% url device_opts|admin_urlname:'change' '00000000-0000-0000-0000-000000000000' %}"
