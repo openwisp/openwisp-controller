@@ -855,6 +855,7 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
             "status_display": gettext("skipped"),
             "output": skipped["error"],
             "modified": None,
+            "modified_display": "",
             "is_skipped": True,
         }
 

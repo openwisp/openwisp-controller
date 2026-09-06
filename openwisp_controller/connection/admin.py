@@ -10,7 +10,7 @@ from django import forms
 from django.contrib import admin, messages
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
-from django.db.models import Count, Q
+from django.db.models import Count
 from django.http import HttpResponseForbidden, HttpResponseNotAllowed, JsonResponse
 from django.shortcuts import redirect
 from django.template.response import TemplateResponse
@@ -28,6 +28,7 @@ from ..config.admin import DeactivatedDeviceReadOnlyMixin, DeviceAdmin
 from .commands import ORGANIZATION_COMMAND_SCHEMA
 from .filters import GroupFilter, LocationFilter, TypeFilter
 from .schema import schema
+from .utils import format_modified
 from .widgets import (
     BatchCommandSchemaWidget,
     CommandSchemaWidget,
@@ -895,52 +896,52 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
 
         filter_specs.append(SimpleNamespace(title=_("status"), choices=status_choices))
 
-        batch_devices = Device.objects.filter(
-            Q(command__batch_command=obj) | Q(pk__in=obj.skipped_device_ids)
-        )
+        locations = Location.objects.all()
+        groups = DeviceGroup.objects.all()
+        if obj.organization_id:
+            locations = locations.filter(organization_id=obj.organization_id)
+            groups = groups.filter(organization_id=obj.organization_id)
         if not request.user.is_superuser:
-            batch_devices = batch_devices.filter(
+            locations = locations.filter(
+                organization_id__in=request.user.organizations_managed
+            )
+            groups = groups.filter(
                 organization_id__in=request.user.organizations_managed
             )
 
         # Location filter
-        location_spec = self._build_related_filter(
-            _("location"),
-            "location_id",
-            current_location or "",
-            batch_devices.exclude(devicelocation__location__isnull=True)
-            .values_list(
-                "devicelocation__location__id",
-                "devicelocation__location__name",
+        location_spec = None
+        if not obj.location_id:
+            location_spec = self._build_related_filter(
+                _("location"),
+                "location_id",
+                current_location or "",
+                locations.values_list("id", "name"),
+                _make_choice,
             )
-            .distinct(),
-            _make_choice,
-        )
         if location_spec:
             filter_specs.append(location_spec)
 
         # Group filter
-        group_spec = self._build_related_filter(
-            _("device group"),
-            "group_id",
-            current_group or "",
-            batch_devices.filter(group__isnull=False)
-            .values_list("group__id", "group__name")
-            .distinct(),
-            _make_choice,
-        )
+        group_spec = None
+        if not obj.group_id:
+            group_spec = self._build_related_filter(
+                _("device group"),
+                "group_id",
+                current_group or "",
+                groups.values_list("id", "name"),
+                _make_choice,
+            )
         if group_spec:
             filter_specs.append(group_spec)
 
-        # Organization filter (superusers only)
-        if request.user.is_superuser:
+        # Organization filter (system wide batches only, superusers only)
+        if request.user.is_superuser and not obj.organization_id:
             org_spec = self._build_related_filter(
                 _("organization"),
                 "organization_id",
                 current_org or "",
-                batch_devices.values_list(
-                    "organization__id", "organization__name"
-                ).distinct(),
+                Organization.objects.values_list("id", "name"),
                 _make_choice,
             )
             if org_spec:
@@ -967,7 +968,7 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
             "status": command.status,
             "status_display": command.get_status_display(),
             "output": command.output_preview,
-            "modified": command.modified,
+            "modified_display": format_modified(command.modified),
             "is_skipped": False,
         }
 

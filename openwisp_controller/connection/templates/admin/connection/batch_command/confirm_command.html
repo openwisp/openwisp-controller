@@ -85,9 +85,9 @@
       <label>{% trans 'Will run on' %}</label>
       <div class="readonly">
         {% blocktrans trimmed count counter=device_count %}
-        <strong id="selected-count">{{ counter }}</strong> <span id="selected-count-label">device</span>
+        <strong id="selected-count">{{ counter }}</strong>&nbsp;<span id="selected-count-label">device</span>
         {% plural %}
-        <strong id="selected-count">{{ counter }}</strong> <span id="selected-count-label">devices</span>
+        <strong id="selected-count">{{ counter }}</strong>&nbsp;<span id="selected-count-label">devices</span>
         {% endblocktrans %}
       </div>
     </div>
