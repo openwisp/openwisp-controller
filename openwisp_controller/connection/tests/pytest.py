@@ -15,6 +15,7 @@ from openwisp_controller.connection.tests.utils import CreateCommandMixin
 
 from .. import handlers
 from ..channels.consumers import BatchCommandConsumer
+from ..utils import format_modified
 from .test_models import BaseTestModels
 
 User = get_user_model()
@@ -264,6 +265,7 @@ class TestBatchCommandConsumer(BaseTestModels, CreateCommandMixin):
                 command_row["modified"]
                 == timezone.localtime(command.modified).isoformat()
             )
+            assert command_row["modified_display"] == format_modified(command.modified)
             assert "input" not in command_row
             await communicator.send_json_to(
                 {"type": "request_current_state", "page": 2}
@@ -309,7 +311,14 @@ class TestBatchCommandConsumer(BaseTestModels, CreateCommandMixin):
                     {"type": "request_current_state", "page": page}
                 )
                 response = await communicator.receive_json_from()
+                assert response["page"] == 1
                 assert response["commands"] == page1["commands"]
+            await communicator.send_json_to(
+                {"type": "request_current_state", "page": 99}
+            )
+            clamped = await communicator.receive_json_from()
+            assert clamped["page"] == 2
+            assert clamped["commands"] == page2["commands"]
         await communicator.disconnect()
         communicator, connected = await self._connect(batch.pk, admin_user)
         assert connected is True

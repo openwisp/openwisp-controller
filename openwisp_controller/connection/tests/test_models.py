@@ -1078,6 +1078,7 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
                     "status_display": "skipped",
                     "output": "error 0",
                     "modified": None,
+                    "modified_display": "",
                     "is_skipped": True,
                 },
             )

@@ -94,17 +94,6 @@ function getStatusLabel(status) {
   return labels[status] || status;
 }
 
-function getFormattedDateTimeString(dateTimeString) {
-  if (!dateTimeString) {
-    return "-";
-  }
-  const formattedString = new Date(dateTimeString).strftime("%B %d, %Y %I:%M %p"),
-    stringArray = formattedString.split(" ");
-  stringArray[0] = stringArray[0].substring(0, 4) + ".";
-  stringArray[4] = stringArray[4] == "AM" ? "a.m." : "p.m.";
-  return stringArray.join(" ");
-}
-
 function handleBatchStatusMessage($, data, websocket) {
   const $status = $(".field-colored_status .readonly .command-status");
   if ($status.length && data.status) {
@@ -258,7 +247,7 @@ function updateRow($, $row, data) {
     .addClass("command-status " + data.status)
     .text(getStatusLabel(data.status));
   $row.find(".command-output pre").text(data.output || "-");
-  $row.find("td:last-child").text(getFormattedDateTimeString(data.modified));
+  $row.find("td:last-child").text(data.modified_display || "-");
 }
 
 function insertRow($, data) {
@@ -300,7 +289,7 @@ function insertRow($, data) {
       .addClass("command-output")
       .append($("<pre>").text(data.output || "-")),
   );
-  $row.append($("<td>").text(getFormattedDateTimeString(data.modified)));
+  $row.append($("<td>").text(data.modified_display || "-"));
   $tableBody.append($row);
 }
 

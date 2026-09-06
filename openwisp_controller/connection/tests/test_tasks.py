@@ -165,9 +165,10 @@ class TestTasks(CreateConnectionsMixin, TestCase):
             "The command took longer than expected: connection timed out after 30s\n",
         )
 
+    @capture_stderr()
     @mock.patch(_mock_execute, side_effect=RuntimeError("test error"))
     @mock.patch(_mock_connect, return_value=True)
-    def test_launch_command_exception(self, *args):
+    def test_launch_command_exception(self, stderr, *args):
         dc = self._create_device_connection()
         command = Command(
             device=dc.device,
@@ -178,15 +179,15 @@ class TestTasks(CreateConnectionsMixin, TestCase):
         command.full_clean()
         command.save()
         # must call this explicitly because lack of transactions in this test case
-        with redirect_stderr(StringIO()) as stderr:
-            tasks.launch_command.delay(command.pk)
-            expected = f"An exception was raised while executing command {command.pk}"
-            self.assertIn(expected, stderr.getvalue())
+        tasks.launch_command.delay(command.pk)
+        expected = f"An exception was raised while executing command {command.pk}"
+        self.assertIn(expected, stderr.getvalue())
         command.refresh_from_db()
         self.assertEqual(command.status, "failed")
         self.assertEqual(command.output, "Internal system error: test error\n")
 
-    def test_launch_command_failure_cleans_change_password_input(self):
+    @capture_stderr()
+    def test_launch_command_failure_cleans_change_password_input(self, stderr):
         dc = self._create_device_connection()
         password = "SuperSecret123"
         errors = (
@@ -205,8 +206,7 @@ class TestTasks(CreateConnectionsMixin, TestCase):
                 command.full_clean()
                 command.save()
                 with mock.patch.object(Command, "execute", side_effect=error):
-                    with redirect_stderr(StringIO()):
-                        tasks.launch_command(command.pk)
+                    tasks.launch_command(command.pk)
                 command.refresh_from_db()
                 self.assertNotIn(password, json.dumps(command.input))
 

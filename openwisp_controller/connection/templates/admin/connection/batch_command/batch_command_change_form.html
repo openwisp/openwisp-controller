@@ -137,7 +137,7 @@
         <td class="command-output">
           <pre>{{ command.output|default:"-" }}</pre>
         </td>
-        <td>{{ command.modified|date:"DATETIME_FORMAT"|default:"-" }}</td>
+        <td>{{ command.modified_display|default:"-" }}</td>
       </tr>
       {% empty %}
       <tr>

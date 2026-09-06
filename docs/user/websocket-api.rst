@@ -220,7 +220,10 @@ When the mass command itself changes, for example when it moves from
 
 The status and the timestamps are sent as they are stored, without
 translation or formatting, so that each client can render them with its
-own language and time zone.
+own language and time zone. Command rows carry ``modified_display`` as
+well, which is the same timestamp already formatted with the locale and
+the time zone of the server: the admin uses it so that a row updated over
+the websocket reads exactly like the rows rendered with the page.
 
 When the command of one device changes:
 
@@ -237,6 +240,8 @@ When the command of one device changes:
         "output": "<string>",            // Output collected so far
         "created": "<string>",           // ISO 8601 timestamp
         "modified": "<string>",          // ISO 8601 timestamp
+        "modified_display": "<string>",  // Modified, formatted by the server with its
+                                         // own locale and time zone
         "index": <integer>,              // Position of the row, sent only for new commands
         "affected_devices": <integer>,   // Commands created so far, sent with "index"
         "total_rows": <integer>          // Affected plus skipped devices, sent with "index"

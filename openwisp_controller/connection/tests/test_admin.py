@@ -24,6 +24,7 @@ from ...tests.utils import TestAdminMixin
 from ..admin import BatchCommandAdmin, BatchCommandExecutionForm
 from ..connectors.ssh import Ssh
 from ..filters import GroupFilter, LocationFilter, TypeFilter
+from ..utils import format_modified
 from ..widgets import CredentialsSchemaWidget
 from .utils import BatchCommandMixin, CreateConnectionsMixin
 
@@ -969,6 +970,28 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
                 self.assertEqual(rows[0]["output"], "… last")
                 self.assertEqual(rows[0]["status_display"], "in progress")
                 self.assertFalse(rows[0]["is_skipped"])
+                self.assertEqual(
+                    rows[0]["modified_display"],
+                    format_modified(commands[0].modified),
+                )
+
+            with self.subTest("the rows follow the locale and the time zone"):
+                default = self.client.get(url).context["commands"][0]
+                with override_settings(
+                    LANGUAGE_CODE="it", TIME_ZONE="Pacific/Auckland"
+                ):
+                    localized = self.client.get(url).context["commands"][0]
+                    self.assertEqual(
+                        localized["modified_display"],
+                        format_modified(commands[0].modified),
+                    )
+                self.assertNotEqual(
+                    localized["modified_display"], default["modified_display"]
+                )
+
+            with self.subTest("skipped devices have no timestamp"):
+                rows = self.client.get(url, {"page": 3}).context["commands"]
+                self.assertEqual([row["modified_display"] for row in rows], [""] * 3)
 
             with self.subTest("the page spanning commands and skipped devices"):
                 rows = self.client.get(url, {"page": 2}).context["commands"]
@@ -1025,7 +1048,7 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
         )
         device = self._create_device(organization=org, group=group)
         DeviceLocation.objects.create(content_object=device, location=location)
-        batch = self._create_batch_command(organization=org, group=group)
+        batch = self._create_batch_command(organization=org)
         other_group = DeviceGroup.objects.create(name="skipped-group", organization=org)
         skipped_device = self._create_device(
             name="skipped-device",
@@ -1133,20 +1156,58 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
             titles = [str(spec.title) for spec in response.context["filter_specs"]]
             self.assertNotIn("organization", titles)
 
+        def _filter_specs(target):
+            return {
+                str(spec.title): [str(choice["display"]) for choice in spec.choices]
+                for spec in self.client.get(target).context["filter_specs"]
+            }
+
         with self.subTest("the filters do not offer other organizations"):
-            specs = {
-                str(spec.title): [str(choice["display"]) for choice in spec.choices]
-                for spec in self.client.get(url).context["filter_specs"]
-            }
-            self.assertNotIn(transferred_group.name, specs["device group"])
-            self.assertIn(other_group.name, specs["device group"])
-            self.assertNotIn(transferred_location.name, specs["location"])
+            for login in (lambda: self.client.force_login(operator), self._login):
+                login()
+                specs = _filter_specs(url)
+                self.assertNotIn(transferred_group.name, specs["device group"])
+                self.assertIn(other_group.name, specs["device group"])
+                self.assertNotIn(transferred_location.name, specs["location"])
+                self.assertIn(location.name, specs["location"])
+
+        with self.subTest("the filters do not wait for the commands to be created"):
+            fresh = self._create_batch_command(organization=org)
+            specs = _filter_specs(
+                reverse(f"admin:{self.app_label}_batchcommand_change", args=[fresh.pk])
+            )
+            self.assertIn(group.name, specs["device group"])
             self.assertIn(location.name, specs["location"])
-            self._login()
-            specs = {
-                str(spec.title): [str(choice["display"]) for choice in spec.choices]
-                for spec in self.client.get(url).context["filter_specs"]
-            }
+            self.assertNotIn("organization", specs)
+
+        with self.subTest("the target of the batch is not offered as a filter"):
+            targeted = self._create_batch_command(organization=org, group=group)
+            specs = _filter_specs(
+                reverse(
+                    f"admin:{self.app_label}_batchcommand_change", args=[targeted.pk]
+                )
+            )
+            self.assertNotIn("device group", specs)
+            self.assertIn("location", specs)
+            targeted = self._create_batch_command(organization=org, location=location)
+            specs = _filter_specs(
+                reverse(
+                    f"admin:{self.app_label}_batchcommand_change", args=[targeted.pk]
+                )
+            )
+            self.assertNotIn("location", specs)
+            self.assertIn("device group", specs)
+
+        with self.subTest("a system wide batch offers every organization"):
+            system_wide = self._create_batch_command(organization=None)
+            specs = _filter_specs(
+                reverse(
+                    f"admin:{self.app_label}_batchcommand_change",
+                    args=[system_wide.pk],
+                )
+            )
+            self.assertIn(org.name, specs["organization"])
+            self.assertIn(org2.name, specs["organization"])
             self.assertIn(transferred_group.name, specs["device group"])
             self.assertIn(transferred_location.name, specs["location"])
 

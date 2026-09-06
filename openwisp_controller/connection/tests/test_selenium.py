@@ -34,6 +34,7 @@ from ..commands import (
     register_command,
     unregister_command,
 )
+from ..utils import format_modified
 from .utils import CreateConnectionsMixin, SshServer, _uci_show_command_callable
 
 BatchCommand = load_model("connection", "BatchCommand")
@@ -451,7 +452,7 @@ class TestBatchCommandAdmin(
         ):
             summary[row.find_element(By.TAG_NAME, "label").text] = row.find_element(
                 By.CSS_SELECTOR, ".readonly"
-            ).text
+            ).text.replace("\xa0", " ")
         return summary
 
     def test_execute_batch_command(self):
@@ -858,6 +859,25 @@ class TestBatchCommandAdmin(
                 by=By.CSS_SELECTOR, value=".results-container .paginator"
             ).text,
             "2 commands",
+        )
+
+        command.refresh_from_db()
+        pushed = self.find_element(
+            by=By.CSS_SELECTOR,
+            value=f"#batch-command-row-{command.device_id} td:last-child",
+        ).text
+        self.assertEqual(pushed, format_modified(command.modified))
+        self.open(
+            reverse(f"admin:{self.app_label}_batchcommand_change", args=[batch.pk])
+        )
+        self.hide_loading_overlay()
+        self.wait_for_visibility(By.CSS_SELECTOR, "#result_list")
+        self.assertEqual(
+            self.find_element(
+                by=By.CSS_SELECTOR,
+                value=f"#batch-command-row-{command.device_id} td:last-child",
+            ).text,
+            pushed,
         )
         self.assertEqual(self.get_browser_errors(), [])
 
@@ -1325,14 +1345,12 @@ class TestBatchCommandAdmin(
             )
             self._filter_by("location", location1.name)
             self.assertEqual(self._command_device_names(), [located_device.name])
-            self.open(
-                reverse(
-                    f"admin:{self.app_label}_batchcommand_change",
-                    args=[BatchCommand.objects.get(label="menu-reboot").pk],
-                )
+            self.assertEqual(
+                self.web_driver.find_elements(
+                    By.CSS_SELECTOR, ".ow-filter.organization"
+                ),
+                [],
             )
-            self._filter_by("organization", org1.name)
-            self.assertEqual(len(self._command_device_names()), 20)
 
         with self.subTest("the operator only sees the managed organization"):
             operator = self._create_operator(organizations=[org1])

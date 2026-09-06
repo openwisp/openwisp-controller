@@ -7,6 +7,8 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from swapper import load_model
 
+from .utils import format_modified
+
 logger = logging.getLogger(__name__)
 
 Command = load_model("connection", "Command")
@@ -44,6 +46,7 @@ def command_save_handler(sender, created, instance, **kwargs):
         batch_data.pop("input", None)
         batch_data["device_name"] = instance.device.name
         batch_data["output"] = instance.output_preview
+        batch_data["modified_display"] = format_modified(instance.modified)
         batch_data["type"] = "command_update"
         if created:
             batch = instance.batch_command
