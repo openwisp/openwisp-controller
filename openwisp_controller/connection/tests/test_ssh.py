@@ -80,7 +80,34 @@ class TestSsh(CreateConnectionsMixin, TestCase):
             # timeout of 0.0 is a special case in paramiko -> we check for 0.01 instead
             dc.connector_instance.exec_command("sleep 1", timeout=0.01)
         log_message = "Command timed out after 0.01 seconds."
-        mocked_info.assert_has_calls([mock.call(log_message)])
+        mocked_info.assert_has_calls(
+            [mock.call("Executing command: sleep 1"), mock.call(log_message)]
+        )
+        self.assertEqual(str(ctx.exception), log_message)
+
+    @mock.patch.object(ssh_logger, "info")
+    @mock.patch.object(ssh_logger, "debug")
+    def test_connection_command_timeout_with_output(self, mocked_debug, mocked_info):
+        ckey = self._create_credentials_with_key(port=self.ssh_server.port)
+        dc = self._create_device_connection(credentials=ckey)
+        dc.connector_instance.connect()
+        with self.assertRaises(Exception) as ctx:
+            # timeout of 0.0 is a special case in paramiko -> we check for 0.01 instead
+            dc.connector_instance.exec_command(
+                "echo fake_output && echo fake_error 1>&2 && sleep 1", timeout=0.01
+            )
+        log_message = "Command timed out after 0.01 seconds."
+        mocked_info.assert_has_calls(
+            [
+                mock.call(
+                    "Executing command: echo fake_output &&"
+                    " echo fake_error 1>&2 && sleep 1"
+                ),
+                mock.call("fake_output\n"),
+                mock.call(log_message),
+            ]
+        )
+        self.assertEqual(ctx.exception.output, "fake_output\nfake_error\n")
         self.assertEqual(str(ctx.exception), log_message)
 
     @mock.patch.object(ssh_logger, "info")
