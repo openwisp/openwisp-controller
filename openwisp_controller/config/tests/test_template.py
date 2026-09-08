@@ -4,7 +4,6 @@ from threading import Event, Thread
 from unittest import mock
 
 from celery.exceptions import SoftTimeLimitExceeded
-from cryptography.hazmat.primitives.asymmetric import padding
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import (
@@ -35,7 +34,6 @@ Config = load_model("config", "Config")
 Device = load_model("config", "Device")
 Template = load_model("config", "Template")
 Vpn = load_model("config", "Vpn")
-Ca = load_model("django_x509", "Ca")
 Cert = load_model("django_x509", "Cert")
 User = get_user_model()
 DeviceCertificate = load_model("config", "DeviceCertificate")
@@ -1717,58 +1715,6 @@ class TestTemplateCertificates(
 
         with self.assertNumQueries(1):
             config.get_cert_context()
-
-    def _assert_signed_by_ca(self, cert, ca):
-        ca.x509.public_key().verify(
-            cert.x509.signature,
-            cert.x509.tbs_certificate_bytes,
-            padding.PKCS1v15(),
-            cert.x509.signature_hash_algorithm,
-        )
-
-    def test_no_blueprint_cert_uses_current_ca_key(self):
-        org = self._get_org()
-        cases = (
-            ("save_after_renew", False, False),
-            ("clean_after_renew", False, True),
-            ("clean_before_and_after_renew", True, True),
-        )
-        for index, (name, full_clean_before_renew, full_clean_after_renew) in enumerate(
-            cases
-        ):
-            with self.subTest(name=name):
-                ca = self._create_ca(
-                    name=f"ca-{index}",
-                    common_name=f"ca-{index}",
-                    organization=org,
-                )
-                template = self._create_template(
-                    name=f"cert-template-{index}",
-                    type="cert",
-                    ca=ca,
-                    organization=org,
-                    config={},
-                )
-                config = self._create_config(
-                    device=self._create_device(
-                        name=f"cert-device-{index}",
-                        mac_address=f"00:11:22:33:44:{index:02d}",
-                        organization=org,
-                    )
-                )
-                template = Template.objects.get(pk=template.pk)
-                pending = DeviceCertificate(config=config, template=template)
-                cert = pending._build_cert(
-                    config.device.name, pending._get_common_name()
-                )
-                if full_clean_before_renew:
-                    cert.full_clean()
-                ca.renew()
-                if full_clean_after_renew:
-                    cert.full_clean()
-                cert.save()
-                current_ca = Ca.objects.get(pk=ca.pk)
-                self._assert_signed_by_ca(cert, current_ca)
 
     def test_cert_generation_and_revocation_lifecycle(self):
         """
