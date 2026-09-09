@@ -5,11 +5,13 @@ on:
   push:
     branches:
       - master
+      - "1.3"
   pull_request:
     branches:
       - master
       - "1.1"
       - "1.2"
+      - "1.3"
       - "gsoc26-x509-certificate-generator-templates"
       - "gsoc26-mass-commands"
 
