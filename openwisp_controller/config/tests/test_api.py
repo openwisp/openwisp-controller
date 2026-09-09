@@ -846,6 +846,37 @@ class TestConfigApi(
         self.assertEqual(r.data["name"], "New t1")
         self.assertEqual(r.data["notes"], "updated template notes")
 
+    def test_template_patch_applies_model_corrections(self):
+        template = self._create_template(
+            name="vpn-template", type="vpn", vpn=self._create_vpn(), auto_cert=True
+        )
+        path = reverse("config_api:template_detail", args=[template.pk])
+
+        with self.subTest("changing type clears VPN fields"):
+            response = self.client.patch(
+                path,
+                {
+                    "type": "generic",
+                    "config": {"interfaces": []},
+                },
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertIsNone(response.data["vpn"])
+            template.refresh_from_db()
+            self.assertIsNone(template.vpn)
+            self.assertFalse(template.auto_cert)
+
+        with self.subTest("required templates are enabled by default"):
+            response = self.client.patch(
+                path, {"required": True}, content_type="application/json"
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertTrue(response.data["default"])
+            template.refresh_from_db()
+            self.assertTrue(template.required)
+            self.assertTrue(template.default)
+
     def test_template_download_api(self):
         t1 = self._create_template(name="t1")
         path = reverse("config_api:download_template_config", args=[t1.pk])

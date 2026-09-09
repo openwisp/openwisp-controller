@@ -218,9 +218,7 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
         * validates org relationship of VPN if present
         * validates default_values field
         * ensures VPN is selected if type is VPN
-        * clears VPN specific fields if type is not VPN
         * automatically determines configuration if necessary
-        * if flagged as required forces it also to be default
         """
         self._validate_org_relation("vpn")
         if not self.default_values:
@@ -233,18 +231,30 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
             raise ValidationError(
                 {"vpn": _('A VPN must be selected when template type is "VPN"')}
             )
-        elif self.type != "vpn":
-            self.vpn = None
-            self.auto_cert = False
         if self.type == "vpn" and not self.config:
             self.config = self.vpn.auto_client(
                 auto_cert=self.auto_cert, template_backend_class=self.backend_class
             )
-        if self.required and not self.default:
-            self.default = True
         super().clean(*args, **kwargs)
         if not self.config:
             raise ValidationError(_("The configuration field cannot be empty."))
+
+    def save(self, *args, **kwargs):
+        update_fields = kwargs.get("update_fields")
+        corrected_fields = set()
+        if self.type != "vpn":
+            if self.vpn_id is not None:
+                self.vpn = None
+                corrected_fields.add("vpn")
+            if self.auto_cert:
+                self.auto_cert = False
+                corrected_fields.add("auto_cert")
+        if self.required and not self.default:
+            self.default = True
+            corrected_fields.add("default")
+        if update_fields is not None and corrected_fields:
+            kwargs["update_fields"] = set(update_fields) | corrected_fields
+        return super().save(*args, **kwargs)
 
     def get_context(self, system=False):
         context = {}
