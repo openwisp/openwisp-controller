@@ -235,12 +235,12 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
             self.config = self.vpn.auto_client(
                 auto_cert=self.auto_cert, template_backend_class=self.backend_class
             )
+        self._normalize()
         super().clean(*args, **kwargs)
         if not self.config:
             raise ValidationError(_("The configuration field cannot be empty."))
 
-    def save(self, *args, **kwargs):
-        update_fields = kwargs.get("update_fields")
+    def _normalize(self):
         corrected_fields = set()
         if self.type != "vpn":
             if self.vpn_id is not None:
@@ -252,6 +252,11 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
         if self.required and not self.default:
             self.default = True
             corrected_fields.add("default")
+        return corrected_fields
+
+    def save(self, *args, **kwargs):
+        update_fields = kwargs.get("update_fields")
+        corrected_fields = self._normalize()
         if update_fields is not None and corrected_fields:
             kwargs["update_fields"] = set(update_fields) | corrected_fields
         return super().save(*args, **kwargs)
