@@ -294,7 +294,7 @@ class AbstractDeviceCertificate(TimeStampedEditableModel):
         Device = load_model("config", "Device")
         Template = load_model("config", "Template")
 
-        configs_to_update = set()
+        configs_to_update_set = set()
         certs_regenerated = 0
 
         with transaction.atomic():
@@ -329,9 +329,9 @@ class AbstractDeviceCertificate(TimeStampedEditableModel):
                 new_cert.save()
                 dc.cert = new_cert
                 dc.save()
-                configs_to_update.add(dc.config)
+                configs_to_update_set.add(dc.config)
                 certs_regenerated += 1
-            for config in configs_to_update:
+            for config in configs_to_update_set:
                 config.refresh_from_db()
                 config.update_status_if_checksum_changed()
         if certs_regenerated > 0:

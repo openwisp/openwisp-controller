@@ -272,17 +272,3 @@ Object Identifiers that uniquely identify the device (see
 :ref:`certificate_templates_oid_extensions`). If the blueprint already
 contains either of these reserved OIDs, the inherited value is replaced
 with the value of the device using the template.
-
-**Out of scope**
-
-The following features are **not** managed by certificate templates:
-
-- **Subject Alternative Names (SAN):** SANs are not supported.
-  ``subjectAltName`` is not an accepted named extension and its standard
-  OID is reserved, so a blueprint certificate containing a SAN fails
-  validation instead of being copied to generated certificates. SANs will
-  remain unsupported until django-x509 provides a supported
-  representation.
-- **Let's Encrypt / ACME integration:** Automated ACME or public CA
-  enrollment is not supported. Certificate Templates are designed for
-  private CAs managed within OpenWISP's PKI module.

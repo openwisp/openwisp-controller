@@ -300,9 +300,15 @@ class AbstractDevice(OrgMixin, BaseModel):
             else:
                 self.key = self.generate_key(shared_secret)
         state_adding = self._state.adding
+        # Django lets callers pass update_fields as the 4th positional argument
+        # of save(), not just as a keyword. Read it from either place so the
+        # change detection below knows exactly which fields were saved.
         update_fields = kwargs.get("update_fields")
         if update_fields is None and len(args) > 3:
             update_fields = args[3]
+        # Fetch any tracked values that were left unloaded (deferred) before
+        # saving: the post_save handler that regenerates certificates on
+        # hardware changes reads the device's original name and MAC address here.
         if not state_adding:
             self._load_deferred_initial_values()
         super().save(*args, **kwargs)

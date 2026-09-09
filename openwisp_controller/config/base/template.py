@@ -181,6 +181,11 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
         return expanded
 
     def _set_initial_values_for_changed_checked_fields(self, update_fields=None):
+        """
+        Remembers the current value of each tracked field so we can later tell
+        what changed. If only some fields are being saved, only their saved
+        copies are refreshed.
+        """
         if update_fields is not None:
             update_fields = self._expand_update_field_attnames(update_fields)
         for field in self._changed_checked_fields:
@@ -200,6 +205,12 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
         return self._save(*args, **kwargs)
 
     def _get_update_fields(self, args, kwargs, expand=False):
+        """
+        Returns the fields being saved, whether the caller passed them as a
+        keyword or as the 4th positional argument of ``save()``. Missing them
+        would make a partial save look like a full one and skip the
+        protected-field check.
+        """
         update_fields = kwargs.get("update_fields")
         if update_fields is None and len(args) > 3:
             update_fields = args[3]
@@ -230,6 +241,10 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
         self._set_initial_values_for_changed_checked_fields(update_fields=update_fields)
 
     def refresh_from_db(self, *args, **kwargs):
+        """
+        After reloading the row from the database, refresh our remembered
+        "before" values so they match what was actually loaded.
+        """
         fields = kwargs.get("fields")
         if fields is None and len(args) > 1:
             fields = args[1]
@@ -237,6 +252,11 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
         self._set_initial_values_for_changed_checked_fields(update_fields=fields)
 
     def _get_initial_value_or_fallback(self, field):
+        """
+        Returns the "before" value of a field. If it wasn't loaded in the first
+        place (deferred), fetch it from the database now and remember it, so a
+        change can still be detected.
+        """
         initial = getattr(self, f"_initial_{field}", None)
         if initial == models.DEFERRED:
             if not self.pk:
@@ -252,6 +272,11 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
         return initial
 
     def _get_cert_template_protected_changes(self):
+        """
+        Tells us which protected fields (ca, blueprint_cert, organization, type)
+        have changed since the template was loaded. Only matters for certificate
+        templates, or templates that used to be one.
+        """
         if self._state.adding:
             return {}
         initial_type = self._get_initial_value_or_fallback("type")
@@ -270,6 +295,12 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
         return changes
 
     def _requires_protected_field_lock(self, update_fields=None):
+        """
+        Tells the caller whether this save might change a protected field, so it
+        can lock the row first. Full saves check when the template is (or was) a
+        certificate template; partial saves check only when a protected field is
+        among the fields being saved.
+        """
         if self._state.adding:
             return False
         if update_fields is None:
@@ -278,6 +309,11 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
         return bool(update_fields.intersection(self._changed_checked_fields))
 
     def _lock_protected_fields(self):
+        """
+        Locks the row so no one else can change it at the same time, then
+        refreshes our "before" values from the locked row. This makes sure we
+        compare against what's actually committed, not a stale copy.
+        """
         try:
             current = (
                 self.__class__.objects.select_for_update()
@@ -292,6 +328,10 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
 
     @classmethod
     def lock_for_certificate_assignment(cls, template_id):
+        """
+        Locks the template row and returns it. Used while a certificate is being
+        generated for a device, so the template and its CA can't change midway.
+        """
         return cls.objects.select_for_update().get(pk=template_id)
 
     __template__ = True

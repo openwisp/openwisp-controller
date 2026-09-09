@@ -15,6 +15,13 @@ Cert = load_model("django_x509", "Cert")
 
 
 class SharedRelationAutocompleteMixin:
+    """
+    ``MultitenantAdminMixin`` lets operators pick shared (system-wide) objects in
+    normal form dropdowns, but not in the autocomplete search box, which hides
+    them. This mixin brings them back so shared CAs and blueprint certs show up
+    there. Ideally it belongs in ``MultitenantAdminMixin`` in openwisp-users.
+    """
+
     def _source_allows_shared_relation(self, request):
         match = getattr(request, "resolver_match", None)
         if getattr(match, "view_name", None) != "admin:autocomplete":
@@ -22,7 +29,7 @@ class SharedRelationAutocompleteMixin:
         app_label = request.GET.get("app_label")
         model_name = request.GET.get("model_name")
         field_name = request.GET.get("field_name")
-        if not all([app_label, model_name, field_name]):
+        if not (app_label and model_name and field_name):
             return False
         try:
             source_model = apps.get_model(app_label, model_name)
@@ -39,7 +46,7 @@ class SharedRelationAutocompleteMixin:
         shared_relations = getattr(source_admin, "multitenant_shared_relations", ())
         return field_name in shared_relations
 
-    def _get_unscoped_queryset(self, request):
+    def _get_base_queryset(self, request):
         qs = self.model._default_manager.get_queryset()
         ordering = self.get_ordering(request) or (self.model._meta.pk.name,)
         if ordering:
@@ -49,11 +56,13 @@ class SharedRelationAutocompleteMixin:
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         if self._source_allows_shared_relation(request):
-            qs = self._get_unscoped_queryset(request)
+            qs = self._get_base_queryset(request)
             if request.user.is_superuser:
                 return qs
             orgs = request.user.organizations_managed
-            return qs.filter(Q(organization__in=orgs) | Q(organization=None))
+            if hasattr(self.model, "organization"):
+                qs = qs.filter(Q(organization__in=orgs) | Q(organization=None))
+            return qs
         return qs
 
 

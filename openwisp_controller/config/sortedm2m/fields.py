@@ -26,6 +26,11 @@ def create_sorted_many_related_manager(superclass, rel, *args, **kwargs):
 
     class SortedRelatedManager(BaseSortedRelatedManager):
         def set(self, objs, **kwargs):
+            """
+            ``set()`` is really a clear followed by an add, so it sends the same
+            signals as doing those two steps by hand. We set a temporary flag on
+            the instance so ``manage_device_certs`` can tell the difference.
+            """
             objs = tuple(objs)
             sentinel = object()
             previous = getattr(self.instance, SORTED_M2M_SET_ATTR, sentinel)

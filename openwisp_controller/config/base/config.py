@@ -181,16 +181,20 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
         """
         Returns the Config whose checksum depends on this client certificate.
         """
-        configs = set()
+        config_set = set()
         if not cert.revoked:
             try:
-                configs.add(cert.vpnclient.config)
+                config_set.add(cert.vpnclient.config)
             except ObjectDoesNotExist:
                 pass
         DeviceCertificate = load_model("config", "DeviceCertificate")
-        for dc in DeviceCertificate.objects.filter(cert=cert).select_related("config"):
-            configs.add(dc.config)
-        return list(configs)
+        for dc in (
+            DeviceCertificate.objects.filter(cert=cert)
+            .select_related("config")
+            .iterator()
+        ):
+            config_set.add(dc.config)
+        return list(config_set)
 
     @classmethod
     def _bulk_invalidate_configs(cls, filters):
@@ -393,10 +397,10 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
         cert_templates = templates.filter(type="cert").select_related(
             "ca", "blueprint_cert"
         )
-        if not cert_templates:
+        if not cert_templates.exists():
             return
         DeviceCertificate = load_model("config", "DeviceCertificate")
-        for template in cert_templates:
+        for template in cert_templates.iterator():
             device_cert = DeviceCertificate(config=instance, template=template)
             cert = device_cert._build_cert(
                 name=instance.device.name,
@@ -683,7 +687,7 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
         # allocate new DeviceCertificate associations
         # for newly added certificate templates
         if action == "post_add":
-            for template in templates.filter(type="cert"):
+            for template in templates.filter(type="cert").iterator():
                 instance.device_certificate_relations.get_or_create(template=template)
 
     def get_default_templates(self):
@@ -1137,10 +1141,14 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
                 and dc.template_id in cert_template_ids
             )
         else:
-            device_certificates = self.device_certificate_relations.filter(
-                cert__revoked=False,
-                template_id__in=cert_template_ids,
-            ).select_related("cert")
+            device_certificates = (
+                self.device_certificate_relations.filter(
+                    cert__revoked=False,
+                    template_id__in=cert_template_ids,
+                )
+                .select_related("cert")
+                .iterator()
+            )
         for dc in device_certificates:
             template_hex = dc.template_id.hex
             prefix = f"cert_{template_hex}"
