@@ -2,13 +2,14 @@ import csv
 import io
 import json
 import os
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 from uuid import uuid4
 
 import django
 from django.contrib import admin
 from django.contrib.admin.models import LogEntry
 from django.contrib.auth import get_user_model
+from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from django.core.management import call_command
@@ -34,6 +35,10 @@ from ..signals import (
     group_templates_changed,
     management_ip_changed,
 )
+from ..x509_admin import (
+    DeviceCertificateDeviceFilter,
+    get_device_certificate_changelist_url,
+)
 from .utils import (
     CreateConfigTemplateMixin,
     CreateDeviceGroupMixin,
@@ -51,6 +56,7 @@ Vpn = load_model("config", "Vpn")
 OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
 Ca = load_model("django_x509", "Ca")
 Cert = load_model("django_x509", "Cert")
+DeviceCertificate = load_model("config", "DeviceCertificate")
 User = get_user_model()
 Location = load_model("geo", "Location")
 DeviceLocation = load_model("geo", "DeviceLocation")
@@ -396,7 +402,7 @@ class TestAdmin(
         response = self.client.get(path)
         self.assertIn("Preview", str(response.content))
 
-    def _create_multitenancy_test_env(self, vpn=False):
+    def _create_multitenancy_test_env(self, vpn=False, cert=False):
         org1 = self._create_org(name="test1org")
         org2 = self._create_org(name="test2org")
         inactive = self._create_org(name="inactive-org", is_active=False)
@@ -447,6 +453,41 @@ class TestAdmin(
             data.update(
                 dict(vpn1=v1, vpn2=v2, vpn_shared=v3, vpn_inactive=v4, t1_vpn=t4)
             )
+        if cert:
+            ca1 = self._create_ca(name="ca1", common_name="ca1-cert", organization=org1)
+            ca2 = self._create_ca(name="ca2", common_name="ca2-cert", organization=org2)
+            ca_shared = self._create_ca(
+                name="ca-shared", common_name="ca-shared", organization=None
+            )
+            ca_inactive = self._create_ca(
+                name="ca-inactive", common_name="ca-inactive", organization=inactive
+            )
+            cert1 = self._create_cert(
+                name="cert1", common_name="cert1-cert", ca=ca1, organization=org1
+            )
+            cert2 = self._create_cert(
+                name="cert2", common_name="cert2-cert", ca=ca2, organization=org2
+            )
+            cert_shared = self._create_cert(
+                name="cert-shared",
+                common_name="cert-shared",
+                ca=ca_shared,
+                organization=None,
+            )
+            cert_inactive = self._create_cert(
+                name="cert-inactive",
+                common_name="cert-inactive",
+                ca=ca_inactive,
+                organization=inactive,
+            )
+            data.update(
+                dict(
+                    cert1=cert1,
+                    cert2=cert2,
+                    cert_shared=cert_shared,
+                    cert_inactive=cert_inactive,
+                )
+            )
         return data
 
     def test_device_queryset(self):
@@ -491,6 +532,30 @@ class TestAdmin(
             url=self._get_autocomplete_view_path(self.app_label, "template", "vpn"),
             visible=[data["vpn1"].name],
             hidden=[data["vpn2"].name, data["vpn_inactive"].name],
+        )
+
+    def test_template_ca_fk_autocomplete_view(self):
+        data = self._create_multitenancy_test_env(vpn=True)
+        self._test_multitenant_admin(
+            url=(
+                f'{reverse("admin:autocomplete")}?app_label={Template._meta.app_label}'
+                "&model_name=template&field_name=ca"
+            ),
+            visible=[data["vpn1"].ca.name, data["vpn_shared"].ca.name],
+            hidden=[data["vpn2"].ca.name, data["vpn_inactive"].ca.name],
+            administrator=True,
+        )
+
+    def test_template_blueprint_cert_fk_autocomplete_view(self):
+        data = self._create_multitenancy_test_env(cert=True)
+        self._test_multitenant_admin(
+            url=(
+                f'{reverse("admin:autocomplete")}?app_label={Template._meta.app_label}'
+                "&model_name=template&field_name=blueprint_cert"
+            ),
+            visible=[data["cert1"].name, data["cert_shared"].name],
+            hidden=[data["cert2"].name, data["cert_inactive"].name],
+            administrator=True,
         )
 
     def test_vpn_queryset(self):
@@ -1047,6 +1112,38 @@ class TestAdmin(
         params["config-0-templates"] = ""
         response = self.client.post(path, params)
         self.assertNotContains(response, "errors field-templates", status_code=302)
+
+    def test_change_device_cert_template_generation_error(self):
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        template = self._create_template(
+            name="Invalid Certificate Template",
+            type="cert",
+            ca=ca,
+            organization=org,
+            config={},
+        )
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        path = reverse(f"admin:{self.app_label}_device_change", args=[device.pk])
+        params = self._get_device_params(org=org)
+        params.update(
+            {
+                "name": device.name,
+                "config-0-id": str(config.pk),
+                "config-0-device": str(device.pk),
+                "config-0-templates": str(template.pk),
+                "config-INITIAL_FORMS": 1,
+            }
+        )
+        cert = Mock()
+        cert.full_clean.side_effect = ValidationError("invalid generated certificate")
+        with patch.object(DeviceCertificate, "_build_cert", return_value=cert):
+            response = self.client.post(path, params)
+        self.assertContains(response, "errors field-templates")
+        self.assertContains(response, "invalid generated certificate")
+        self.assertFalse(config.templates.filter(pk=template.pk).exists())
+        self.assertFalse(config.device_certificate_relations.exists())
 
     def test_change_device_required_template(self):
         o = self._get_org()
@@ -1757,6 +1854,152 @@ class TestAdmin(
         response = self.client.get(path)
         self.assertContains(response, "last_ip")
 
+    def test_device_certificate_details_visible_in_admin(self):
+        org = self._get_org()
+        ca = self._create_ca(
+            common_name="test-cert-ca",
+            organization=org,
+        )
+        template = self._create_template(
+            name="test-cert-template",
+            organization=org,
+            type="cert",
+            ca=ca,
+            auto_cert=True,
+        )
+        device = self._create_device(organization=org, name="cert-device")
+        config = self._create_config(device=device)
+        with self.captureOnCommitCallbacks(execute=True):
+            config.templates.add(template)
+        path = reverse(f"admin:{self.app_label}_device_change", args=[device.pk])
+        response = self.client.get(path)
+        dc = DeviceCertificate.objects.get(config=config)
+        cert_url = reverse(
+            f"admin:{dc.cert._meta.app_label}_{dc.cert._meta.model_name}_change",
+            args=[dc.cert.id],
+        )
+        self.assertContains(response, template.name)
+        self.assertContains(response, dc.cert.common_name)
+        self.assertContains(response, cert_url)
+        self.assertContains(response, dc.cert.ca.name)
+        self.assertContains(response, dc.cert.key_length)
+        self.assertContains(response, dc.cert.digest.upper())
+        self.assertContains(response, "Validity End")
+        self.assertContains(
+            response,
+            'aria-label="The template which generated the X.509 certificate"',
+        )
+        self.assertContains(response, "icon-no.svg")
+
+    def test_device_certificate_changelist_url(self):
+        device = self._create_device()
+        cert_model = DeviceCertificate.cert.field.related_model
+        expected_url = reverse(
+            f"admin:{cert_model._meta.app_label}"
+            f"_{cert_model._meta.model_name}_changelist"
+        )
+        self.assertEqual(
+            get_device_certificate_changelist_url(device.id),
+            f"{expected_url}?device_certificate__config__device={device.id}",
+        )
+
+    def test_certificate_admin_filter_by_device(self):
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        template = self._create_template(
+            name="certificate-template",
+            organization=org,
+            type="cert",
+            ca=ca,
+            auto_cert=True,
+        )
+        device_1 = self._create_device(
+            organization=org,
+            name="certificate-device-1",
+            mac_address="00:11:22:33:44:56",
+        )
+        device_2 = self._create_device(
+            organization=org,
+            name="certificate-device-2",
+            mac_address="00:11:22:33:44:57",
+        )
+        config_1 = self._create_config(device=device_1)
+        config_2 = self._create_config(device=device_2)
+        config_1.templates.add(template)
+        config_2.templates.add(template)
+        cert_1 = DeviceCertificate.objects.get(config=config_1).cert
+        cert_2 = DeviceCertificate.objects.get(config=config_2).cert
+        response = self.client.get(get_device_certificate_changelist_url(device_1.id))
+        self.assertContains(
+            response,
+            'name="device_certificate__config__device"',
+        )
+        self.assertContains(
+            response,
+            f'data-ajax--url="{reverse("admin:autocomplete")}"',
+        )
+        self.assertContains(response, device_1.name)
+        self.assertContains(response, cert_1.name)
+        self.assertNotContains(response, cert_2.name)
+        cert_admin = admin.site._registry[Cert]
+        self.assertIs(cert_admin.list_filter[1], DeviceCertificateDeviceFilter)
+
+    def test_certificate_admin_device_filter_multitenancy(self):
+        org_1 = self._create_org(name="organization-1", slug="organization-1")
+        org_2 = self._create_org(name="organization-2", slug="organization-2")
+        ca_1 = self._create_ca(name="ca-1", organization=org_1)
+        ca_2 = self._create_ca(name="ca-2", organization=org_2)
+        template_1 = self._create_template(
+            name="certificate-template-1",
+            organization=org_1,
+            type="cert",
+            ca=ca_1,
+            auto_cert=True,
+        )
+        template_2 = self._create_template(
+            name="certificate-template-2",
+            organization=org_2,
+            type="cert",
+            ca=ca_2,
+            auto_cert=True,
+        )
+        device_1 = self._create_device(
+            organization=org_1,
+            name="certificate-device-1",
+            mac_address="00:11:22:33:44:56",
+        )
+        device_2 = self._create_device(
+            organization=org_2,
+            name="certificate-device-2",
+            mac_address="00:11:22:33:44:57",
+        )
+        config_1 = self._create_config(device=device_1)
+        config_2 = self._create_config(device=device_2)
+        config_1.templates.add(template_1)
+        config_2.templates.add(template_2)
+        cert_2 = DeviceCertificate.objects.get(config=config_2).cert
+        org_1_admin = self._create_administrator(
+            organizations=[org_1], username="organization-1-admin"
+        )
+        self.client.force_login(org_1_admin)
+        response = self.client.get(
+            reverse("admin:autocomplete"),
+            {
+                "app_label": Config._meta.app_label,
+                "model_name": Config._meta.model_name,
+                "field_name": "device",
+                "term": "certificate-device",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json()["results"],
+            [{"id": str(device_1.pk), "text": device_1.name}],
+        )
+        response = self.client.get(get_device_certificate_changelist_url(device_2.id))
+        self.assertNotContains(response, device_2.name)
+        self.assertNotContains(response, cert_2.name)
+
     @patch("openwisp_controller.config.settings.HARDWARE_ID_ENABLED", True)
     def test_hardware_id_in_change_device(self):
         d = self._create_device()
@@ -2288,7 +2531,8 @@ class TestAdmin(
         path = reverse(f"admin:{self.app_label}_device_change", args=[config.device.pk])
         for i in range(count):
             self._create_template(name=f"template-{i}")
-        expected_count = 22
+        ContentType.objects.get_for_model(Device)
+        expected_count = 24
         if django.VERSION < (5, 2):
             # In django version < 5.2, there is an extra SAVEPOINT query
             # leading to extra RELEASE SAVEPOINT query, thus 2 extra queries
@@ -2350,6 +2594,29 @@ class TestAdmin(
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "errorlist")
         self.assertEqual(Device.objects.count(), 0)
+
+    def test_clone_template_superuser_shared_organization(self):
+        org = self._get_org()
+        template = self._create_template(
+            name="Org Owned Template",
+            organization=org,
+        )
+        admin_user = self._create_admin(
+            username="admin_shared_clone", email="admin_shared_clone@example.com"
+        )
+        self.client.force_login(admin_user)
+        url = reverse(f"admin:{self.app_label}_template_changelist")
+        data = {
+            "action": "clone_selected_templates",
+            "_selected_action": [str(template.pk)],
+            "organization": "",
+            "post": "yes",
+        }
+        response = self.client.post(url, data, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Successfully cloned selected templates")
+        cloned_template = Template.objects.get(name="Org Owned Template (Clone)")
+        self.assertIsNone(cloned_template.organization)
 
 
 class TestTransactionAdmin(

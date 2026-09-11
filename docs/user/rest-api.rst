@@ -1112,7 +1112,7 @@ You can filter a list of templates based on their backend using the
     GET /api/v1/controller/template/?backend={backend}
 
 You can filter a list of templates based on their type using the ``type``
-(e.g. vpn or generic).
+(e.g. vpn, cert or generic).
 
 .. code-block:: text
 
@@ -1400,6 +1400,12 @@ Delete Cert
 .. code-block:: text
 
     DELETE /api/v1/controller/cert/{id}/
+
+.. note::
+
+    Deleting a certificate used by a device certificate relation or as a
+    blueprint certificate returns ``400 Bad Request`` and preserves the
+    referenced certificate.
 
 Renew Cert
 ~~~~~~~~~~
