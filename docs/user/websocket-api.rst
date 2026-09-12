@@ -237,7 +237,9 @@ When the command of one device changes:
         "connection": "<uuid>",          // Device connection used, may be null
         "batch_command": "<uuid>",       // Mass command this command belongs to
         "status": "<string>",            // "in-progress", "success" or "failed"
-        "output": "<string>",            // Output collected so far
+        "output": "<string>",            // Output preview: the last line of the
+                                         // output, at most its last 100
+                                         // characters, as in "batch_state"
         "created": "<string>",           // ISO 8601 timestamp
         "modified": "<string>",          // ISO 8601 timestamp
         "modified_display": "<string>",  // Modified, formatted by the server with its

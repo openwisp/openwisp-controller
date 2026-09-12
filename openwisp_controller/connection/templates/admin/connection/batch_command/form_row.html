@@ -1,3 +1,13 @@
+{% comment %}
+renders one field of the wizard with the markup of the Django admin, so that
+the admin styles, the errors and the help text look like they do on any other
+admin form: the wizard uses a plain form instead of an admin fieldset, so
+"admin/includes/fieldset.html" cannot be used.
+
+adapted from that template, keeping only what one field needs: the loop over
+the fieldset and its lines, the rows holding several fields, the checkbox and
+the read only rendering are left out.
+{% endcomment %}
 <div class="form-row field-{{ field.name }}{% if field.errors %} errors{% endif %}">
   {{ field.errors }}
   <div class="flex-container">

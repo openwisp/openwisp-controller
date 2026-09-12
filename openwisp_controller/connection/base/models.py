@@ -621,9 +621,14 @@ class AbstractCommand(TimeStampedEditableModel):
             self.status = "failed"
             self._add_output(
                 gettext(
-                    "The device no longer belongs to the organization of this"
-                    " mass command."
+                    'The device was moved out of "%(organization)s", the'
+                    ' organization of the mass command "%(label)s", so the'
+                    " command was not run."
                 )
+                % {
+                    "organization": self.batch_command.organization,
+                    "label": self.batch_command.label,
+                }
             )
             logger.warning(
                 "Not executing command %s of batch %s: device %s belongs to"
@@ -878,6 +883,14 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
         return filters
 
     def filter_skipped_items(self, filters):
+        """Applies the filters of the command table to the skipped devices.
+
+        Unlike the other rows of the table, a skipped device has no Command
+        object, so it has no status which the database can filter: it only
+        exists in the "skipped_devices" JSON of the mass command. The table
+        filters, including the "skipped" status choice, therefore look up the
+        skipped devices in that JSON instead of querying the Command model.
+        """
         related = (
             filters["organization_id"],
             filters["group_id"],
@@ -945,6 +958,28 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
         return self.get_skipped_rows(end=2) + [
             self.build_skipped_row(last_pk, skipped[last_pk])
         ]
+
+    @staticmethod
+    def get_command_row_position(command):
+        """Returns where a new command appears in the table of its mass
+        command, and the totals the table shows once it is added.
+
+        Commands are listed in the order they were created, followed by
+        the skipped devices, so the position of a new command is the number
+        of commands created before it. The loop which creates the commands
+        passes that number in "_batch_index", so they are not counted again
+        for every command; otherwise they are counted here.
+        """
+        batch = command.batch_command
+        index = getattr(command, "_batch_index", None)
+        if index is None:
+            index = batch.affected_devices - 1
+        affected_devices = index + 1
+        return {
+            "index": index,
+            "affected_devices": affected_devices,
+            "total_rows": affected_devices + batch.skipped_count,
+        }
 
     @property
     def affected_devices(self):
@@ -1103,9 +1138,11 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
             self.skipped_devices[str(device.pk)] = {
                 "name": device.name,
                 "error": gettext(
-                    "The device no longer belongs to the organization of this"
-                    " mass command"
-                ),
+                    'The device was moved out of "%(organization)s", the'
+                    ' organization of the mass command "%(label)s", so the'
+                    " command was not run."
+                )
+                % {"organization": self.organization, "label": self.label},
             }
             logger.warning(
                 "Skipping device %s for batch %s: transferred to another"

@@ -4,6 +4,8 @@ from swapper import load_model
 
 from openwisp_users.multitenancy import MultitenantRelatedOrgFilter
 
+from .commands import get_command_choices
+
 
 class GroupFilter(MultitenantRelatedOrgFilter):
     field_name = "group"
@@ -22,13 +24,15 @@ class TypeFilter(admin.SimpleListFilter):
     parameter_name = "type"
 
     def lookups(self, request, model_admin):
-        BatchCommand = load_model("connection", "BatchCommand")
-        qs = BatchCommand.objects.all()
-        if not request.user.is_superuser:
-            qs = qs.filter(organization_id__in=request.user.organizations_managed)
-        types = qs.values_list("type", flat=True).distinct()
-        choices = dict(BatchCommand._meta.get_field("type").choices)
-        return [(t, choices.get(t, t)) for t in types]
+        if request.user.is_superuser:
+            return list(get_command_choices())
+        Command = load_model("connection", "Command")
+        allowed = {}
+        for organization_id in request.user.organizations_managed:
+            allowed.update(
+                Command.get_org_allowed_commands(organization_id=organization_id)
+            )
+        return list(allowed.items())
 
     def queryset(self, request, queryset):
         if self.value():

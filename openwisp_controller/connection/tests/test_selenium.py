@@ -34,7 +34,7 @@ from ..commands import (
     register_command,
     unregister_command,
 )
-from ..utils import format_modified
+from ..utils import format_localized_datetime
 from .utils import CreateConnectionsMixin, SshServer, _uci_show_command_callable
 
 BatchCommand = load_model("connection", "BatchCommand")
@@ -866,7 +866,7 @@ class TestBatchCommandAdmin(
             by=By.CSS_SELECTOR,
             value=f"#batch-command-row-{command.device_id} td:last-child",
         ).text
-        self.assertEqual(pushed, format_modified(command.modified))
+        self.assertEqual(pushed, format_localized_datetime(command.modified))
         self.open(
             reverse(f"admin:{self.app_label}_batchcommand_change", args=[batch.pk])
         )
@@ -1385,6 +1385,79 @@ class TestBatchCommandAdmin(
             ]
             self.assertIn("By status", filter_titles)
             self.assertNotIn("By organization", filter_titles)
+
+    def test_recent_commands_show_the_mass_command(self):
+        org = self._get_org()
+        devices = self._create_devices(org, 2)
+        skipped_device = self._create_device(
+            name="device-skipped",
+            organization=org,
+            mac_address="00:11:22:33:44:99",
+        )
+        self.login()
+        self._fill_wizard(
+            type="Custom commands",
+            label="recent-commands",
+            organization=org,
+            command_input={"command": "echo test"},
+        )
+        self.find_element(by=By.ID, value="review-command-btn").click()
+        self._wait_for_review_page()
+        self.find_element(by=By.ID, value="execute-button").click()
+        WebDriverWait(self.web_driver, 30).until(
+            lambda driver: BatchCommand.objects.filter(label="recent-commands").exists()
+        )
+        batch = BatchCommand.objects.get(label="recent-commands")
+        batch_url = reverse(
+            f"admin:{self.app_label}_batchcommand_change", args=[batch.pk]
+        )
+        self._wait_for_url(batch_url, timeout=30)
+        WebDriverWait(self.web_driver, 10).until(
+            lambda driver: self._command_statuses() == ["failed", "failed", "skipped"],
+            message=f"got {self._command_statuses()}",
+        )
+
+        with self.subTest("the device of a skipped row is not a link"):
+            row = self.find_element(
+                by=By.CSS_SELECTOR, value=f"#batch-command-row-{skipped_device.pk}"
+            )
+            self.assertEqual(row.find_elements(By.CSS_SELECTOR, "a.device-link"), [])
+            self.assertEqual(
+                row.find_element(By.CSS_SELECTOR, ".device-name-disabled").text,
+                skipped_device.name,
+            )
+
+        with self.subTest("the device of a command opens its recent commands"):
+            device = devices[0]
+            self.find_element(
+                by=By.CSS_SELECTOR,
+                value=f"#batch-command-row-{device.pk} a.device-link",
+            ).click()
+            self._wait_for_url(
+                reverse(
+                    f"admin:{self.config_app_label}_device_change", args=[device.pk]
+                )
+            )
+            command = Command.objects.get(device=device)
+
+            def field(name):
+                return self.find_element(
+                    by=By.CSS_SELECTOR,
+                    value=f"#command_set-2-group .field-{name} .readonly",
+                ).text
+
+            self.assertEqual(field("status_display"), command.get_status_display())
+            self.assertEqual(field("type"), command.get_type_display())
+            self.assertEqual(field("input_data"), command.input_data)
+            self.assertEqual(field("output_data"), command.output.strip())
+            self.assertEqual(field("batch_command"), batch.label)
+            self.assertNotEqual(field("created"), "")
+            self.assertNotEqual(field("modified"), "")
+            link = self.find_element(
+                by=By.CSS_SELECTOR,
+                value="#command_set-2-group .field-batch_command .readonly a",
+            )
+            self.assertEqual(urlparse(link.get_attribute("href")).path, batch_url)
 
     def test_organization_scoped_custom_command_type(self):
         org1 = self._create_org(

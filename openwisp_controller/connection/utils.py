@@ -2,7 +2,7 @@ from django.utils import formats, timezone
 from openwisp_notifications.utils import _get_object_link
 
 
-def format_modified(value):
+def format_localized_datetime(value):
     if not value:
         return ""
     if timezone.is_aware(value):

@@ -15,7 +15,7 @@ from openwisp_controller.connection.tests.utils import CreateCommandMixin
 
 from .. import handlers
 from ..channels.consumers import BatchCommandConsumer
-from ..utils import format_modified
+from ..utils import format_localized_datetime
 from .test_models import BaseTestModels
 
 User = get_user_model()
@@ -265,7 +265,9 @@ class TestBatchCommandConsumer(BaseTestModels, CreateCommandMixin):
                 command_row["modified"]
                 == timezone.localtime(command.modified).isoformat()
             )
-            assert command_row["modified_display"] == format_modified(command.modified)
+            assert command_row["modified_display"] == format_localized_datetime(
+                command.modified
+            )
             assert "input" not in command_row
             await communicator.send_json_to(
                 {"type": "request_current_state", "page": 2}
