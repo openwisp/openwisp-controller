@@ -1,8 +1,10 @@
 {% extends "admin/base_site.html" %}
 {% load i18n admin_urls static %}
 
-{# step one: collects the command details and targets, saves them in the session, #}
-{# then redirects to the confirm page #}
+{% comment %}
+step one: collects the command details and targets, saves them in the session,
+then redirects to the confirm page
+{% endcomment %}
 
 {% block extrastyle %}
 {{ block.super }}
@@ -56,20 +58,20 @@
     <p class="errornote">{{ form.non_field_errors|join:" " }}</p>
     {% endif %}
 
+    {% comment %}
+    this is not an admin change form, so there are no admin fieldsets to render:
+    the sections and the order of their fields come from
+    BatchCommandExecutionForm.fieldsets(), and form_row.html gives each field
+    the markup of the admin, so the page is styled like any other admin form
+    {% endcomment %}
+    {% for title, fields in form.fieldsets %}
     <fieldset class="module aligned">
-      <h2>{% trans "Command" %}</h2>
-      {% include "admin/connection/batch_command/form_row.html" with field=form.type %}
-      {% include "admin/connection/batch_command/form_row.html" with field=form.input %}
-      {% include "admin/connection/batch_command/form_row.html" with field=form.label %}
-      {% include "admin/connection/batch_command/form_row.html" with field=form.notes %}
+      <h2>{{ title }}</h2>
+      {% for field in fields %}
+      {% include "admin/connection/batch_command/form_row.html" %}
+      {% endfor %}
     </fieldset>
-
-    <fieldset class="module aligned">
-      <h2>{% trans "Targets" %}</h2>
-      {% include "admin/connection/batch_command/form_row.html" with field=form.organization %}
-      {% include "admin/connection/batch_command/form_row.html" with field=form.location %}
-      {% include "admin/connection/batch_command/form_row.html" with field=form.group %}
-    </fieldset>
+    {% endfor %}
 
     <div class="submit-row">
       <a class="button cancel-link" href="{% url opts|admin_urlname:'changelist' %}">{% trans "Cancel" %}</a>

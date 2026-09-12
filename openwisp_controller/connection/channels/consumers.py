@@ -7,7 +7,7 @@ from swapper import load_model
 
 from ...config.base.channels_consumer import BaseDeviceConsumer
 from ..api.serializers import BatchCommandSerializer, CommandSerializer
-from ..utils import format_modified
+from ..utils import format_localized_datetime
 
 logger = logging.getLogger(__name__)
 
@@ -127,7 +127,7 @@ class BatchCommandConsumer(BaseDeviceConsumer):
             row.pop("input", None)
             row["device_name"] = command.device.name
             row["output"] = command.output_preview
-            row["modified_display"] = format_modified(command.modified)
+            row["modified_display"] = format_localized_datetime(command.modified)
             commands.append(row)
         commands += batch.get_skipped_rows(
             max(0, start - commands_count),

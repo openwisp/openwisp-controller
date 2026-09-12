@@ -1056,6 +1056,41 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
             batch.batch_commands.filter(status="failed", device=device1).exists()
         )
 
+    def test_batch_command_row_position(self):
+        org = self._get_org()
+        dc = self._create_device_connection()
+        batch = self._create_batch_command(organization=org)
+        batch.skipped_devices = {
+            str(uuid4()): {"name": f"device{index}", "error": "failed"}
+            for index in range(2)
+        }
+        batch.save(update_fields=["skipped_devices"])
+        with mock.patch.object(Command, "_schedule_command"):
+            commands = [
+                Command.objects.create(
+                    batch_command=batch,
+                    device=dc.device,
+                    connection=dc,
+                    type=batch.type,
+                    input={"command": "echo test"},
+                )
+                for _ in range(2)
+            ]
+
+        with self.subTest("the commands are counted without a position"):
+            self.assertEqual(
+                BatchCommand.get_command_row_position(commands[1]),
+                {"index": 1, "affected_devices": 2, "total_rows": 4},
+            )
+
+        with self.subTest("the position passed by the loop is not counted again"):
+            commands[0]._batch_index = 5
+            with self.assertNumQueries(0):
+                position = BatchCommand.get_command_row_position(commands[0])
+            self.assertEqual(
+                position, {"index": 5, "affected_devices": 6, "total_rows": 8}
+            )
+
     def test_batch_command_skipped_devices(self):
         org = self._get_org()
         batch = self._create_batch_command(organization=org)
@@ -1351,9 +1386,11 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
                 self.assertIn("Skipping device", logs.output[0])
                 batch.refresh_from_db()
                 self.assertIn(str(device_b.pk), batch.skipped_devices)
-                self.assertIn(
-                    "no longer belongs to the organization",
+                self.assertEqual(
                     batch.skipped_devices[str(device_b.pk)]["error"],
+                    f'The device was moved out of "{org.name}", the organization'
+                    f' of the mass command "{batch.label}", so the command was'
+                    " not run.",
                 )
                 db_batch = BatchCommand.objects.get(pk=batch.pk)
                 self.assertEqual(batch.skipped_devices, db_batch.skipped_devices)
@@ -2040,7 +2077,9 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
         modified = batch.modified
 
         with mock.patch.object(BatchCommand, "save") as save:
-            with mock.patch.object(handlers, "send_batch_update") as publish:
+            with mock.patch.object(
+                handlers, "send_batch_command_websocket_event"
+            ) as publish:
                 batch.calculate_and_update_status()
         save.assert_not_called()
         publish.assert_called_once()
@@ -2070,9 +2109,10 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
             batch.refresh_from_db()
             self.assertIn("Skipping device", logs.output[0])
             self.assertIn(str(device.pk), batch.skipped_devices)
-            self.assertIn(
-                "no longer belongs to the organization",
+            self.assertEqual(
                 batch.skipped_devices[str(device.pk)]["error"],
+                f'The device was moved out of "{org.name}", the organization of'
+                f' the mass command "{batch.label}", so the command was not run.',
             )
             self.assertFalse(batch.batch_commands.exists())
 
@@ -2100,7 +2140,11 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
             self.assertIn(str(org2.pk), logs.output[0])
             command.refresh_from_db()
             self.assertEqual(command.status, "failed")
-            self.assertIn("no longer belongs to the organization", command.output)
+            self.assertIn(
+                f'The device was moved out of "{org.name}", the organization of'
+                f' the mass command "{batch.label}", so the command was not run.',
+                command.output,
+            )
 
     def test_batch_command_permissions(self):
         ct = ContentType.objects.get_by_natural_key(

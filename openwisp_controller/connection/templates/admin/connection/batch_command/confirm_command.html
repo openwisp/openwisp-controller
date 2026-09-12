@@ -1,20 +1,16 @@
 {% extends device_changelist_template|default:"admin/change_list.html" %}
 {% load i18n admin_urls static %}
 
-{# step two: extends the changelist template of the registered Device admin, #}
-{# so the assets of columns added by other modules load too #}
-{# see BatchCommandAdmin.get_device_changelist_template() #}
+{% comment %}
+step two: extends the changelist template of the registered Device admin,
+so the assets of columns added by other modules load too
+see BatchCommandAdmin.get_device_changelist_template()
+{% endcomment %}
 
 {% block extrastyle %}
 {{ block.super }}
 <link rel="stylesheet" type="text/css" href="{% static "admin/css/forms.css" %}">
 <link rel="stylesheet" type="text/css" href="{% static "connection/css/batch-command.css" %}">
-{% endblock %}
-
-{% block extrahead %}
-{{ block.super }}
-<script src="{% url 'admin:jsi18n' %}"></script>
-<script src="{% static "connection/js/execute-command.js" %}" defer></script>
 {% endblock %}
 
 {% block bodyclass %}{{ block.super }} confirm-command{% endblock %}
@@ -104,9 +100,11 @@
   <h2>{% trans 'Affected devices' %}</h2>
 </fieldset>
 
-{# renders the changelist: the device table, its pagination, and the <form> wrapping both #}
-{# HTML does not allow nested forms, so the execute form below is a sibling of that one: #}
-{# nesting it made the browser drop the opening tag, leaving the button outside any form #}
+{% comment %}
+renders the changelist: the device table, its pagination, and the <form> wrapping both
+HTML does not allow nested forms, so the execute form below is a sibling of that one:
+nesting it made the browser drop the opening tag, leaving the button outside any form
+{% endcomment %}
 {{ block.super }}
 
 <form method="post" id="execute-form" class="execute-form"
@@ -126,4 +124,10 @@
     </button>
   </div>
 </form>
+{% endblock %}
+
+{% block footer %}
+{{ block.super }}
+<script src="{% url 'admin:jsi18n' %}"></script>
+<script src="{% static "connection/js/execute-command.js" %}"></script>
 {% endblock %}

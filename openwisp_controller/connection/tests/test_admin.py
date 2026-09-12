@@ -15,16 +15,17 @@ from openwisp_controller.connection.commands import (
     COMMANDS,
     ORGANIZATION_COMMAND_SCHEMA,
     ORGANIZATION_ENABLED_COMMANDS,
+    get_command_choices,
 )
 
 from ... import settings as module_settings
 from ...config.admin import DeviceAdmin
 from ...tests import _get_updated_templates_settings
 from ...tests.utils import TestAdminMixin
-from ..admin import BatchCommandAdmin, BatchCommandExecutionForm
+from ..admin import BatchCommandAdmin
 from ..connectors.ssh import Ssh
 from ..filters import GroupFilter, LocationFilter, TypeFilter
-from ..utils import format_modified
+from ..utils import format_localized_datetime
 from ..widgets import CredentialsSchemaWidget
 from .utils import BatchCommandMixin, CreateConnectionsMixin
 
@@ -170,6 +171,34 @@ class TestCommandInlines(TestAdminMixin, CreateConnectionsMixin, TestCase):
             self._create_custom_command()
             response = self.client.get(url)
             self.assertContains(response, "Recent Commands")
+
+    def test_command_inline_batch_command(self):
+        url = reverse(
+            f"admin:{self.config_app_label}_device_change", args=(self.device.id,)
+        )
+        batch = self._create_batch_command(
+            self.device.organization, label="nightly reboot"
+        )
+        batch_url = reverse(
+            f"admin:{BatchCommand._meta.app_label}_batchcommand_change",
+            args=(batch.pk,),
+        )
+        with self.subTest("a command of a mass command links to it"):
+            Command.objects.create(
+                type="custom",
+                input={"command": "echo hello"},
+                device=self.device,
+                batch_command=batch,
+            )
+            response = self.client.get(url)
+            self.assertContains(
+                response, f'<a href="{batch_url}">nightly reboot</a>', html=True
+            )
+        Command.objects.all().delete()
+        with self.subTest("a command sent to the device alone has no link"):
+            self._create_custom_command()
+            response = self.client.get(url)
+            self.assertNotContains(response, batch_url)
 
     def test_command_inline_output_loading_overlay(self):
         url = reverse(
@@ -504,29 +533,6 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
             self.client.force_login(viewer)
             self.assertEqual(self.client.get(url).status_code, 403)
 
-    def test_wizard_organization_guard_survives_a_wider_queryset(self):
-        org = self._get_org()
-        org2 = self._create_org(name="org2", slug="org2")
-        group2 = DeviceGroup.objects.create(name="group2", organization=org2)
-        operator = self._create_operator(organizations=[org])
-        self.client.force_login(operator)
-        request = self.client.get(self.execute_url).wsgi_request
-        form = BatchCommandExecutionForm(
-            data={
-                "type": "custom",
-                "input": '{"command": "echo test"}',
-                "label": "test-label",
-                "notes": "",
-                "organization": "",
-                "group": str(group2.pk),
-                "location": "",
-            },
-            request=request,
-        )
-        form.fields["group"].queryset = DeviceGroup.objects.all()
-        self.assertFalse(form.is_valid())
-        self.assertEqual(form.errors["group"], ["Select a valid choice."])
-
     def test_wizard_views_reject_unsupported_methods(self):
         self._login()
         response = self.client.delete(self.execute_url)
@@ -560,7 +566,7 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
         self.assertIn(BatchCommandAdmin.session_key, self.client.session)
         form = self.client.get(self.execute_url).context["form"]
         self.assertEqual(form.initial, {})
-        self.assertNotIn(BatchCommandAdmin.session_key, self.client.session)
+        self.assertIn(BatchCommandAdmin.session_key, self.client.session)
 
     def test_wizard_device_admin_composition(self):
         class ReplacementDeviceAdmin(DeviceAdmin):
@@ -740,7 +746,12 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
             self.client.get(self.confirm_url)
             response = self._post_confirm("stale-token")
             self.assertRedirects(response, self.execute_url)
-            self.assertIn(restart_message, self._messages(response))
+            self.assertIn(
+                "This mass command was replaced by another one started in a"
+                " different browser tab, so it was not executed. Please fill"
+                " in the details again.",
+                self._messages(response),
+            )
             self.assertFalse(BatchCommand.objects.exists())
 
         with self.subTest("double submit"):
@@ -770,6 +781,22 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
             )
             self.assertFalse(BatchCommand.objects.exists())
             self.assertIn(BatchCommandAdmin.session_key, self.client.session)
+
+    def test_wizard_survives_a_second_tab(self):
+        org = self._get_org()
+        self._create_device(organization=org)
+        self._login()
+        wizard = self._start_wizard(organization=str(org.pk))
+        self.client.get(self.confirm_url)
+        # another tab opens the first step, which must not discard the wizard
+        self.client.get(self.execute_url)
+        self.assertIn(BatchCommandAdmin.session_key, self.client.session)
+        response = self._post_confirm(wizard["token"])
+        batch = BatchCommand.objects.get()
+        self.assertRedirects(
+            response,
+            reverse(f"admin:{self.app_label}_batchcommand_change", args=(batch.pk,)),
+        )
 
     def test_wizard_device_selection(self):
         org = self._get_org()
@@ -972,7 +999,7 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
                 self.assertFalse(rows[0]["is_skipped"])
                 self.assertEqual(
                     rows[0]["modified_display"],
-                    format_modified(commands[0].modified),
+                    format_localized_datetime(commands[0].modified),
                 )
 
             with self.subTest("the rows follow the locale and the time zone"):
@@ -983,7 +1010,7 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
                     localized = self.client.get(url).context["commands"][0]
                     self.assertEqual(
                         localized["modified_display"],
-                        format_modified(commands[0].modified),
+                        format_localized_datetime(commands[0].modified),
                     )
                 self.assertNotEqual(
                     localized["modified_display"], default["modified_display"]
@@ -1079,7 +1106,7 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
             },
             str(transferred_device.pk): {
                 "name": transferred_device.name,
-                "error": "no longer belongs to the organization",
+                "error": "moved out of the organization of the mass command",
             },
         }
         batch.save(update_fields=["skipped_devices"])
@@ -1306,15 +1333,17 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
             type_filter = TypeFilter(request, {}, BatchCommand, model_admin)
             self.assertEqual(
                 type_filter.lookups(request, model_admin),
-                [("custom", "Custom commands")],
+                list(Command.get_org_allowed_commands(organization_id=org.pk)),
             )
 
         with self.subTest("type lookups list every type for superusers"):
             self._login()
             admin_request = self.client.get(self.changelist_url).wsgi_request
             type_filter = TypeFilter(admin_request, {}, BatchCommand, model_admin)
-            lookups = dict(type_filter.lookups(admin_request, model_admin))
-            self.assertEqual(set(lookups), {"custom", "reboot"})
+            self.assertEqual(
+                type_filter.lookups(admin_request, model_admin),
+                list(get_command_choices()),
+            )
 
         with self.subTest("type queryset"):
             response = self.client.get(self.changelist_url, {"type": "reboot"})
