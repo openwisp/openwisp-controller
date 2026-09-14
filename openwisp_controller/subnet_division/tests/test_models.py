@@ -560,7 +560,7 @@ class TestSubnetDivisionRule(
             ip_query.count(), (rule.number_of_subnets * rule.number_of_ips)
         )
 
-    @patch("openwisp_controller.subnet_division.rule_types.base.logger.info")
+    @patch("openwisp_controller.subnet_division.rule_types.base.logger.warning")
     def test_subnets_exhausted(self, mocked_logger, *args):
         subnet = self._get_master_subnet(
             "10.0.0.0/29", master_subnet=self.master_subnet
@@ -734,6 +734,8 @@ class TestSubnetDivisionRule(
             device=self._create_device(name="device-2", mac_address="00:11:22:33:44:66")
         )
         config2.templates.add(self.template)
+        subnet = config2.subnetdivisionindex_set.get(rule=rule, ip__isnull=True).subnet
+        self.assertEqual(str(subnet.subnet), "10.0.0.32/28")
         self.config.device.delete(check_deactivated=False)
         config3 = self._create_config(
             device=self._create_device(name="device-3", mac_address="00:11:22:33:44:77")

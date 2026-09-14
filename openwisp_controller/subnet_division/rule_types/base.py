@@ -285,7 +285,7 @@ class BaseSubnetDivisionRuleType(object):
                     " subnet has run out of space."
                 ),
             )
-            logger.info(f"Cannot create more subnets of {master_subnet}")
+            logger.warning(f"Cannot create more subnets of {master_subnet}")
         Subnet.objects.bulk_create(generated_subnets)
         return generated_subnets
 
