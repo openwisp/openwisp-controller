@@ -9,7 +9,7 @@ openwisp-users @ https://github.com/openwisp/openwisp-users/archive/refs/heads/1
 openwisp-utils[celery,channels] @ https://github.com/openwisp/openwisp-utils/archive/refs/heads/1.4.tar.gz
 openwisp-notifications @ https://github.com/openwisp/openwisp-notifications/archive/refs/heads/1.4.tar.gz
 # Temporary dependency until https://github.com/openwisp/openwisp-ipam/pull/250 is merged.
-openwisp-ipam @ https://github.com/openwisp/openwisp-ipam/archive/b6620bf7aa40ecd62d6b5f6838821633bae91b95.tar.gz
+openwisp-ipam @ https://github.com/openwisp/openwisp-ipam/archive/refs/heads/issues/753-subnet-division-rule-white-space.tar.gz
 djangorestframework-gis @ https://github.com/openwisp/django-rest-framework-gis/archive/refs/heads/1.4.tar.gz
 paramiko~=5.0.0
 scp~=0.16.1
