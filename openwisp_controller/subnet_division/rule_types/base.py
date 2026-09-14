@@ -190,7 +190,7 @@ class BaseSubnetDivisionRuleType(object):
         # "created" field is used for ordering the queryset.
         order_field = "-subnet" if connection.vendor == "postgresql" else "-created"
         try:
-            max_subnet = (
+            return (
                 # Get the highest subnet created for this master_subnet
                 Subnet.objects.filter(master_subnet_id=master_subnet.id)
                 .order_by(order_field)
@@ -198,13 +198,14 @@ class BaseSubnetDivisionRuleType(object):
                 .subnet
             )
         except AttributeError:
-            # If there is no existing subnet, create a reserved subnet
-            # and use it as starting point
+            # If there is no existing subnet, determine the starting point.
             required_subnet = next(
                 IPNetwork(str(master_subnet.subnet)).subnet(
                     prefixlen=division_rule.size
                 )
             )
+            if division_rule.size == master_subnet.subnet.max_prefixlen:
+                return required_subnet
             subnet_obj = Subnet(
                 name=f"Reserved Subnet {required_subnet}",
                 subnet=str(required_subnet),
@@ -214,8 +215,7 @@ class BaseSubnetDivisionRuleType(object):
             )
             subnet_obj.full_clean()
             subnet_obj.save()
-            max_subnet = subnet_obj.subnet
-        return max_subnet
+            return subnet_obj.subnet
 
     @staticmethod
     def create_subnets(config, division_rule, max_subnet, generated_indexes):
