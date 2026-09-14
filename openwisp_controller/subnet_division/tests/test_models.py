@@ -298,6 +298,12 @@ class TestSubnetDivisionRule(
         self.assertEqual(self.vpn_server.ip.ip_address, "10.0.0.1")
         self.assertEqual(str(index.subnet.subnet), "10.0.0.2/32")
         self.assertEqual(index.ip.ip_address, "10.0.0.2")
+        self.assertFalse(
+            Subnet.objects.filter(
+                master_subnet_id=self.master_subnet.id,
+                name__contains="Reserved Subnet",
+            ).exists()
+        )
 
     def test_slash_32_rule_ipv4_skips_parent_allocations(self):
         self.master_subnet.request_ip()
@@ -348,6 +354,12 @@ class TestSubnetDivisionRule(
         self.assertEqual(self.vpn_server.ip.ip_address, "fd12:3456:7890::1")
         self.assertEqual(str(index.subnet.subnet), "fd12:3456:7890::2/128")
         self.assertEqual(index.ip.ip_address, "fd12:3456:7890::2")
+        self.assertFalse(
+            Subnet.objects.filter(
+                master_subnet_id=master_ipv6.id,
+                name__contains="Reserved Subnet",
+            ).exists()
+        )
 
     def test_slash_128_rule_ipv6_error(self):
         master_ipv6 = self._get_master_subnet(subnet="fd12:3456:7890::/128")
