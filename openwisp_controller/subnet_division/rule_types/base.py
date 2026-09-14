@@ -1,5 +1,4 @@
 import logging
-from ipaddress import ip_network
 from operator import attrgetter
 
 from django.core.exceptions import ObjectDoesNotExist
@@ -137,13 +136,8 @@ class BaseSubnetDivisionRuleType(object):
             config = cls.get_config(instance)
         except (AttributeError, ObjectDoesNotExist):
             return
-
-        master_subnet = division_rule.master_subnet
-        max_subnet = cls.get_max_subnet(master_subnet, division_rule)
         generated_indexes = []
-        generated_subnets = cls.create_subnets(
-            config, division_rule, max_subnet, generated_indexes
-        )
+        generated_subnets = cls.create_subnets(config, division_rule, generated_indexes)
         generated_ips = cls.create_ips(
             config, division_rule, generated_subnets, generated_indexes
         )
@@ -218,8 +212,21 @@ class BaseSubnetDivisionRuleType(object):
             return subnet_obj.subnet
 
     @staticmethod
-    def create_subnets(config, division_rule, max_subnet, generated_indexes):
+    def create_subnets(config, division_rule, generated_indexes):
         master_subnet = division_rule.master_subnet
+        # For host-route networks, keep the first subnet reserved
+        # (e.g. 10.0.0.0/32 for 10.0.0.0/24) so whitespace allocation skips it.
+        if division_rule.size == master_subnet.subnet.max_prefixlen:
+            reserved_subnet = str(
+                next(
+                    IPNetwork(str(master_subnet.subnet)).subnet(
+                        prefixlen=division_rule.size
+                    )
+                )
+            )
+        else:
+            reserved_subnet = None
+        BaseSubnetDivisionRuleType.get_max_subnet(master_subnet, division_rule)
         # IPAM forbids an address from being assigned more than once in a subnet
         # hierarchy, including the master subnet and its child subnets.
         allocated_ips = set(
@@ -227,29 +234,13 @@ class BaseSubnetDivisionRuleType(object):
                 subnet_id__in=master_subnet.get_related_subnet_pks()
             ).values_list("ip_address", flat=True)
         )
-        required_subnet = IPNetwork(str(max_subnet)).next()
         generated_subnets = []
-
-        while len(generated_subnets) < division_rule.number_of_subnets:
-            subnet_id = len(generated_subnets) + 1
-            if not ip_network(str(required_subnet)).subnet_of(master_subnet.subnet):
-                notify.send(
-                    sender=config,
-                    type="generic_message",
-                    target=config.device,
-                    action_object=master_subnet,
-                    level="error",
-                    message=_(
-                        "Failed to provision subnets for"
-                        " [{notification.target}]({notification.target_link})"
-                    ),
-                    description=_(
-                        "The [{notification.action_object}]({notification.action_link})"
-                        " subnet has run out of space."
-                    ),
-                )
-                logger.info(f"Cannot create more subnets of {master_subnet}")
+        for required_subnet in master_subnet.get_available_subnets(division_rule.size):
+            if len(generated_subnets) == division_rule.number_of_subnets:
                 break
+            if str(required_subnet) == reserved_subnet:
+                continue
+            subnet_id = len(generated_subnets) + 1
             # Avoid a child subnet when its provisioned addresses would conflict
             # with an existing assignment in the related hierarchy.
             if any(
@@ -258,7 +249,6 @@ class BaseSubnetDivisionRuleType(object):
                     required_subnet, division_rule.number_of_ips
                 )
             ):
-                required_subnet = required_subnet.next()
                 continue
             subnet_obj = Subnet(
                 name=f"{division_rule.label}_subnet{subnet_id}",
@@ -279,7 +269,23 @@ class BaseSubnetDivisionRuleType(object):
                     config=config,
                 )
             )
-            required_subnet = required_subnet.next()
+        if len(generated_subnets) < division_rule.number_of_subnets:
+            notify.send(
+                sender=config,
+                type="generic_message",
+                target=config.device,
+                action_object=master_subnet,
+                level="error",
+                message=_(
+                    "Failed to provision subnets for"
+                    " [{notification.target}]({notification.target_link})"
+                ),
+                description=_(
+                    "The [{notification.action_object}]({notification.action_link})"
+                    " subnet has run out of space."
+                ),
+            )
+            logger.info(f"Cannot create more subnets of {master_subnet}")
         Subnet.objects.bulk_create(generated_subnets)
         return generated_subnets
 

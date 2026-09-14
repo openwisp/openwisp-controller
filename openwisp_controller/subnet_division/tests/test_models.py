@@ -727,6 +727,21 @@ class TestSubnetDivisionRule(
             0,
         )
 
+    def test_subnet_whitespace_is_reused(self):
+        rule = self._get_vpn_subdivision_rule(number_of_subnets=1)
+        self.config.templates.add(self.template)
+        config2 = self._create_config(
+            device=self._create_device(name="device-2", mac_address="00:11:22:33:44:66")
+        )
+        config2.templates.add(self.template)
+        self.config.device.delete(check_deactivated=False)
+        config3 = self._create_config(
+            device=self._create_device(name="device-3", mac_address="00:11:22:33:44:77")
+        )
+        config3.templates.add(self.template)
+        subnet = config3.subnetdivisionindex_set.get(rule=rule, ip__isnull=True).subnet
+        self.assertEqual(str(subnet.subnet), "10.0.0.16/28")
+
     def test_reserved_subnet(self):
         # An IP is already provisioned
         ip = self.master_subnet.request_ip()
