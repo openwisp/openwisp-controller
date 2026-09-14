@@ -143,6 +143,13 @@ class BatchCommandExecutionForm(forms.ModelForm):
         self.fields["type"].choices = empty_choices + list(allowed_commands.items())
 
     def _scope_devices(self, device_ids):
+        """Keeps only the selected devices that exist and that the user can use.
+
+        Returns the ids which are left. It also notes which organizations
+        those devices belong to, and whether any selected device was dropped
+        because it was deleted or the user does not manage its organization,
+        so that clean() can reject the form in those cases.
+        """
         self._organization_ids = set()
         self._dropped_devices = False
         if not device_ids:
@@ -158,6 +165,14 @@ class BatchCommandExecutionForm(forms.ModelForm):
         return [str(row[0]) for row in rows]
 
     def _selected_organization_id(self):
+        """Returns the organization of the selected devices, or None.
+
+        When devices are picked from the device list, the organization field
+        is locked and filled in with their organization, so the user can see
+        where the command will run. This works only when all the devices
+        belong to one organization: if they belong to several, None is
+        returned and clean() rejects the form.
+        """
         if len(self._organization_ids) != 1:
             return None
         return str(next(iter(self._organization_ids)))
@@ -610,7 +625,9 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
             wizard = request.session.get(self.session_key)
             if request.GET.get("back") and wizard:
                 form = BatchCommandExecutionForm(
-                    initial=self._wizard_initial(wizard), request=request
+                    initial=self._wizard_initial(wizard),
+                    request=request,
+                    device_ids=wizard.get("device_ids"),
                 )
             else:
                 # the wizard is left in the session: another tab may be
@@ -1194,9 +1211,12 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
         """
         batch_admin = modeladmin.admin_site.get_model_admin(BatchCommand)
         batch_admin._check_add_permission(request)
-        organization_ids = set(queryset.values_list("organization_id", flat=True))
-        if len(organization_ids) > 1:
-            if request.user.is_superuser and queryset.count() == Device.objects.count():
+        organizations = queryset.order_by().values_list("organization_id", flat=True)
+        if organizations.distinct().count() > 1:
+            if (
+                request.user.is_superuser
+                and not Device.objects.exclude(pk__in=queryset.values("pk")).exists()
+            ):
                 return batch_admin._render_execute_page(
                     request,
                     BatchCommandExecutionForm(request=request, system_wide=True),

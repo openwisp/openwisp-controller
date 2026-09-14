@@ -863,6 +863,7 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
             name="device-org2", mac_address="00:11:22:33:44:09", organization=org2
         )
         self._login()
+
         with self.subTest("the selection prefills the form"):
             response = self._post_device_action(devices)
             self.assertEqual(response.status_code, 200)
@@ -875,6 +876,7 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
             self.assertEqual(form.fields["organization"].initial, str(org.pk))
             for field_name in ("organization", "group", "location"):
                 self.assertTrue(form.fields[field_name].disabled)
+
         with self.subTest("the selection is announced and the wider targets hidden"):
             self.assertContains(
                 response, "The command will run on the 2 devices you selected."
@@ -882,6 +884,7 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
             self.assertContains(response, 'name="devices"')
             self.assertNotContains(response, 'name="group"')
             self.assertNotContains(response, 'name="location"')
+
         with self.subTest("devices of different organizations are refused"):
             response = self._post_device_action([devices[0], device_org2])
             self.assertRedirects(response, self.device_changelist_url)
@@ -889,6 +892,7 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
                 "All devices must belong to the same organization",
                 " ".join(self._messages(response)),
             )
+
         with self.subTest("the selection travels to the review step"):
             response = self._post_execute(devices=self._pk_list(devices))
             self.assertEqual(response.status_code, 302)
@@ -900,23 +904,52 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
             self.assertEqual(response.context["device_count"], 2)
             self.assertEqual(response.context["targets_display"], "2 selected devices")
             self.assertEqual(set(response.context["cl"].queryset), set(devices))
+
         with self.subTest("only the selected devices are executed"):
             self._post_confirm(wizard["token"])
             batch = BatchCommand.objects.get()
             self.assertEqual(set(batch.devices.all()), set(devices))
-        with self.subTest("a single device is announced in the singular"):
+
+        with self.subTest("the texts use the singular when one device is selected"):
             response = self._post_device_action(devices[:1])
             self.assertContains(
                 response, "The command will run on the device you selected."
             )
+            self.assertNotContains(response, "devices you selected")
             self._start_wizard(devices=self._pk_list(devices[:1]))
             response = self.client.get(self.confirm_url)
             self.assertEqual(response.context["targets_display"], "1 selected device")
 
+        with self.subTest("the selection is kept when going back to edit"):
+            self._create_device(
+                name="device-not-selected",
+                mac_address="00:11:22:33:44:08",
+                organization=org,
+            )
+            selected = {str(device.pk) for device in devices}
+            self._start_wizard(devices=self._pk_list(devices))
+            self.client.get(self.confirm_url)
+            response = self.client.get(f"{self.execute_url}?back=1")
+            form = response.context["form"]
+            self.assertEqual(set(form.device_ids), selected)
+            for field_name in ("organization", "group", "location"):
+                self.assertTrue(form.fields[field_name].disabled)
+            self.assertContains(
+                response, "The command will run on the 2 devices you selected."
+            )
+            self._start_wizard(
+                devices=form.fields["devices"].initial or "", label="edited-label"
+            )
+            wizard = self.client.session[BatchCommandAdmin.session_key]
+            self.assertEqual(wizard["label"], "edited-label")
+            self.assertEqual(set(wizard["device_ids"]), selected)
+            response = self.client.get(self.confirm_url)
+            self.assertEqual(set(response.context["cl"].queryset), set(devices))
+
     def test_device_action_system_wide(self):
         org = self._get_org()
         org2 = self._create_org(name="org2", slug="org2")
-        devices = [
+        org1_devices = [
             self._create_device(
                 name=f"device{index}",
                 mac_address=f"00:11:22:33:44:0{index}",
@@ -928,10 +961,10 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
             name="device-org2", mac_address="00:11:22:33:44:09", organization=org2
         )
         self._login()
-        with self.subTest("selecting every device is system wide"):
-            response = self._post_device_action(
-                devices + [device_org2], select_across=True
-            )
+
+        with self.subTest("selecting every device runs the command on all of them"):
+            all_devices = org1_devices + [device_org2]
+            response = self._post_device_action(all_devices, select_across=True)
             self.assertEqual(response.status_code, 200)
             form = response.context["form"]
             self.assertEqual(form.device_ids, [])
@@ -943,6 +976,19 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
             self.assertNotContains(response, 'name="organization"')
             self.assertNotContains(response, 'name="group"')
             self.assertNotContains(response, 'name="location"')
+            wizard = self._start_wizard()
+            response = self.client.get(self.confirm_url)
+            self.assertEqual(response.context["targets_display"], "All devices")
+            self.assertEqual(set(response.context["cl"].queryset), set(all_devices))
+            response = self._post_confirm(wizard["token"])
+            self.assertIn(
+                "Mass command executed successfully.", self._messages(response)
+            )
+            batch = BatchCommand.objects.get()
+            self.assertIsNone(batch.organization_id)
+            self.assertEqual(set(batch.devices.all()), set(all_devices))
+        BatchCommand.objects.all().delete()
+
         with self.subTest("the excluded devices are left out of the batch"):
             wizard = self._start_wizard()
             self.client.get(self.confirm_url)
@@ -955,7 +1001,8 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
             self.assertIsNone(batch.organization_id)
             self.assertIsNone(batch.group_id)
             self.assertIsNone(batch.location_id)
-            self.assertEqual(set(batch.devices.all()), set(devices))
+            self.assertEqual(set(batch.devices.all()), set(org1_devices))
+
         with self.subTest("a partial multi organization selection is refused"):
             self._create_device(
                 name="excluded-by-the-search",
@@ -963,7 +1010,7 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
                 organization=org2,
             )
             response = self._post_device_action(
-                devices + [device_org2],
+                org1_devices + [device_org2],
                 select_across=True,
                 query={"q": "device"},
             )
@@ -983,6 +1030,7 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
         device_admin = admin.site.get_model_admin(Device)
         request = RequestFactory().get(self.device_changelist_url)
         action_name = "execute_mass_command_admin_action"
+
         with self.subTest("the device change permission is required"):
             viewer = self._create_operator(
                 organizations=[org], username="viewer", email="viewer@test.com"
@@ -993,10 +1041,12 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
             )
             request.user = viewer
             self.assertNotIn(action_name, device_admin.get_actions(request))
+
         with self.subTest("the operator group can use the action"):
             operator = self._create_operator(organizations=[org])
             request.user = operator
             self.assertIn(action_name, device_admin.get_actions(request))
+
         with self.subTest("the batch command add permission is enforced"):
             viewer.user_permissions.set(
                 Permission.objects.filter(
@@ -1005,6 +1055,7 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
             )
             self.client.force_login(viewer)
             self.assertEqual(self._post_device_action([device]).status_code, 403)
+
         with self.subTest("devices of unmanaged organizations are dropped"):
             self.client.force_login(operator)
             response = self._post_execute(devices=self._pk_list([device, device2]))
@@ -1014,10 +1065,12 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
                 "Some of the selected devices are no longer available.",
                 form.errors["__all__"],
             )
+
         with self.subTest("devices which disappeared are dropped"):
             self._login()
             response = self._post_execute(devices=f"{device.pk},{uuid4()}")
             self.assertEqual(response.context["form"].device_ids, [str(device.pk)])
+
         with self.subTest("mixed organizations are refused by the form"):
             response = self._post_execute(devices=self._pk_list([device, device2]))
             form = response.context["form"]
@@ -1026,6 +1079,7 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
                 "All devices must belong to the same organization",
                 " ".join(form.errors["__all__"]),
             )
+
         with self.subTest("selecting every device is not system wide for operators"):
             multi_operator = self._create_operator(
                 organizations=[org, org2], username="multi", email="multi@test.com"
@@ -1037,6 +1091,7 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
                 "All devices must belong to the same organization",
                 " ".join(self._messages(response)),
             )
+
         with self.subTest("an operator executes the devices it manages"):
             self.client.force_login(operator)
             wizard = self._start_wizard(devices=self._pk_list([device]))
