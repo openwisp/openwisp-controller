@@ -12,6 +12,7 @@ on:
       - "1.2"
       - "gsoc26-x509-certificate-generator-templates"
       - "gsoc26-mass-commands"
+      - "feature/1345-mass-command-admin-workflow"
 
 jobs:
   build:
