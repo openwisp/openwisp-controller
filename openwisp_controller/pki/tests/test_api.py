@@ -1,3 +1,5 @@
+from cryptography import x509
+from cryptography.hazmat.backends import default_backend
 from django.test import TestCase, TransactionTestCase
 from django.urls import reverse
 from packaging.version import parse as parse_version
@@ -364,7 +366,7 @@ class TestTransactionPkiApi(
         cert1 = self._create_cert(name="cert1")
         old_serial_num = cert1.serial_number
         path = reverse("pki_api:cert_renew", args=[cert1.pk])
-        with self.assertNumQueries(6):
+        with self.assertNumQueries(10):
             r = self.client.post(path)
         self.assertEqual(r.status_code, 200)
         cert1.refresh_from_db()
@@ -375,9 +377,34 @@ class TestTransactionPkiApi(
         cert1 = self._create_cert(name="cert1")
         self.assertFalse(cert1.revoked)
         path = reverse("pki_api:cert_revoke", args=[cert1.pk])
-        with self.assertNumQueries(4):
+        with self.assertNumQueries(7):
             r = self.client.post(path)
         cert1.refresh_from_db()
         self.assertEqual(r.status_code, 200)
         self.assertTrue(cert1.revoked)
         self.assertTrue(r.data["revoked"])
+
+    def test_post_revoked_cert_renew_api(self):
+        cert1 = self._create_cert(name="cert1")
+        old_serial_num = cert1.serial_number
+
+        revoke_path = reverse("pki_api:cert_revoke", args=[cert1.pk])
+        r = self.client.post(revoke_path)
+        self.assertEqual(r.status_code, 200)
+
+        crl = x509.load_pem_x509_crl(cert1.ca.crl, default_backend())
+        revoked_serials = [cert.serial_number for cert in crl]
+        self.assertIn(int(old_serial_num), revoked_serials)
+
+        renew_path = reverse("pki_api:cert_renew", args=[cert1.pk])
+        r = self.client.post(renew_path)
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(str(r.data[0]), "Cannot renew a revoked certificate.")
+
+        cert1.refresh_from_db()
+        self.assertEqual(int(cert1.serial_number), int(old_serial_num))
+        self.assertTrue(cert1.revoked)
+
+        crl = x509.load_pem_x509_crl(cert1.ca.crl, default_backend())
+        revoked_serials = [cert.serial_number for cert in crl]
+        self.assertIn(int(old_serial_num), revoked_serials)
