@@ -1,6 +1,8 @@
 import os
 
+from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
 from django.contrib.messages import get_messages
+from django.utils.http import urlencode
 from mockssh import Server
 from swapper import load_model
 
@@ -155,6 +157,28 @@ class CreateCommandMixin(CreateConnectionsMixin):
 
 
 class BatchCommandMixin(TestAdminMixin, CreateConnectionsMixin):
+    @staticmethod
+    def _pk_list(devices):
+        return ",".join(str(device.pk) for device in devices)
+
+    def _post_device_action(
+        self,
+        devices,
+        action="execute_mass_command_admin_action",
+        select_across=False,
+        query=None,
+    ):
+        data = {
+            "action": action,
+            ACTION_CHECKBOX_NAME: [str(device.pk) for device in devices],
+        }
+        if select_across:
+            data["select_across"] = "1"
+        url = self.device_changelist_url
+        if query:
+            url = f"{url}?{urlencode(query)}"
+        return self.client.post(url, data)
+
     def _post_execute(self, **overrides):
         data = {
             "type": "custom",
