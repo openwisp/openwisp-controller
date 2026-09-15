@@ -38,6 +38,7 @@ from ..signals import (
 from ..x509_admin import (
     DeviceCertificateDeviceFilter,
     get_device_certificate_changelist_url,
+    get_device_certificate_details,
 )
 from .utils import (
     CreateConfigTemplateMixin,
@@ -1890,6 +1891,46 @@ class TestAdmin(
             'aria-label="The template which generated the X.509 certificate"',
         )
         self.assertContains(response, "icon-no.svg")
+
+    def test_device_certificate_details_pending_generation(self):
+        """A template whose certificate has not been generated yet is shown."""
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        template = self._create_template(
+            name="pending-cert-template",
+            organization=org,
+            type="cert",
+            ca=ca,
+            auto_cert=True,
+        )
+        device = self._create_device(organization=org, name="pending-cert-device")
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        DeviceCertificate.objects.filter(config=config).update(cert=None)
+        details = get_device_certificate_details(config)
+        self.assertIn(template.name, details)
+
+    def test_device_certificate_details_truncates_to_fifty(self):
+        """At most fifty rows are rendered, with a link to the changelist."""
+        config = self._create_config(device=self._create_device())
+        templates = Template.objects.bulk_create(
+            [
+                Template(
+                    name=f"pending-template-{index}",
+                    backend="netjsonconfig.OpenWrt",
+                    type="cert",
+                )
+                for index in range(51)
+            ]
+        )
+        DeviceCertificate.objects.bulk_create(
+            [
+                DeviceCertificate(config=config, template=template, cert=None)
+                for template in templates
+            ]
+        )
+        details = get_device_certificate_details(config)
+        self.assertEqual(details.count("pending-template-"), 50)
 
     def test_device_certificate_changelist_url(self):
         device = self._create_device()

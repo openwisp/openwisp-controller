@@ -4,6 +4,7 @@ from hashlib import md5
 from unittest import mock
 
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from django.db import transaction
 from django.test import TestCase, TransactionTestCase
 from swapper import load_model
 
@@ -875,6 +876,27 @@ class TestDeviceCertificateSignalTrigger(
         with self.captureOnCommitCallbacks(execute=True):
             device.save(False, False, None, ["name"])
         mocked_task.assert_called_once()
+
+    @mock.patch(
+        "openwisp_controller.config.tasks.regenerate_device_certificates_task.delay"
+    )
+    def test_rollback_discards_queued_regeneration(self, mocked_task):
+        """The regeneration task is queued only if the save is committed."""
+        org = self._create_org()
+        device = self._create_device(organization=org, name="old-router-name")
+        ca = self._create_ca(name="test-ca", organization=org)
+        template = self._create_template(
+            organization=org, type="cert", ca=ca, auto_cert=True
+        )
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        device.name = "new-router-name"
+        with self.captureOnCommitCallbacks(execute=True):
+            with self.assertRaises(RuntimeError):
+                with transaction.atomic():
+                    device.save()
+                    raise RuntimeError("rollback")
+        mocked_task.assert_not_called()
 
 
 class TestDeviceCertificateRegenerationTask(

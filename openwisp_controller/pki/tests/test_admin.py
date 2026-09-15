@@ -18,6 +18,7 @@ Ca = load_model("django_x509", "Ca")
 Cert = load_model("django_x509", "Cert")
 DeviceCertificate = load_model("config", "DeviceCertificate")
 Template = load_model("config", "Template")
+Vpn = load_model("config", "Vpn")
 
 
 class TestAdmin(
@@ -285,6 +286,61 @@ class TestAdmin(
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, data["ca1"].name)
         self.assertNotContains(response, data["ca_shared"].name)
+
+    def test_ca_shared_relation_autocomplete_guards(self):
+        data = self._create_multitenancy_test_env()
+        ca_admin = admin.site._registry[Ca]
+        autocomplete_match = resolve(reverse("admin:autocomplete"))
+        template_label = Template._meta.app_label
+        template_name = Template._meta.model_name
+        vpn_label = Vpn._meta.app_label
+        vpn_name = Vpn._meta.model_name
+
+        def make_request(params):
+            request = RequestFactory().get(reverse("admin:autocomplete"), params)
+            request.resolver_match = autocomplete_match
+            request.user = data["administrator"]
+            return request
+
+        with self.subTest("non autocomplete view"):
+            request = make_request({})
+            request.resolver_match = resolve(reverse("admin:index"))
+            self.assertFalse(ca_admin._source_allows_shared_relation(request))
+        with self.subTest("missing lookup parameters"):
+            request = make_request({})
+            self.assertFalse(ca_admin._source_allows_shared_relation(request))
+        with self.subTest("unknown source model"):
+            request = make_request(
+                {
+                    "app_label": "unknown",
+                    "model_name": template_name,
+                    "field_name": "ca",
+                }
+            )
+            self.assertFalse(ca_admin._source_allows_shared_relation(request))
+        with self.subTest("field does not point to the ca model"):
+            request = make_request(
+                {
+                    "app_label": template_label,
+                    "model_name": template_name,
+                    "field_name": "name",
+                }
+            )
+            self.assertFalse(ca_admin._source_allows_shared_relation(request))
+        with self.subTest("field is not an autocomplete field"):
+            request = make_request(
+                {"app_label": vpn_label, "model_name": vpn_name, "field_name": "ca"}
+            )
+            self.assertFalse(ca_admin._source_allows_shared_relation(request))
+        with self.subTest("shared relation is exposed"):
+            request = make_request(
+                {
+                    "app_label": template_label,
+                    "model_name": template_name,
+                    "field_name": "ca",
+                }
+            )
+            self.assertTrue(ca_admin._source_allows_shared_relation(request))
 
     def test_changelist_recover_deleted_button(self):
         self._create_multitenancy_test_env()

@@ -11,6 +11,7 @@ from django.db import (
     OperationalError,
     close_old_connections,
     connection,
+    models,
     transaction,
 )
 from django.db.models.deletion import RestrictedError
@@ -25,6 +26,7 @@ from openwisp_utils.tests import AssertNumQueriesSubTestMixin, catch_signal
 from .. import settings as app_settings
 from ..base.template import _get_value_for_comparison, get_unassigned_certs
 from ..signals import config_modified, config_status_changed
+from ..sortedm2m.fields import SORTED_M2M_SET_ATTR
 from ..tasks import auto_add_template_to_existing_configs
 from ..tasks import logger as task_logger
 from ..tasks import update_template_related_config_status
@@ -774,6 +776,13 @@ class TestTemplateTransaction(
             with self.assertRaisesMessage(OperationalError, "database is locked"):
                 config.templates.set([required_template])
         self.assertTrue(config.templates.filter(pk=optional_template.pk).exists())
+
+    def test_sorted_m2m_set_restores_previous_flag(self):
+        """A nested set() must restore the outer flag instead of deleting it."""
+        config = self._create_config(device=self._create_device())
+        setattr(config, SORTED_M2M_SET_ATTR, False)
+        config.templates.set([])
+        self.assertFalse(getattr(config, SORTED_M2M_SET_ATTR))
 
     def test_cert_template_save_refreshes_stale_protected_snapshot(self):
         org = self._get_org()
@@ -2213,3 +2222,120 @@ class TestTemplateCertificates(
         cert = Cert.objects.get(pk=cert_pk)
         cert.delete()
         self.assertFalse(Cert.objects.filter(pk=cert_pk).exists())
+
+    def test_expand_update_field_attnames_ignores_unknown_field(self):
+        template = Template()
+        self.assertEqual(
+            template._expand_update_field_attnames({"name", "not_a_field"}),
+            {"name", "not_a_field"},
+        )
+
+    def test_get_update_fields_reads_positional_argument(self):
+        template = Template()
+        self.assertEqual(
+            template._get_update_fields((False, False, None, {"name"}), {}),
+            {"name"},
+        )
+
+    def test_save_update_fields_keeps_auto_cert(self):
+        """Saving a cert template always persists the forced auto_cert value."""
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        template = self._create_template(
+            type="cert", ca=ca, organization=org, config={}
+        )
+        with self.subTest("keyword update_fields"):
+            template.auto_cert = False
+            template.save(update_fields=["name"])
+            self.assertTrue(template.auto_cert)
+            template.refresh_from_db()
+            self.assertTrue(template.auto_cert)
+        with self.subTest("positional update_fields"):
+            template.auto_cert = False
+            template.save(False, False, None, {"name"})
+            self.assertTrue(template.auto_cert)
+            template.refresh_from_db()
+            self.assertTrue(template.auto_cert)
+
+    def test_refresh_from_db_accepts_positional_fields(self):
+        org = self._get_org()
+        ca1 = self._create_ca(organization=org)
+        ca2 = self._create_ca(organization=org, name="ca2", common_name="ca2")
+        template = self._create_template(
+            type="cert", ca=ca1, organization=org, config={}
+        )
+        template.ca = ca2
+        # only the name is reloaded, so the protected field snapshot is kept
+        template.refresh_from_db(None, ["name"])
+        self.assertIn("ca", template._get_cert_template_protected_changes())
+
+    def test_get_initial_value_or_fallback(self):
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        template = self._create_template(
+            type="cert", ca=ca, organization=org, config={}
+        )
+        with self.subTest("deferred value loaded from database"):
+            deferred = Template.objects.only("id", "type").get(pk=template.pk)
+            self.assertEqual(deferred._initial_ca_id, models.DEFERRED)
+            self.assertEqual(deferred._get_initial_value_or_fallback("ca_id"), ca.pk)
+            self.assertEqual(deferred._initial_ca_id, ca.pk)
+        with self.subTest("deferred value without primary key returns None"):
+            unsaved = Template(type="cert")
+            unsaved.pk = None
+            unsaved._initial_ca_id = models.DEFERRED
+            self.assertIsNone(unsaved._get_initial_value_or_fallback("ca_id"))
+        with self.subTest("deferred value with deleted row returns None"):
+            deleted = Template.objects.only("id", "type").get(pk=template.pk)
+            template.delete()
+            self.assertIsNone(deleted._get_initial_value_or_fallback("ca_id"))
+
+    def test_validate_cert_template_changes_with_deleted_row(self):
+        """A protected change on a concurrently deleted row must not error."""
+        org = self._get_org()
+        ca1 = self._create_ca(organization=org)
+        ca2 = self._create_ca(organization=org, name="ca2", common_name="ca2")
+        template = self._create_template(
+            type="cert", ca=ca1, organization=org, config={}
+        )
+        pk = template.pk
+        template.delete()
+        stale = Template(pk=pk, type="cert", ca=ca1, organization=org)
+        stale._state.adding = False
+        stale.ca = ca2
+        stale.clean()
+
+    def test_blueprint_cert_must_not_be_revoked(self):
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        blueprint = self._create_cert(ca=ca, organization=org)
+        blueprint.revoked = True
+        blueprint.save()
+        with self.assertRaises(ValidationError) as ctx:
+            self._create_template(
+                type="cert",
+                ca=ca,
+                blueprint_cert=blueprint,
+                organization=org,
+                config={},
+            )
+        self.assertIn("blueprint_cert", ctx.exception.error_dict)
+
+    def test_clean_certificate_templates_only_validates_pre_add(self):
+        """Certificate generation is validated only before templates are added."""
+        config = self._create_config(device=self._create_device())
+        template = self._create_template()
+        Config.clean_certificate_templates(
+            "post_add", config, Template.objects.filter(pk=template.pk)
+        )
+
+    def test_manage_device_certs_accepts_queryset_pk_set(self):
+        """Admin ModelForm passes a queryset instead of a set of pks."""
+        config = self._create_config(device=self._create_device())
+        template = self._create_template()
+        Config.manage_device_certs(
+            sender=Config.templates.through,
+            instance=config,
+            action="post_add",
+            pk_set=Template.objects.filter(pk=template.pk),
+        )
