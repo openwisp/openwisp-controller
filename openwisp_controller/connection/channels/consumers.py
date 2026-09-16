@@ -43,7 +43,19 @@ class BatchCommandConsumer(BaseDeviceConsumer):
         if not self._has_access():
             self.close()
             return
-        self.send(json.dumps(event["data"]))
+        data = dict(event["data"])
+        # the device of a command can be moved to another organization after
+        # the command was created, so a row is forwarded only to the users
+        # which are allowed to see its device
+        organization_id = data.pop("device_organization", None)
+        user = self.scope["user"]
+        if (
+            organization_id
+            and not user.is_superuser
+            and not user.is_manager(organization_id)
+        ):
+            return
+        self.send(json.dumps(data))
 
     def is_user_authorized(self):
         user = self.scope["user"]
@@ -106,7 +118,10 @@ class BatchCommandConsumer(BaseDeviceConsumer):
         batch_status["skipped_count"] = batch.skipped_count
         batch_status["skipped_preview"] = batch.get_skipped_preview()
         commands_qs = batch.filter_commands(
-            batch.batch_commands.select_related("device"), filters
+            BatchCommand.scope_commands(
+                batch.batch_commands.select_related("device"), self.scope["user"]
+            ),
+            filters,
         )
         commands_count = commands_qs.count()
         skipped_items = []

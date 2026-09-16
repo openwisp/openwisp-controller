@@ -4,9 +4,11 @@ from uuid import uuid4
 
 from django.contrib import admin
 from django.contrib.auth.models import Permission
+from django.contrib.messages.storage.fallback import FallbackStorage
+from django.contrib.sessions.backends.cache import SessionStore
 from django.core.exceptions import ValidationError
 from django.db import connection as db_connection
-from django.test import TestCase, override_settings
+from django.test import RequestFactory, TestCase, override_settings
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from swapper import load_model
@@ -797,6 +799,34 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
             response,
             reverse(f"admin:{self.app_label}_batchcommand_change", args=(batch.pk,)),
         )
+
+    def test_wizard_overlapping_execute_requests(self):
+        org = self._get_org()
+        self._create_device(organization=org)
+        self._login()
+        wizard = self._start_wizard(organization=str(org.pk))
+        self.client.get(self.confirm_url)
+        model_admin = BatchCommandAdmin(BatchCommand, admin.site)
+        session_key = self.client.session.session_key
+
+        def build_request():
+            request = RequestFactory().post(
+                self.confirm_url, {"token": wizard["token"], "excluded": ""}
+            )
+            request.user = self._get_admin()
+            request.session = SessionStore(session_key=session_key)
+            # reading the wizard caches the session in the request, which is
+            # what makes both requests see it before either of them responds
+            assert request.session.get(BatchCommandAdmin.session_key)
+            setattr(request, "_messages", FallbackStorage(request))
+            return request
+
+        first, second = build_request(), build_request()
+        model_admin._execute_batch_command(first)
+        first.session.save()
+        model_admin._execute_batch_command(second)
+        second.session.save()
+        self.assertEqual(BatchCommand.objects.count(), 1)
 
     def test_wizard_device_selection(self):
         org = self._get_org()

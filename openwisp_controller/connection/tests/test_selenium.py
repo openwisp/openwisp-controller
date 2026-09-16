@@ -1187,7 +1187,7 @@ class TestBatchCommandAdmin(
 
         with self.subTest("the wizard is reachable from the menu and runs"):
             self.open(reverse("admin:index"))
-            open_menu_item("Network Operations", "Mass command execute")
+            open_menu_item("Network Operations", "Run Mass command")
             self._wait_for_url(self.execute_url)
 
             self._fill_wizard(
@@ -1220,7 +1220,7 @@ class TestBatchCommandAdmin(
 
         with self.subTest("the changelist is reachable and searchable"):
             self.open(reverse("admin:index"))
-            open_menu_item("Network Operations", "Mass command admin")
+            open_menu_item("Network Operations", "Mass commands")
             self._wait_for_url(self.changelist_url)
             self.assertEqual(
                 self._changelist_labels(),

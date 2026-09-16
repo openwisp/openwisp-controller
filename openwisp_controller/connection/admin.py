@@ -8,6 +8,7 @@ import reversion
 import swapper
 from django import forms
 from django.contrib import admin, messages
+from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.db.models import Count
@@ -422,6 +423,7 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
         "admin/connection/batch_command/batch_command_change_form.html"
     )
     session_key = "batch_command_wizard"
+    wizard_claim_timeout = 60
     list_display = [
         "label",
         "organization_display",
@@ -667,6 +669,23 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
             )
         return devices.distinct()
 
+    def _claim_wizard(self, wizard):
+        """Claims a wizard for execution, returning False when it was claimed.
+
+        Two overlapping requests read the wizard from the session before
+        either of them saves its removal, so deleting it from the session
+        does not stop the second one: adding a key to the cache does, because
+        only one request can add it.
+        """
+        return cache.add(
+            f"{self.session_key}-claim:{wizard['token']}",
+            True,
+            timeout=self.wizard_claim_timeout,
+        )
+
+    def _release_wizard(self, wizard):
+        cache.delete(f"{self.session_key}-claim:{wizard['token']}")
+
     def _devices_digest(self, device_ids):
         """Identifies the set of devices a confirm page was rendered with,
         so that only the reviewed set is executed.
@@ -744,10 +763,13 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
                     " in the details again."
                 ),
             )
+        if not self._claim_wizard(wizard):
+            return self._restart(request)
         del request.session[self.session_key]
         devices = self._resolve_target_queryset(request, wizard)
         device_ids = list(devices.values_list("pk", flat=True))
         if self._devices_digest(device_ids) != wizard.get("devices_digest"):
+            self._release_wizard(wizard)
             request.session[self.session_key] = wizard
             self.message_user(
                 request,
@@ -783,6 +805,7 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
         try:
             batch = BatchCommand.execute(**kwargs)
         except ObjectDoesNotExist as error:
+            self._release_wizard(wizard)
             logger.warning(
                 "Failed to execute mass command wizard"
                 " (organization_id=%s, group_id=%s, location_id=%s): %s",
@@ -794,6 +817,7 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
             return self._restart(request)
         except ValidationError as error:
             # put the wizard back so the user can correct the selection
+            self._release_wizard(wizard)
             request.session[self.session_key] = wizard
             self.message_user(request, error.messages[0], messages.ERROR)
             return redirect(
@@ -842,11 +866,7 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
 
     def _get_commands(self, request, obj):
         qs = Command.objects.filter(batch_command=obj).select_related("device")
-        if not request.user.is_superuser:
-            qs = qs.filter(
-                device__organization_id__in=request.user.organizations_managed
-            )
-        return qs
+        return BatchCommand.scope_commands(qs, request.user)
 
     def organization_display(self, obj):
         if obj.organization:

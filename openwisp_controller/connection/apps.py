@@ -171,19 +171,19 @@ class ConnectionConfig(AppConfig):
             position=35,
             config={
                 "label": _("Network Operations"),
-                "icon": "ow-build",
+                "icon": "ow-network-operations",
                 "items": {
                     1: {
-                        "label": _("Mass command admin"),
-                        "model": get_model_name("connection", "BatchCommand"),
-                        "name": "changelist",
-                        "icon": "ow-mass-upgrade",
-                    },
-                    2: {
-                        "label": _("Mass command execute"),
+                        "label": _("Run Mass command"),
                         "model": get_model_name("connection", "BatchCommand"),
                         "name": "execute",
-                        "icon": "ow-mass-upgrade",
+                        "icon": "ow-run-mass-command",
+                    },
+                    2: {
+                        "label": _("Mass commands"),
+                        "model": get_model_name("connection", "BatchCommand"),
+                        "name": "changelist",
+                        "icon": "ow-mass-commands",
                     },
                 },
             },

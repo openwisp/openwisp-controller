@@ -910,6 +910,18 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
             device_ids = {str(pk) for pk in devices.values_list("pk", flat=True)}
         return self.get_skipped_items(query=filters["q"], device_ids=device_ids)
 
+    @staticmethod
+    def scope_commands(queryset, user):
+        """Limits the commands to the devices the user is allowed to see.
+
+        A device can be moved to another organization after its command was
+        created, so belonging to the mass command is not enough: the rows of
+        such a device are hidden from everyone but a superuser.
+        """
+        if user.is_superuser:
+            return queryset
+        return queryset.filter(device__organization_id__in=user.organizations_managed)
+
     def filter_commands(self, queryset, filters):
         status = filters["status"]
         if status == "skipped":

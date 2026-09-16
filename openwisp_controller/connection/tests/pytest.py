@@ -20,6 +20,7 @@ from .test_models import BaseTestModels
 
 User = get_user_model()
 Command = load_model("connection", "Command")
+Device = load_model("config", "Device")
 BatchCommand = load_model("connection", "BatchCommand")
 OrganizationUser = load_model("openwisp_users", "OrganizationUser")
 
@@ -387,6 +388,61 @@ class TestBatchCommandConsumer(BaseTestModels, CreateCommandMixin):
             assert await communicator.receive_nothing() is True
             assert logger.warning.call_count == 7
         await communicator.disconnect()
+
+    @mock.patch("paramiko.SSHClient.connect")
+    async def test_batch_command_consumer_device_transferred_to_another_org(
+        self, mocked_connect, admin_user
+    ):
+        org = await database_sync_to_async(self._get_org)()
+        org2 = await database_sync_to_async(self._create_org)(name="org2", slug="org2")
+        device_conn = await database_sync_to_async(self._create_device_connection)()
+        batch = await self._create_batch(organization=org)
+        with mock.patch.object(Command, "_schedule_command"):
+            command = await database_sync_to_async(Command.objects.create)(
+                batch_command=batch,
+                device=device_conn.device,
+                connection=device_conn,
+                type="custom",
+                input={"command": "echo test"},
+                status="success",
+                output="secret output",
+            )
+        # the device is moved to another organization after its command
+        await database_sync_to_async(
+            Device.objects.filter(pk=device_conn.device_id).update
+        )(organization=org2, name="moved-to-org2")
+        manager = await self._create_staff(
+            "transfer-manager", org=org, codenames=["view_batchcommand"]
+        )
+
+        manager_socket, connected = await self._connect(batch.pk, manager)
+        assert connected is True
+        await manager_socket.send_json_to({"type": "request_current_state", "page": 1})
+        state = await manager_socket.receive_json_from()
+        assert state["commands"] == []
+        assert state["total_rows"] == 0
+
+        admin_socket, connected = await self._connect(batch.pk, admin_user)
+        assert connected is True
+        await admin_socket.send_json_to({"type": "request_current_state", "page": 1})
+        state = await admin_socket.receive_json_from()
+        assert [row["device"] for row in state["commands"]] == [str(command.device_id)]
+        assert state["total_rows"] == 1
+
+        # the task reloads the command, so its device is read after the transfer
+        command = await database_sync_to_async(Command.objects.get)(pk=command.pk)
+        command.status = "failed"
+        await database_sync_to_async(command.save)()
+        update = await admin_socket.receive_json_from()
+        assert update["type"] == "command_update"
+        assert update["status"] == "failed"
+        assert "device_organization" not in update
+        received = []
+        while not await manager_socket.receive_nothing():
+            received.append(await manager_socket.receive_json_from())
+        assert [row for row in received if row.get("type") == "command_update"] == []
+        await manager_socket.disconnect()
+        await admin_socket.disconnect()
 
     @mock.patch("paramiko.SSHClient.connect")
     async def test_batch_command_consumer_updates(self, mocked_connect, admin_user):

@@ -197,8 +197,8 @@ organization.
 Sending a Mass Command
 ~~~~~~~~~~~~~~~~~~~~~~
 
-Open *Network Operations* > *Mass command execute* from the menu. The
-first step asks for:
+Open *Network Operations* > *Run Mass command* from the menu. The first
+step asks for:
 
 - the **command type** and its inputs, which change with the type
   selected;
@@ -250,8 +250,8 @@ superusers).
 Finding Past Mass Commands
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-*Network Operations* > *Mass command admin* lists the mass commands which
-were sent, most recent first.
+*Network Operations* > *Mass commands* lists the mass commands which were
+sent, most recent first.
 
 The list can be searched by label, notes, organization, device, location
 and group name, and filtered by organization, status, type, group and

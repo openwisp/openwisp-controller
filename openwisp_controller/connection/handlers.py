@@ -45,6 +45,7 @@ def command_save_handler(sender, created, instance, **kwargs):
         batch_data = dict(serialized_data)
         batch_data.pop("input", None)
         batch_data["device_name"] = instance.device.name
+        batch_data["device_organization"] = str(instance.device.organization_id)
         batch_data["output"] = instance.output_preview
         batch_data["modified_display"] = format_localized_datetime(instance.modified)
         batch_data["type"] = "command_update"
