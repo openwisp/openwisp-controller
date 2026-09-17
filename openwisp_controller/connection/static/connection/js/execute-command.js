@@ -98,7 +98,12 @@ function initCommandInput($, $typeSelect) {
 
 function initOrganizationScope($) {
   const $organization = $("#id_organization");
-  const fields = ["#id_group", "#id_location"];
+  const fields = ["#id_group", "#id_location"].filter(function (selector) {
+    return $(selector).length;
+  });
+  if (!fields.length) {
+    return;
+  }
   fields.forEach(function (selector) {
     $(selector).data("allOptions", $(selector).find("option").clone());
   });
