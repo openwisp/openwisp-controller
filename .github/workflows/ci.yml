@@ -68,8 +68,6 @@ jobs:
           pip install -U -r requirements-test.txt
           pip install -U -e .
           pip install ${{ matrix.django-version }}
-          # TODO: remove once https://github.com/openwisp/openwisp-utils/pull/767
-          # is merged, the icons of the mass command menu entries are defined there
           pip install --no-deps -U \
             https://github.com/openwisp/openwisp-utils/archive/refs/heads/feature/mass-command-icons.tar.gz
 
