@@ -25,6 +25,9 @@ li.commands:not(.recent) {
   line-height: 1.5em;
   white-space: pre;
 }
+#command_set-2-group .form-row.field-batch_command:not(:has(a)) {
+  display: none;
+}
 .object-updated {
   transition: background-color 3s ease;
 }
