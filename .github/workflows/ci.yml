@@ -12,8 +12,6 @@ on:
       - "1.1"
       - "1.2"
       - "gsoc26-*"
-      # Todo: Remove this after the PR is merged
-      - "feature/1345-mass-command-admin-workflow"
 
 jobs:
   build:
