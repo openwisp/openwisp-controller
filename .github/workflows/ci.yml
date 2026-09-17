@@ -68,8 +68,6 @@ jobs:
           pip install -U -r requirements-test.txt
           pip install -U -e .
           pip install ${{ matrix.django-version }}
-          pip install --no-deps -U \
-            https://github.com/openwisp/openwisp-utils/archive/refs/heads/feature/mass-command-icons.tar.gz
 
       - name: Start redis
         if: ${{ !cancelled() && steps.deps.conclusion == 'success' }}
