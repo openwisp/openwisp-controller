@@ -43,6 +43,7 @@ class TestCommandInlines(BaseTestCommandInlines):
 
 class TestBatchCommandAdmin(BaseTestBatchCommandAdmin):
     app_label = "sample_connection"
+    config_app_label = "sample_config"
 
 
 class TestModels(BaseTestModels):
