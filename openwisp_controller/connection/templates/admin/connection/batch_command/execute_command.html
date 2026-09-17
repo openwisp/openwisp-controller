@@ -32,8 +32,17 @@ then redirects to the confirm page
 
 {% block content %}
 <div id="content-main">
-  <form method="post" novalidate class="execute-form">
+  {% comment %}
+  this page can be opened in two ways: from the menu, or from the "Execute mass
+  command" action of the device list. The action shows this page without a
+  redirect, so the URL in the browser stays on the device list. A form without
+  an "action" attribute posts to the URL in the browser, which would send the
+  data to the device list. Setting "action" makes the form always post to the
+  execute page.
+  {% endcomment %}
+  <form method="post" novalidate class="execute-form" action="{% url opts|admin_urlname:'execute' %}">
     {% csrf_token %}
+    {{ form.devices }}
     <nav class="stepper" aria-label="{% trans 'Execution progress' %}">
       <div class="stepper-step active" aria-current="step">
         <span class="stepper-badge">1</span>
