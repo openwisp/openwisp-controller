@@ -5,6 +5,7 @@ from ..config.widgets import JsonSchemaWidget as BaseJsonSchemaWidget
 
 Credentials = swapper.load_model("connection", "Credentials")
 Command = swapper.load_model("connection", "Command")
+BatchCommand = swapper.load_model("connection", "BatchCommand")
 app_label = Credentials._meta.app_label
 model_name = Credentials._meta.model_name
 
@@ -46,3 +47,37 @@ class CommandSchemaWidget(BaseJsonSchemaWidget):
         css = {"all": ["connection/css/command-inline.css"]}
         media = forms.Media(js=js, css=css)
         return super().media + media
+
+
+class BatchCommandSchemaWidget(CommandSchemaWidget):
+    schema_view_name = (
+        f"admin:{BatchCommand._meta.app_label}"
+        f"_{BatchCommand._meta.model_name}_schema"
+    )
+    app_label_model = f"{BatchCommand._meta.app_label}_{BatchCommand._meta.model_name}"
+    extra_attrs = {
+        "data-schema-selector": "#id_type",
+        "data-show-errors": "never",
+        "data-options": '{"disable_properties": true}',
+    }
+
+    @property
+    def media(self):
+        return super(CommandSchemaWidget, self).media
+
+
+class OrganizationScopedSelect(forms.Select):
+    """Select which marks each option with the organization it belongs to.
+
+    Used for the device group and location of the mass command wizard: every
+    option gets a "data-organization-id" attribute, so that when an
+    organization is chosen the page can hide the groups and locations of the
+    other organizations without asking the server again.
+    """
+
+    def create_option(self, name, value, *args, **kwargs):
+        option = super().create_option(name, value, *args, **kwargs)
+        instance = getattr(value, "instance", None)
+        if instance is not None:
+            option["attrs"]["data-organization-id"] = str(instance.organization_id)
+        return option

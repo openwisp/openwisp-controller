@@ -2,7 +2,6 @@
 
 import uuid
 
-import django
 import django.core.serializers.json
 import django.db.migrations.operations.special
 import django.db.models.deletion
@@ -72,11 +71,7 @@ class Migration(migrations.Migration):
                 (
                     "type",
                     models.CharField(
-                        choices=(
-                            openwisp_controller.connection.commands.COMMAND_CHOICES
-                            if django.VERSION < (5, 0)
-                            else openwisp_controller.connection.commands.get_command_choices  # noqa: E501
-                        ),
+                        choices=openwisp_controller.connection.commands.get_command_choices,  # noqa: E501
                         max_length=16,
                     ),
                 ),
@@ -94,11 +89,12 @@ class Migration(migrations.Migration):
                         blank=True,
                         default=dict,
                         help_text=(
-                            "Maps device UUIDs to validation error messages for "
-                            "devices that were skipped during command creation."
+                            "Maps device UUIDs to the name of the device and the "
+                            "validation error that caused it to be skipped during "
+                            "command creation."
                         ),
                         null=True,
-                        verbose_name="Skipped devices",
+                        verbose_name="skipped devices",
                     ),
                 ),
                 (
