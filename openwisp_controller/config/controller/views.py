@@ -5,7 +5,7 @@ from ipaddress import ip_address
 
 from cache_memoize import cache_memoize
 from django.core.cache import cache
-from django.core.exceptions import FieldDoesNotExist, ValidationError
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Q
 from django.utils.decorators import method_decorator
@@ -304,30 +304,38 @@ class DeviceRegisterView(UpdateLastIpMixin, CsrfExtemptMixin, View):
 
     UPDATABLE_FIELDS = ["name", "os", "model", "system"]
 
+    # device fields a device is allowed to set during self-registration; every
+    # other model field (``id``, ``key`` unless consistent registration is
+    # enabled, ``last_ip``, ``_is_deactivated``, ``group``, ``created``,
+    # ``modified``, ...) is set by the server or left at its default and must
+    # not be mass-assigned from the request POST data
+    REGISTRATION_FIELDS = [
+        "name",
+        "mac_address",
+        "hardware_id",
+        "os",
+        "model",
+        "system",
+        "management_ip",
+    ]
+
     def init_object(self, **kwargs):
         """
         initializes Config object with incoming POST data
         """
         device_model = self.model
         config_model = device_model.get_config_model()
-        options = {}
-        for attr in kwargs.keys():
-            if attr in ["organization", "organization_id"]:
-                continue
-            # skip attributes that are not model fields
-            try:
-                device_model._meta.get_field(attr)
-            except FieldDoesNotExist:
-                continue
-            options[attr] = kwargs.get(attr)
-        # do not specify key if:
-        #   app_settings.CONSISTENT_REGISTRATION is False
-        #   if key is ``None`` (it would cause exception)
-        if "key" in options and (
-            app_settings.CONSISTENT_REGISTRATION is False or options["key"] is None
-        ):
-            del options["key"]
-        if "hardware_id" in options and options["hardware_id"] == "":
+        # only accept an explicit allowlist of fields from the request, to
+        # avoid mass-assignment of internal fields (e.g. ``id``)
+        options = {
+            attr: kwargs[attr] for attr in self.REGISTRATION_FIELDS if attr in kwargs
+        }
+        # accept the device supplied key only if:
+        #   app_settings.CONSISTENT_REGISTRATION is True
+        #   and the key is not ``None`` (it would cause an exception)
+        if app_settings.CONSISTENT_REGISTRATION and kwargs.get("key") is not None:
+            options["key"] = kwargs["key"]
+        if options.get("hardware_id") == "":
             options["hardware_id"] = None
         config = config_model(device=device_model(**options), backend=kwargs["backend"])
         config.organization = self.organization
