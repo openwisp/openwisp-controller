@@ -1,4 +1,5 @@
-from django.db import models
+from django.core.exceptions import ValidationError
+from django.db import models, transaction
 from django.utils.translation import gettext_lazy as _
 from django_x509.base.models import AbstractCa as BaseCa
 from django_x509.base.models import AbstractCert as BaseCert
@@ -38,3 +39,19 @@ class AbstractCert(ShareableOrgMixin, UnqiueCommonNameMixin, BaseCert):
 
     def clean(self):
         self._validate_org_relation("ca")
+
+    def renew(self, *args, **kwargs):
+        with transaction.atomic():
+            self.refresh_from_db(
+                from_queryset=self.__class__.objects.select_for_update()
+            )
+            if self.revoked:
+                raise ValidationError(_("Cannot renew a revoked certificate."))
+            return super().renew(*args, **kwargs)
+
+    def revoke(self, *args, **kwargs):
+        with transaction.atomic():
+            self.refresh_from_db(
+                from_queryset=self.__class__.objects.select_for_update()
+            )
+            return super().revoke(*args, **kwargs)
