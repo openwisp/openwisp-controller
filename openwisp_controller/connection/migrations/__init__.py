@@ -60,3 +60,30 @@ def assign_command_permissions_to_groups(apps, schema_editor):
         admin.permissions.add(
             Permission.objects.get(codename="{}_{}".format(operation, "command")).pk
         )
+
+
+def assign_batchcommand_permissions_to_groups(apps, schema_editor):
+    create_default_permissions(apps, schema_editor)
+    admin_operations = ["add", "change", "delete", "view"]
+    operator_operations = ["add", "view"]
+    Group = get_swapped_model(apps, "openwisp_users", "Group")
+
+    try:
+        admin = Group.objects.get(name="Administrator")
+        operator = Group.objects.get(name="Operator")
+    except Group.DoesNotExist:
+        return
+
+    for operation in operator_operations:
+        permission = Permission.objects.get(
+            codename="{}_{}".format(operation, "batchcommand")
+        )
+        admin.permissions.add(permission.pk)
+        operator.permissions.add(permission.pk)
+
+    for operation in admin_operations:
+        admin.permissions.add(
+            Permission.objects.get(
+                codename="{}_{}".format(operation, "batchcommand")
+            ).pk
+        )

@@ -727,9 +727,10 @@ class TestEstimatedLocationTransaction(
             old_location = device2.devicelocation.location
             device2.last_ip = "172.217.22.10"
             device2.save()
-            # 3 queries related to notifications cleanup
+            # 3 queries related to notifications cleanup,
+            # 1 to set BatchCommand.location to NULL when the location is deleted
             device2.refresh_from_db()
-            with self.assertNumQueries(16):
+            with self.assertNumQueries(17):
                 manage_estimated_locations(device2.pk, device2.last_ip)
             mock_info.assert_called_once_with(
                 f"Estimated location saved successfully for {device2.pk}"

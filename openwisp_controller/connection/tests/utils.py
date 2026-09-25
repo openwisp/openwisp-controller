@@ -1,16 +1,22 @@
 import os
 
+from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
+from django.contrib.messages import get_messages
+from django.utils.http import urlencode
 from mockssh import Server
 from swapper import load_model
 
 from openwisp_users.tests.utils import TestOrganizationMixin
 
 from ...config.tests.utils import CreateConfigTemplateMixin
+from ...tests.utils import TestAdminMixin
 from .. import settings as app_settings
+from ..admin import BatchCommandAdmin
 
 Credentials = load_model("connection", "Credentials")
 DeviceConnection = load_model("connection", "DeviceConnection")
 Command = load_model("connection", "Command")
+BatchCommand = load_model("connection", "BatchCommand")
 
 
 class SshServer(Server):
@@ -118,6 +124,24 @@ class CreateConnectionsMixin(CreateConfigTemplateMixin, TestOrganizationMixin):
         dc.save()
         return dc
 
+    def _create_batch_command(self, organization, **kwargs):
+        opts = dict(
+            organization=organization,
+            type="custom",
+            input={"command": "echo test"},
+            label="test-label",
+        )
+        devices = kwargs.pop("devices", None)
+        opts.update(kwargs)
+        batch = BatchCommand(**opts)
+        batch.full_clean()
+        batch.save()
+        if devices is not None:
+            if not isinstance(devices, (list, tuple)):
+                devices = [devices]
+            batch.devices.set(devices)
+        return batch
+
 
 class CreateCommandMixin(CreateConnectionsMixin):
     def _create_command(self, device_conn=None, device_conn_opts={}, **kwargs):
@@ -132,6 +156,56 @@ class CreateCommandMixin(CreateConnectionsMixin):
         return Command.objects.create(**opts)
 
 
+class BatchCommandMixin(TestAdminMixin, CreateConnectionsMixin):
+    @staticmethod
+    def _pk_list(devices):
+        return ",".join(str(device.pk) for device in devices)
+
+    def _post_device_action(
+        self,
+        devices,
+        action="execute_mass_command_admin_action",
+        select_across=False,
+        query=None,
+    ):
+        data = {
+            "action": action,
+            ACTION_CHECKBOX_NAME: [str(device.pk) for device in devices],
+        }
+        if select_across:
+            data["select_across"] = "1"
+        url = self.device_changelist_url
+        if query:
+            url = f"{url}?{urlencode(query)}"
+        return self.client.post(url, data)
+
+    def _post_execute(self, **overrides):
+        data = {
+            "type": "custom",
+            "input": '{"command": "echo test"}',
+            "label": "test-label",
+            "notes": "",
+            "organization": "",
+            "group": "",
+            "location": "",
+        }
+        data.update(overrides)
+        return self.client.post(self.execute_url, data)
+
+    def _start_wizard(self, **overrides):
+        response = self._post_execute(**overrides)
+        assert response.status_code == 302, response.context["form"].errors
+        return self.client.session[BatchCommandAdmin.session_key]
+
+    def _post_confirm(self, token, excluded=""):
+        return self.client.post(
+            self.confirm_url, {"token": token, "excluded": excluded}
+        )
+
+    def _messages(self, response):
+        return [str(message) for message in get_messages(response.wsgi_request)]
+
+
 def _ping_command_callable(destination_address, interface_name=None):
     command = f"ping -c 4 {destination_address}"
     if interface_name:
@@ -141,3 +215,7 @@ def _ping_command_callable(destination_address, interface_name=None):
 
 def _restart_network_command_callable():
     return "/etc/init.d/networking restart"
+
+
+def _uci_show_command_callable(config):
+    return f"uci show {config}"
