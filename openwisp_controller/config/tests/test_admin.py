@@ -1476,12 +1476,24 @@ class TestAdmin(
         self.assertContains(response, '<option value="netjsonconfig.OpenWisp" selected')
 
     def test_device_search(self):
-        d = self._create_device(name="admin-search-test")
+        d = self._create_device(
+            name="admin-search-test",
+            last_ip="192.0.2.1",
+            management_ip="198.51.100.1",
+        )
         path = reverse(f"admin:{self.app_label}_device_changelist")
         response = self.client.get(path, {"q": str(d.pk.hex)})
         self.assertContains(response, "admin-search-test")
         response = self.client.get(path, {"q": "ZERO-RESULTS-PLEASE"})
         self.assertNotContains(response, "admin-search-test")
+
+        for field, ip_address in {
+            "last_ip": d.last_ip,
+            "management_ip": d.management_ip,
+        }.items():
+            with self.subTest(field=field):
+                response = self.client.get(path, {"q": ip_address})
+                self.assertContains(response, "admin-search-test")
 
         with self.subTest("test device location search"):
             response = self.client.get(path, {"q": "Estonia"})

@@ -542,6 +542,8 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, CopyableFieldsAdmin):
         "model",
         "os",
         "system",
+        "last_ip",
+        "management_ip",
         "devicelocation__location__address",
     ]
     readonly_fields = ["last_ip", "uuid"]
