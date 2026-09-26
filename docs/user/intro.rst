@@ -35,6 +35,8 @@ following features:
 - **VPN management**: automatically provision VPN tunnel configurations,
   including cryptographic keys and IP addresses, e.g.: :doc:`OpenVPN
   </user/vpn>`, :doc:`WireGuard <wireguard>`
+- :doc:`Certificate Templates <certificate-templates>`: automatically
+  generate and manage X.509 client certificates for devices
 - :doc:`whois`: display information about the public IP address used by
   devices to communicate with OpenWISP
 - :doc:`import-export`

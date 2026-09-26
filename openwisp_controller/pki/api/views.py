@@ -1,5 +1,7 @@
+from django.db.models.deletion import RestrictedError
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
+from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from rest_framework.generics import (
     GenericAPIView,
@@ -71,6 +73,14 @@ class CertListCreateView(ProtectedAPIMixin, ListCreateAPIView):
 class CertDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
     serializer_class = CertDetailSerializer
     queryset = Cert.objects.select_related("ca")
+
+    def perform_destroy(self, instance):
+        try:
+            super().perform_destroy(instance)
+        except RestrictedError as error:
+            raise serializers.ValidationError(
+                {"detail": _("This certificate is in use and cannot be deleted.")}
+            ) from error
 
 
 class CertRevokeRenewBaseView(ProtectedAPIMixin, GenericAPIView):

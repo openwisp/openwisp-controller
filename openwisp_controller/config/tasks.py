@@ -218,3 +218,9 @@ def invalidate_controller_views_cache(organization_id):
         Vpn.objects.filter(organization_id=organization_id).only("id").iterator()
     ):
         GetVpnView.invalidate_get_vpn_cache(vpn)
+
+
+@shared_task(soft_time_limit=1200)
+def regenerate_device_certificates_task(device_id, expected_cert_ids=None):
+    DeviceCertificate = load_model("config", "DeviceCertificate")
+    DeviceCertificate.regenerate_certificates(device_id, expected_cert_ids)
