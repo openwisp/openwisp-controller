@@ -1,7 +1,9 @@
 import os
+from uuid import uuid4
 
 from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
 from django.contrib.messages import get_messages
+from django.urls import reverse
 from django.utils.http import urlencode
 from mockssh import Server
 from swapper import load_model
@@ -195,11 +197,32 @@ class BatchCommandMixin(TestAdminMixin, CreateConnectionsMixin):
     def _start_wizard(self, **overrides):
         response = self._post_execute(**overrides)
         assert response.status_code == 302, response.context["form"].errors
-        return self.client.session[BatchCommandAdmin.session_key]
+        return list(self._get_wizards().values())[-1]
 
-    def _post_confirm(self, token, excluded=""):
+    def _get_wizards(self):
+        return self.client.session.get(BatchCommandAdmin.session_key) or {}
+
+    def _set_wizard(self, wizard):
+        session = self.client.session
+        session[BatchCommandAdmin.session_key] = {wizard["id"]: wizard}
+        session.save()
+
+    def _confirm_url(self, wizard_id=None):
+        """Returns the confirm page of the given wizard, or of the last one."""
+        if wizard_id is None:
+            wizard_id = next(reversed(self._get_wizards()), uuid4().hex)
+        return reverse(f"admin:{self.app_label}_batchcommand_confirm", args=[wizard_id])
+
+    def _back_url(self, wizard_id=None):
+        """Returns the URL of the back button of the given wizard, or of the
+        last one."""
+        if wizard_id is None:
+            wizard_id = next(reversed(self._get_wizards()))
+        return f"{self.execute_url}?back=1&wizard={wizard_id}"
+
+    def _post_confirm(self, token, excluded="", wizard_id=None):
         return self.client.post(
-            self.confirm_url, {"token": token, "excluded": excluded}
+            self._confirm_url(wizard_id), {"token": token, "excluded": excluded}
         )
 
     def _messages(self, response):
