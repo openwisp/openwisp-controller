@@ -20,8 +20,9 @@ from django.http import (
 )
 from django.shortcuts import redirect
 from django.template.response import TemplateResponse
-from django.urls import path, resolve
+from django.urls import path, resolve, reverse
 from django.utils.html import format_html, format_html_join
+from django.utils.http import urlencode
 from django.utils.safestring import mark_safe
 from django.utils.timezone import localtime
 from django.utils.translation import gettext_lazy as _
@@ -233,6 +234,13 @@ class BatchCommandExecutionForm(forms.ModelForm):
             return str(value.pk) if value else None
 
         return {
+            # Identifies this wizard among the ones the session keeps, so
+            # that a tab executes the mass command it reviewed even when
+            # another tab started a different one in the meantime. It is not
+            # the token below, which is reissued when the targeted devices
+            # change: the key of a wizard has to stay the same for its whole
+            # life.
+            "id": uuid4().hex,
             # Namespaces the device selection the confirm page keeps in
             # sessionStorage, which lives as long as the browser tab: without
             # it a wizard would inherit the devices unselected by a previous
@@ -484,8 +492,9 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
     change_form_template = (
         "admin/connection/batch_command/batch_command_change_form.html"
     )
-    session_key = "batch_command_wizard"
+    session_key = "batch_command_wizards"
     wizard_claim_timeout = 60
+    max_wizards = 5
     list_display = [
         "label",
         "organization_display",
@@ -553,7 +562,7 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
                 name=f"{options.app_label}_{options.model_name}_execute",
             ),
             path(
-                "confirm/",
+                "confirm/<uuid_any:wizard_id>/",
                 self.admin_site.admin_view(self.confirm_command_view),
                 name=f"{options.app_label}_{options.model_name}_confirm",
             ),
@@ -619,12 +628,11 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
                 # hidden inputs cannot carry it because changing the page of
                 # the paginated device table refreshes the page and loses it,
                 # so it is stored in the session
-                request.session[self.session_key] = form.to_session()
-                return redirect(
-                    f"admin:{self.opts.app_label}_{self.opts.model_name}_confirm"
-                )
+                wizard = form.to_session()
+                self._save_wizard(request, wizard)
+                return self._redirect_to_confirm(wizard)
         else:
-            wizard = request.session.get(self.session_key)
+            wizard = self._get_wizard(request, request.GET.get("wizard"))
             if request.GET.get("back") and wizard:
                 form = BatchCommandExecutionForm(
                     initial=self._wizard_initial(wizard),
@@ -662,7 +670,7 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
         }
         return TemplateResponse(request, self.execute_command_template, context)
 
-    def confirm_command_view(self, request):
+    def confirm_command_view(self, request, wizard_id):
         """Second step: review the targeted devices and dispatch the command.
         Dispatching is decided by the HTTP method alone.
         """
@@ -670,8 +678,8 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
             return HttpResponseNotAllowed(["GET", "POST"])
         self._check_add_permission(request)
         if request.method == "POST":
-            return self._execute_batch_command(request)
-        wizard = request.session.get(self.session_key)
+            return self._execute_batch_command(request, wizard_id.hex)
+        wizard = self._get_wizard(request, wizard_id.hex)
         if not wizard:
             return self._restart(request)
         devices = self._resolve_target_queryset(request, wizard)
@@ -679,7 +687,7 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
         if wizard.get("devices_digest") not in (None, digest):
             wizard["token"] = uuid4().hex
         wizard["devices_digest"] = digest
-        request.session[self.session_key] = wizard
+        self._save_wizard(request, wizard)
         device_admin = self.get_device_admin(devices)
         # changelist_view() assembles the whole changelist context (cl,
         # media, pagination) and renders the change_list_template of the
@@ -758,6 +766,42 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
             )
         return devices.distinct()
 
+    def _get_wizards(self, request):
+        return request.session.get(self.session_key) or {}
+
+    def _get_wizard(self, request, wizard_id):
+        """Returns the wizard of the given id.
+
+        The session is shared by every browser tab, so the wizards are kept
+        in a dictionary and the pages of a wizard carry its id: each tab
+        gets its own wizard even when another one was started after it.
+        """
+        return self._get_wizards(request).get(wizard_id)
+
+    def _save_wizard(self, request, wizard):
+        """Stores a wizard, dropping the least recently saved ones.
+
+        Every review page which is abandoned leaves its wizard behind,
+        so only the last "max_wizards" are kept.
+        """
+        wizards = self._get_wizards(request)
+        wizards.pop(wizard["id"], None)
+        wizards[wizard["id"]] = wizard
+        for stale in list(wizards)[: -self.max_wizards]:
+            del wizards[stale]
+        request.session[self.session_key] = wizards
+
+    def _discard_wizard(self, request, wizard):
+        wizards = self._get_wizards(request)
+        wizards.pop(wizard["id"], None)
+        request.session[self.session_key] = wizards
+
+    def _redirect_to_confirm(self, wizard):
+        return redirect(
+            f"admin:{self.opts.app_label}_{self.opts.model_name}_confirm",
+            wizard["id"],
+        )
+
     def _claim_wizard(self, wizard):
         """Claims a wizard for execution, returning False when it was claimed.
 
@@ -802,6 +846,10 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
             # the template this page extends, see get_device_changelist_template()
             "device_changelist_template": self.get_device_changelist_template(),
             "wizard": wizard,
+            "back_url": "{}?{}".format(
+                reverse(f"admin:{self.opts.app_label}_{self.opts.model_name}_execute"),
+                urlencode({"back": 1, "wizard": wizard["id"]}),
+            ),
             "command_type_display": command_types.get(wizard["type"], wizard["type"]),
             "command_description": self._describe_input(wizard.get("input")),
             "targets_display": self._targets_display(wizard, targets, device_count),
@@ -830,16 +878,17 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
             if "password" not in key.lower()
         )
 
-    def _execute_batch_command(self, request):
+    def _execute_batch_command(self, request, wizard_id):
         """Runs the mass command shown on the confirm page.
 
         The wizard is deleted from the session before the command is
         created, so it can only run once:
 
-        - no wizard in the session, because it expired or already ran:
-          go back to the first step
-        - the token does not match, because another tab replaced it:
-          go back to the first step and say why
+        - the wizard of the page is gone, because it already ran or newer
+          wizards replaced it: go back to the first step and say why
+        - the token does not match, because the page was rendered before
+          the targeted devices changed: go back to the first step and say
+          why
         - the devices changed since the page was opened: keep the wizard
           and ask the user to review them again
         - the organization, group or location was deleted: log it and go
@@ -848,9 +897,17 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
         - otherwise: run it on the reviewed devices, minus the unchecked
           ones, and open the new mass command
         """
-        wizard = request.session.get(self.session_key)
+        wizard = self._get_wizard(request, wizard_id)
         if not wizard:
-            return self._restart(request)
+            # the wizard of the page which was submitted is gone: it already
+            # ran, or too many other wizards were started after it
+            return self._restart(
+                request,
+                _(
+                    "This mass command is not available anymore, so it was not"
+                    " executed. Please fill in the details again."
+                ),
+            )
         if request.POST.get("token") != wizard.get("token"):
             return self._restart(
                 request,
@@ -862,20 +919,18 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
             )
         if not self._claim_wizard(wizard):
             return self._restart(request)
-        del request.session[self.session_key]
+        self._discard_wizard(request, wizard)
         devices = self._resolve_target_queryset(request, wizard)
         device_ids = list(devices.values_list("pk", flat=True))
         if self._devices_digest(device_ids) != wizard.get("devices_digest"):
             self._release_wizard(wizard)
-            request.session[self.session_key] = wizard
+            self._save_wizard(request, wizard)
             self.message_user(
                 request,
                 _("The targeted devices changed, please review them again."),
                 messages.WARNING,
             )
-            return redirect(
-                f"admin:{self.opts.app_label}_{self.opts.model_name}_confirm"
-            )
+            return self._redirect_to_confirm(wizard)
         # The confirm page only lists the devices matched on the execute
         # page, so the selection can only ever remove from that set: the
         # browser never supplies a device to add.
@@ -915,11 +970,9 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
         except ValidationError as error:
             # put the wizard back so the user can correct the selection
             self._release_wizard(wizard)
-            request.session[self.session_key] = wizard
+            self._save_wizard(request, wizard)
             self.message_user(request, error.messages[0], messages.ERROR)
-            return redirect(
-                f"admin:{self.opts.app_label}_{self.opts.model_name}_confirm"
-            )
+            return self._redirect_to_confirm(wizard)
         self.message_user(
             request, _("Mass command executed successfully."), messages.SUCCESS
         )

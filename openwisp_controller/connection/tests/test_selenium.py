@@ -1,7 +1,7 @@
 from time import sleep
 from unittest.mock import patch
 from urllib.parse import quote, urlparse
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from channels.testing import ChannelsLiveServerTestCase
 from django.apps import apps as django_apps
@@ -27,6 +27,7 @@ from ...geo import migrations as geo_migrations
 from ...geo.tests.utils import TestGeoMixin
 from .. import migrations as connection_migrations
 from .. import settings as app_settings
+from ..admin import BatchCommandAdmin, BatchCommandDeviceAdminMixin
 from ..commands import (
     COMMANDS,
     ORGANIZATION_COMMAND_SCHEMA,
@@ -179,7 +180,6 @@ class TestBatchCommandAdmin(
         super().setUp()
         self._restore_default_groups()
         self.execute_url = reverse(f"admin:{self.app_label}_batchcommand_execute")
-        self.confirm_url = reverse(f"admin:{self.app_label}_batchcommand_confirm")
         self.changelist_url = reverse(f"admin:{self.app_label}_batchcommand_changelist")
         self.device_changelist_url = reverse(
             f"admin:{self.config_app_label}_device_changelist"
@@ -417,7 +417,14 @@ class TestBatchCommandAdmin(
         self.hide_loading_overlay()
 
     def _wait_for_review_page(self):
-        self._wait_for_url(self.confirm_url)
+        """Waits for the confirm page and remembers its path, which carries
+        the id of the wizard it belongs to."""
+        WebDriverWait(self.web_driver, 5).until(
+            lambda driver: urlparse(driver.current_url).path.startswith(
+                f"{self.changelist_url}confirm/"
+            )
+        )
+        self.review_path = urlparse(self.web_driver.current_url).path
         self.wait_for_visibility(By.CSS_SELECTOR, ".command-summary", timeout=5)
 
     def _wait_for_batch_result(self, label, status, count):
@@ -694,7 +701,7 @@ class TestBatchCommandAdmin(
             located_device.group = group1
             located_device.full_clean()
             located_device.save()
-            self.open(self.confirm_url)
+            self.open(self.review_path)
             self._wait_for_review_page()
             self.hide_loading_overlay()
             selected_count = self.find_element(by=By.ID, value="selected-count")
@@ -976,8 +983,8 @@ class TestBatchCommandAdmin(
             checkbox.click()
             selected_count = self.find_element(by=By.ID, value="selected-count")
             self.assertEqual(selected_count.text, "49")
-            self.open(f"{self.confirm_url}?p=2")
-            self._wait_for_url(self.confirm_url)
+            self.open(f"{self.review_path}?p=2")
+            self._wait_for_url(self.review_path)
             self.hide_loading_overlay()
             selected_count = self.find_element(by=By.ID, value="selected-count")
             excluded_field = self.find_element(
@@ -986,8 +993,8 @@ class TestBatchCommandAdmin(
             self.assertEqual(self._device_names(), second_page)
             self.assertEqual(selected_count.text, "49")
             self.assertEqual(excluded_field.get_attribute("value"), excluded_pk)
-            self.open(self.confirm_url)
-            self._wait_for_url(self.confirm_url)
+            self.open(self.review_path)
+            self._wait_for_url(self.review_path)
             self.hide_loading_overlay()
             checkbox = self.find_element(
                 by=By.CSS_SELECTOR, value="#result_list tbody .device-checkbox"
@@ -1358,7 +1365,10 @@ class TestBatchCommandAdmin(
                 self.find_element(by=By.TAG_NAME, value="body").text,
                 "403 Forbidden",
             )
-            self.web_driver.get(f"{self.live_server_url}{self.confirm_url}")
+            confirm_url = reverse(
+                f"admin:{self.app_label}_batchcommand_confirm", args=[uuid4().hex]
+            )
+            self.web_driver.get(f"{self.live_server_url}{confirm_url}")
             self.assertEqual(
                 self.find_element(by=By.TAG_NAME, value="body").text,
                 "403 Forbidden",
@@ -1630,6 +1640,83 @@ class TestBatchCommandAdmin(
             ]
             self.assertIn("By status", filter_titles)
             self.assertNotIn("By organization", filter_titles)
+
+    def test_wizards_of_two_browser_tabs(self):
+        """Two browser tabs share the session, but each one reviews and
+        executes its own mass command, also when the tab which started first
+        is used after the other one.
+        """
+        org = self._get_org()
+        # one device more than a page, so that the review page has a second one
+        devices = self._create_devices(
+            org, BatchCommandDeviceAdminMixin.list_per_page + 1
+        )
+        device_names = {device.name for device in devices}
+        rows_per_page = BatchCommandAdmin.device_commands_per_page
+
+        def change_page():
+            return {
+                name: self.find_element(
+                    by=By.CSS_SELECTOR, value=f".field-{name} .readonly"
+                ).text
+                for name in (
+                    "label",
+                    "type",
+                    "organization_display",
+                    "affected_devices",
+                )
+            }
+
+        def expected_change_page(label):
+            return {
+                "label": label,
+                "type": "Reboot",
+                "organization_display": org.name,
+                "affected_devices": str(len(devices)),
+            }
+
+        self.login()
+        first_tab = self.web_driver.current_window_handle
+        self._fill_wizard(type="Reboot", label="first-tab", organization=org)
+        self.find_element(by=By.ID, value="review-command-btn").click()
+        self._wait_for_review_page()
+        first_review = self.review_path
+        self.web_driver.switch_to.new_window("tab")
+        second_tab = self.web_driver.current_window_handle
+        self.addCleanup(self.web_driver.switch_to.window, first_tab)
+        self.addCleanup(self.web_driver.close)
+        self.addCleanup(self.web_driver.switch_to.window, second_tab)
+        self._fill_wizard(type="Reboot", label="second-tab", organization=org)
+        self.find_element(by=By.ID, value="review-command-btn").click()
+        self._wait_for_review_page()
+        self.web_driver.switch_to.window(first_tab)
+
+        with self.subTest("the first tab keeps its wizard on the next page"):
+            self.open(f"{first_review}?p=2")
+            self._wait_for_url(first_review)
+            self.hide_loading_overlay()
+            self.assertEqual(self._summary()["Label"], "first-tab")
+
+        with self.subTest("the first tab executes its own mass command"):
+            self.find_element(by=By.ID, value="execute-button").click()
+            self._wait_for_batch_result("first-tab", "failed", rows_per_page)
+            self.assertEqual(change_page(), expected_change_page("first-tab"))
+            self.assertLessEqual(set(self._command_device_names()), device_names)
+            self.assertFalse(BatchCommand.objects.filter(label="second-tab").exists())
+
+        with self.subTest("the second tab executes its own mass command"):
+            self.web_driver.switch_to.window(second_tab)
+            self.assertEqual(self._summary()["Label"], "second-tab")
+            self.find_element(by=By.ID, value="execute-button").click()
+            self._wait_for_batch_result("second-tab", "failed", rows_per_page)
+            self.assertEqual(change_page(), expected_change_page("second-tab"))
+            self.assertLessEqual(set(self._command_device_names()), device_names)
+
+        with self.subTest("the first tab still shows its own mass command"):
+            self.web_driver.switch_to.window(first_tab)
+            self.assertEqual(change_page(), expected_change_page("first-tab"))
+            self.web_driver.refresh()
+            self.assertEqual(change_page(), expected_change_page("first-tab"))
 
     def test_recent_commands_show_the_mass_command(self):
         org = self._get_org()
