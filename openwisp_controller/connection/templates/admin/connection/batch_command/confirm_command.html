@@ -114,7 +114,7 @@ nesting it made the browser drop the opening tag, leaving the button outside any
   <input type="hidden" name="excluded" id="id_excluded" value="">
   <input type="hidden" name="token" value="{{ wizard.token }}">
   <div class="submit-row">
-    <a class="button cancel-link" href="{% url batch_opts|admin_urlname:'execute' %}?back=1">{% trans 'Back' %}</a>
+    <a class="button cancel-link" href="{{ back_url }}">{% trans 'Back' %}</a>
     <button type="submit" class="default" id="execute-button">
       {% blocktrans trimmed count counter=device_count %}
       Execute on {{ counter }} device

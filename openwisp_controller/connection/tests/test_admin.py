@@ -11,6 +11,7 @@ from django.db import connection as db_connection
 from django.test import RequestFactory, TestCase, override_settings
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
+from django.utils.html import escape
 from swapper import load_model
 
 from openwisp_controller.connection.commands import (
@@ -24,7 +25,7 @@ from ... import settings as module_settings
 from ...config.admin import DeviceAdmin
 from ...tests import _get_updated_templates_settings
 from ...tests.utils import TestAdminMixin
-from ..admin import BatchCommandAdmin
+from ..admin import BatchCommandAdmin, BatchCommandDeviceAdminMixin
 from ..connectors.ssh import Ssh
 from ..filters import GroupFilter, LocationFilter, TypeFilter
 from ..utils import format_localized_datetime
@@ -337,7 +338,6 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
     def setUp(self):
         self._create_admin()
         self.execute_url = reverse(f"admin:{self.app_label}_batchcommand_execute")
-        self.confirm_url = reverse(f"admin:{self.app_label}_batchcommand_confirm")
         self.changelist_url = reverse(f"admin:{self.app_label}_batchcommand_changelist")
         self.device_changelist_url = reverse(
             f"admin:{self.config_app_label}_device_changelist"
@@ -361,7 +361,7 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
             )
             self.client.force_login(viewer)
             self.assertEqual(self.client.get(self.execute_url).status_code, 403)
-            self.assertEqual(self.client.get(self.confirm_url).status_code, 403)
+            self.assertEqual(self.client.get(self._confirm_url()).status_code, 403)
 
         with self.subTest("the operator group can reach the wizard"):
             operator = self._create_operator(organizations=[org])
@@ -378,10 +378,8 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
         with self.subTest("devices of unmanaged organizations are not reachable"):
             wizard = self._start_wizard(organization=str(org.pk))
             wizard["organization_id"] = str(org2.pk)
-            session = self.client.session
-            session[BatchCommandAdmin.session_key] = wizard
-            session.save()
-            self.client.get(self.confirm_url)
+            self._set_wizard(wizard)
+            self.client.get(self._confirm_url())
             response = self._post_confirm(wizard["token"])
             self.assertIn(
                 "No devices match the specified criteria.", self._messages(response)
@@ -391,7 +389,7 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
         with self.subTest("superusers may target every device"):
             self._login()
             self._start_wizard()
-            response = self.client.get(self.confirm_url)
+            response = self.client.get(self._confirm_url())
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.context["device_count"], 2)
             self.assertIn(device2, response.context["cl"].queryset)
@@ -426,7 +424,7 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
         with self.subTest("the organization is derived from the group"):
             wizard = self._start_wizard(group=str(group.pk))
             self.assertEqual(wizard["group_id"], str(group.pk))
-            response = self.client.get(self.confirm_url)
+            response = self.client.get(self._confirm_url())
             self.assertEqual(response.context["device_count"], 1)
 
         with self.subTest("scopes which share no devices"):
@@ -435,7 +433,7 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
                 group=str(group.pk),
                 location=str(location.pk),
             )
-            response = self.client.get(self.confirm_url)
+            response = self.client.get(self._confirm_url())
             self.assertEqual(response.context["device_count"], 0)
             response = self._post_confirm(wizard["token"])
             self.assertIn(
@@ -544,7 +542,7 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
         response = self.client.delete(self.execute_url)
         self.assertEqual(response.status_code, 405)
         self.assertEqual(response["Allow"], "GET, POST")
-        response = self.client.delete(self.confirm_url)
+        response = self.client.delete(self._confirm_url())
         self.assertEqual(response.status_code, 405)
         self.assertEqual(response["Allow"], "GET, POST")
 
@@ -561,7 +559,7 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
             organization=str(org.pk),
             group=str(group.pk),
         )
-        form = self.client.get(f"{self.execute_url}?back=1").context["form"]
+        form = self.client.get(self._back_url()).context["form"]
         self.assertEqual(form.initial["type"], "custom")
         self.assertEqual(form.initial["input"], {"command": "echo back"})
         self.assertEqual(form.initial["label"], "back-label")
@@ -649,9 +647,9 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
 
         with self.subTest("the confirm page"):
             self._start_wizard(organization=str(org.pk))
-            self.client.get(self.confirm_url)
+            self.client.get(self._confirm_url())
             with CaptureQueriesContext(db_connection) as few:
-                self.client.get(self.confirm_url)
+                self.client.get(self._confirm_url())
             more_devices = [
                 self._create_device(
                     name=f"budget-more{index}",
@@ -661,9 +659,9 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
                 for index in range(8)
             ]
             self._start_wizard(organization=str(org.pk))
-            self.client.get(self.confirm_url)
+            self.client.get(self._confirm_url())
             with CaptureQueriesContext(db_connection) as many:
-                response = self.client.get(self.confirm_url)
+                response = self.client.get(self._confirm_url())
             self.assertEqual(response.context["device_count"], len(devices) + 8)
             self.assertEqual(len(many.captured_queries), len(few.captured_queries))
 
@@ -706,7 +704,7 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
         self._login()
 
         with self.subTest("a confirm page without a wizard restarts"):
-            response = self.client.get(self.confirm_url)
+            response = self.client.get(self._confirm_url())
             self.assertRedirects(response, self.execute_url)
 
         with self.subTest("targets which cannot be resolved list no devices"):
@@ -717,7 +715,7 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
                 with self.assertLogs(
                     "openwisp_controller.connection.admin", level="WARNING"
                 ) as logs:
-                    response = self.client.get(self.confirm_url)
+                    response = self.client.get(self._confirm_url())
                 self.assertEqual(response.context["device_count"], 0)
             self.assertIn(
                 "Failed to resolve devices for mass command wizard", logs.output[0]
@@ -725,7 +723,7 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
 
         with self.subTest("a batch which disappears restarts"):
             wizard = self._start_wizard(organization=str(org.pk))
-            self.client.get(self.confirm_url)
+            self.client.get(self._confirm_url())
             with patch.object(BatchCommand, "execute", side_effect=Device.DoesNotExist):
                 with self.assertLogs(
                     "openwisp_controller.connection.admin", level="WARNING"
@@ -740,16 +738,19 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
         org = self._get_org()
         self._create_device(organization=org)
         self._login()
-        restart_message = "Please fill in the mass command details to continue."
 
         with self.subTest("no wizard in the session"):
             response = self._post_confirm("any-token")
             self.assertRedirects(response, self.execute_url)
-            self.assertIn(restart_message, self._messages(response))
+            self.assertIn(
+                "This mass command is not available anymore, so it was not"
+                " executed. Please fill in the details again.",
+                self._messages(response),
+            )
 
         with self.subTest("a token from another tab"):
             wizard = self._start_wizard(organization=str(org.pk))
-            self.client.get(self.confirm_url)
+            self.client.get(self._confirm_url())
             response = self._post_confirm("stale-token")
             self.assertRedirects(response, self.execute_url)
             self.assertIn(
@@ -762,25 +763,29 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
 
         with self.subTest("double submit"):
             wizard = self._start_wizard(organization=str(org.pk))
-            self.client.get(self.confirm_url)
-            self._post_confirm(wizard["token"])
+            self.client.get(self._confirm_url())
+            self._post_confirm(wizard["token"], wizard_id=wizard["id"])
             batch = BatchCommand.objects.get()
-            response = self._post_confirm(wizard["token"])
+            response = self._post_confirm(wizard["token"], wizard_id=wizard["id"])
             self.assertRedirects(response, self.execute_url)
-            self.assertIn(restart_message, self._messages(response))
+            self.assertIn(
+                "This mass command is not available anymore, so it was not"
+                " executed. Please fill in the details again.",
+                self._messages(response),
+            )
             self.assertEqual(list(BatchCommand.objects.all()), [batch])
         BatchCommand.objects.all().delete()
 
         with self.subTest("the targeted devices changed"):
             wizard = self._start_wizard(organization=str(org.pk))
-            self.client.get(self.confirm_url)
+            self.client.get(self._confirm_url())
             self._create_device(
                 name="late-device",
                 mac_address="00:11:22:33:44:99",
                 organization=org,
             )
             response = self._post_confirm(wizard["token"])
-            self.assertRedirects(response, self.confirm_url)
+            self.assertRedirects(response, self._confirm_url(wizard["id"]))
             self.assertIn(
                 "The targeted devices changed, please review them again.",
                 self._messages(response),
@@ -793,7 +798,7 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
         self._create_device(organization=org)
         self._login()
         wizard = self._start_wizard(organization=str(org.pk))
-        self.client.get(self.confirm_url)
+        self.client.get(self._confirm_url())
         # another tab opens the first step, which must not discard the wizard
         self.client.get(self.execute_url)
         self.assertIn(BatchCommandAdmin.session_key, self.client.session)
@@ -804,18 +809,110 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
             reverse(f"admin:{self.app_label}_batchcommand_change", args=(batch.pk,)),
         )
 
+    def test_wizard_of_each_browser_tab(self):
+        """Covers the wizards the session keeps for the open browser tabs:
+        every tab executes the mass command it reviewed, the oldest wizards
+        are dropped, and a wizard which is gone is reported as such.
+        """
+        org = self._get_org()
+        self._create_device(organization=org)
+        self._login()
+
+        with self.subTest("the tab which started first still executes its own"):
+            first = self._start_wizard(organization=str(org.pk), label="first-tab")
+            self.client.get(self._confirm_url())
+            second = self._start_wizard(organization=str(org.pk), label="second-tab")
+            self.client.get(self._confirm_url())
+            self.assertNotEqual(first["id"], second["id"])
+            response = self._post_confirm(first["token"], wizard_id=first["id"])
+            batch = BatchCommand.objects.get()
+            self.assertRedirects(
+                response,
+                reverse(
+                    f"admin:{self.app_label}_batchcommand_change", args=(batch.pk,)
+                ),
+            )
+            self.assertEqual(batch.label, "first-tab")
+            self.assertEqual(list(self._get_wizards()), [second["id"]])
+
+        with self.subTest("the wizard of the other tab is still executable"):
+            response = self._post_confirm(second["token"], wizard_id=second["id"])
+            self.assertEqual(
+                BatchCommand.objects.get(label="second-tab").label, "second-tab"
+            )
+            self.assertEqual(self._get_wizards(), {})
+        BatchCommand.objects.all().delete()
+
+        with self.subTest("only the most recent wizards are kept"):
+            wizards = [
+                self._start_wizard(organization=str(org.pk), label=f"tab-{index}")
+                for index in range(BatchCommandAdmin.max_wizards + 1)
+            ]
+            self.assertEqual(
+                list(self._get_wizards()),
+                [wizard["id"] for wizard in wizards[1:]],
+            )
+
+        with self.subTest("a wizard which was dropped is not executed"):
+            response = self._post_confirm(
+                wizards[0]["token"], wizard_id=wizards[0]["id"]
+            )
+            self.assertRedirects(response, self.execute_url)
+            self.assertIn(
+                "This mass command is not available anymore, so it was not"
+                " executed. Please fill in the details again.",
+                self._messages(response),
+            )
+            self.assertFalse(BatchCommand.objects.exists())
+
+    def test_wizard_pages_keep_their_wizard(self):
+        """The pages of a wizard carry its id, so paging through the device
+        table of an older tab keeps showing that tab's wizard even after
+        another tab started a newer one.
+        """
+        org = self._get_org()
+        for index in range(BatchCommandDeviceAdminMixin.list_per_page + 1):
+            self._create_device(
+                name=f"device-{index}",
+                mac_address=f"00:11:22:33:44:{index:02x}",
+                organization=org,
+            )
+        self._login()
+        response = self._post_execute(organization=str(org.pk), label="older-tab")
+        older = list(self._get_wizards().values())[-1]
+        self.assertRedirects(response, self._confirm_url(older["id"]))
+        self._start_wizard(organization=str(org.pk), label="newer-tab")
+
+        with self.subTest("the confirm page shows the wizard of its id"):
+            response = self.client.get(self._confirm_url(older["id"]))
+            self.assertEqual(response.context["wizard"]["label"], "older-tab")
+            self.assertContains(response, 'href="?p=2"')
+            self.assertContains(
+                response, f'href="{escape(self._back_url(older["id"]))}"'
+            )
+
+        with self.subTest("the next page keeps the wizard of its id"):
+            response = self.client.get(f"{self._confirm_url(older['id'])}?p=2")
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.context["wizard"]["label"], "older-tab")
+
+        with self.subTest("going back keeps the wizard of its id"):
+            response = self.client.get(self._back_url(older["id"]))
+            self.assertEqual(response.context["form"].initial["label"], "older-tab")
+
     def test_wizard_overlapping_execute_requests(self):
         org = self._get_org()
         self._create_device(organization=org)
         self._login()
         wizard = self._start_wizard(organization=str(org.pk))
-        self.client.get(self.confirm_url)
+        self.client.get(self._confirm_url())
         model_admin = BatchCommandAdmin(BatchCommand, admin.site)
         session_key = self.client.session.session_key
 
         def build_request():
             request = RequestFactory().post(
-                self.confirm_url, {"token": wizard["token"], "excluded": ""}
+                self._confirm_url(wizard["id"]),
+                {"token": wizard["token"], "excluded": ""},
             )
             request.user = self._get_admin()
             request.session = SessionStore(session_key=session_key)
@@ -826,9 +923,9 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
             return request
 
         first, second = build_request(), build_request()
-        model_admin._execute_batch_command(first)
+        model_admin._execute_batch_command(first, wizard["id"])
         first.session.save()
-        model_admin._execute_batch_command(second)
+        model_admin._execute_batch_command(second, wizard["id"])
         second.session.save()
         self.assertEqual(BatchCommand.objects.count(), 1)
 
@@ -847,7 +944,7 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
 
         with self.subTest("excluded devices are left out"):
             wizard = self._start_wizard(organization=str(org.pk))
-            self.client.get(self.confirm_url)
+            self.client.get(self._confirm_url())
             self._post_confirm(wizard["token"], excluded=str(devices[-1].pk))
             batch = BatchCommand.objects.get()
             self.assertEqual(set(batch.devices.all()), set(devices[:-1]))
@@ -855,7 +952,7 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
 
         with self.subTest("malformed entries are ignored"):
             wizard = self._start_wizard(organization=str(org.pk))
-            self.client.get(self.confirm_url)
+            self.client.get(self._confirm_url())
             self._post_confirm(
                 wizard["token"],
                 excluded=f",not-a-uuid,,{uuid4()},{devices[0].pk},",
@@ -866,12 +963,12 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
 
         with self.subTest("excluding every device"):
             wizard = self._start_wizard(organization=str(org.pk))
-            self.client.get(self.confirm_url)
+            self.client.get(self._confirm_url())
             response = self._post_confirm(
                 wizard["token"],
                 excluded=",".join(str(device.pk) for device in devices),
             )
-            self.assertRedirects(response, self.confirm_url)
+            self.assertRedirects(response, self._confirm_url(wizard["id"]))
             self.assertIn(
                 "No devices match the specified criteria.", self._messages(response)
             )
@@ -926,11 +1023,11 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
         with self.subTest("the selection travels to the review step"):
             response = self._post_execute(devices=self._pk_list(devices))
             self.assertEqual(response.status_code, 302)
-            wizard = self.client.session[BatchCommandAdmin.session_key]
+            wizard = list(self._get_wizards().values())[-1]
             self.assertEqual(
                 set(wizard["device_ids"]), {str(device.pk) for device in devices}
             )
-            response = self.client.get(self.confirm_url)
+            response = self.client.get(self._confirm_url())
             self.assertEqual(response.context["device_count"], 2)
             self.assertEqual(response.context["targets_display"], "2 selected devices")
             self.assertEqual(set(response.context["cl"].queryset), set(devices))
@@ -947,7 +1044,7 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
             )
             self.assertNotContains(response, "devices you selected")
             self._start_wizard(devices=self._pk_list(devices[:1]))
-            response = self.client.get(self.confirm_url)
+            response = self.client.get(self._confirm_url())
             self.assertEqual(response.context["targets_display"], "1 selected device")
 
         with self.subTest("the selection is kept when going back to edit"):
@@ -958,8 +1055,8 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
             )
             selected = {str(device.pk) for device in devices}
             self._start_wizard(devices=self._pk_list(devices))
-            self.client.get(self.confirm_url)
-            response = self.client.get(f"{self.execute_url}?back=1")
+            self.client.get(self._confirm_url())
+            response = self.client.get(self._back_url())
             form = response.context["form"]
             self.assertEqual(set(form.device_ids), selected)
             for field_name in ("organization", "group", "location"):
@@ -970,10 +1067,10 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
             self._start_wizard(
                 devices=form.fields["devices"].initial or "", label="edited-label"
             )
-            wizard = self.client.session[BatchCommandAdmin.session_key]
+            wizard = list(self._get_wizards().values())[-1]
             self.assertEqual(wizard["label"], "edited-label")
             self.assertEqual(set(wizard["device_ids"]), selected)
-            response = self.client.get(self.confirm_url)
+            response = self.client.get(self._confirm_url())
             self.assertEqual(set(response.context["cl"].queryset), set(devices))
 
     def test_device_action_system_wide(self):
@@ -1007,7 +1104,7 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
             self.assertNotContains(response, 'name="group"')
             self.assertNotContains(response, 'name="location"')
             wizard = self._start_wizard()
-            response = self.client.get(self.confirm_url)
+            response = self.client.get(self._confirm_url())
             self.assertEqual(response.context["targets_display"], "All devices")
             self.assertEqual(set(response.context["cl"].queryset), set(all_devices))
             response = self._post_confirm(wizard["token"])
@@ -1021,7 +1118,7 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
 
         with self.subTest("the excluded devices are left out of the batch"):
             wizard = self._start_wizard()
-            self.client.get(self.confirm_url)
+            self.client.get(self._confirm_url())
             response = self._post_confirm(wizard["token"], excluded=str(device_org2.pk))
             self.assertEqual(response.status_code, 302)
             self.assertIn(
@@ -1127,7 +1224,7 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
             wizard = self._start_wizard(devices=self._pk_list([device]))
             self.assertEqual(wizard["device_ids"], [str(device.pk)])
             self.assertEqual(wizard["organization_id"], str(org.pk))
-            self.client.get(self.confirm_url)
+            self.client.get(self._confirm_url())
             response = self._post_confirm(wizard["token"])
             self.assertEqual(response.status_code, 302)
             batch = BatchCommand.objects.get()
