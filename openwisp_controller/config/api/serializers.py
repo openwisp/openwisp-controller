@@ -17,6 +17,7 @@ Device = load_model("config", "Device")
 DeviceGroup = load_model("config", "DeviceGroup")
 Config = load_model("config", "Config")
 Organization = load_model("openwisp_users", "Organization")
+OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
 
 
 class BaseMeta:
@@ -405,3 +406,17 @@ class DeviceGroupSerializer(BaseSerializer):
         instance = super().update(instance, validated_data)
         self._save_m2m_templates(instance)
         return instance
+
+
+class OrganizationConfigSettingsSerializer(BaseSerializer):
+    context = serializers.JSONField(required=False, initial={})
+
+    class Meta:
+        model = OrganizationConfigSettings
+        fields = [
+            "id",
+            "registration_enabled",
+            "shared_secret",
+            "context",
+            "whois_enabled",
+        ]
