@@ -139,10 +139,10 @@ Important notes for using Subnet Division
   be utilized to provision any IP addresses that need to be created
   manually. For host-route rules (IPv4 ``/32`` or IPv6 ``/128``), no
   reserved subnet database object is created because each subnet contains
-  only a single host address. Do not create child subnets manually in the
-  remaining address space of the master subnet. If an IP address is
-  already allocated in the master subnet hierarchy, the rule skips child
-  subnet candidates that would provision the same address.
+  only a single host address. It allocates child subnets from the lowest
+  compatible free range in the master subnet. If an IP address is already
+  allocated in the master subnet hierarchy, the rule skips child subnet
+  candidates that would provision the same address.
 - The example provided used the :ref:`VPN subnet division rule
   <vpn_rule>`. Similarly, the :ref:`device subnet division rule
   <device_rule>` can be employed, requiring only :ref:`the creation of a
