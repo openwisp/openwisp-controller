@@ -177,7 +177,7 @@ class OrganizationConfigSettingsView(ProtectedAPIMixin, RetrieveUpdateAPIView):
         try:
             return queryset.get(organization_id=self.kwargs["pk"])
         except OrganizationConfigSettings.DoesNotExist:
-            if self.request.method == "GET":
+            if self.request.method in ("GET", "HEAD"):
                 raise Http404
             org_queryset = Organization.objects.all()
             if not self.request.user.is_superuser:

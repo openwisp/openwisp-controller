@@ -1271,6 +1271,31 @@ class TestConfigApi(
             )
             self.assertEqual(response.status_code, 404)
 
+    def test_organization_config_settings_manager_access(self):
+        org = self._get_org()
+        config_settings = OrganizationConfigSettings.objects.create(organization=org)
+        test_user = self._create_administrator(organizations=[org])
+        self.client.force_login(test_user)
+        path = reverse("config_api:organization_config_settings", args=[org.pk])
+
+        with self.subTest("Test GET"):
+            response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(
+                response.data["shared_secret"], config_settings.shared_secret
+            )
+
+        with self.subTest("Test PATCH"):
+            response = self.client.patch(
+                path,
+                data={"registration_enabled": False, "shared_secret": "a" * 32},
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 200)
+            config_settings.refresh_from_db()
+            self.assertFalse(config_settings.registration_enabled)
+            self.assertEqual(config_settings.shared_secret, "a" * 32)
+
     def test_devicegroup_commonname(self):
         org = self._get_org()
         org2 = self._create_org(name="org2")

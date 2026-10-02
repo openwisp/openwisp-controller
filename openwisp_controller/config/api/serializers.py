@@ -411,6 +411,11 @@ class DeviceGroupSerializer(BaseSerializer):
 class OrganizationConfigSettingsSerializer(BaseSerializer):
     context = serializers.JSONField(required=False, initial={})
 
+    def validate_context(self, value):
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("Context must be a JSON object.")
+        return value
+
     class Meta:
         model = OrganizationConfigSettings
         fields = [
