@@ -1233,6 +1233,16 @@ class TestConfigApi(
             config_settings.refresh_from_db()
             self.assertFalse(config_settings.registration_enabled)
 
+        with self.subTest("Test PATCH with invalid context"):
+            response = self.client.patch(
+                path,
+                data={"context": "invalid"},
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 400)
+            config_settings.refresh_from_db()
+            self.assertDictEqual(config_settings.context, {})
+
     def test_organization_config_settings_not_existing_api(self):
         org = self._get_org()
         path = reverse("config_api:organization_config_settings", args=[org.pk])
@@ -1271,6 +1281,19 @@ class TestConfigApi(
             )
             self.assertEqual(response.status_code, 404)
 
+        with self.subTest("Test PATCH on org without settings"):
+            org3 = self._create_org(name="org3", slug="org3")
+            path3 = reverse("config_api:organization_config_settings", args=[org3.pk])
+            response = self.client.patch(
+                path3,
+                data={"registration_enabled": False},
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 404)
+            self.assertFalse(
+                OrganizationConfigSettings.objects.filter(organization=org3).exists()
+            )
+
     def test_organization_config_settings_manager_access(self):
         org = self._get_org()
         config_settings = OrganizationConfigSettings.objects.create(organization=org)
@@ -1295,6 +1318,21 @@ class TestConfigApi(
             config_settings.refresh_from_db()
             self.assertFalse(config_settings.registration_enabled)
             self.assertEqual(config_settings.shared_secret, "a" * 32)
+
+        with self.subTest("Test PUT"):
+            response = self.client.put(
+                path,
+                data={
+                    "registration_enabled": True,
+                    "shared_secret": "b" * 32,
+                    "context": {},
+                },
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 200)
+            config_settings.refresh_from_db()
+            self.assertTrue(config_settings.registration_enabled)
+            self.assertEqual(config_settings.shared_secret, "b" * 32)
 
     def test_devicegroup_commonname(self):
         org = self._get_org()
