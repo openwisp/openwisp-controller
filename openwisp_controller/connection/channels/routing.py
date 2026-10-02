@@ -8,5 +8,9 @@ def get_routes(consumer=ow_consumer):
         path(
             "ws/controller/device/<uuid:pk>/command",
             consumer.CommandConsumer.as_asgi(),
-        )
+        ),
+        path(
+            "ws/controller/batch-command/<uuid:pk>",
+            consumer.BatchCommandConsumer.as_asgi(),
+        ),
     ]
