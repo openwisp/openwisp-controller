@@ -10,6 +10,18 @@
     {% endif %}
 {% endblock messages %}
 
+{% block inline_field_sets %}
+{{ block.super }}
+{% if certificate_details %}
+<div class="inline-group" id="certificate-group">
+    <fieldset class="module">
+        <h2>{% trans "X.509 Certs" %}</h2>
+        {{ certificate_details }}
+    </fieldset>
+</div>
+{% endif %}
+{% endblock %}
+
 {% block content %}
     {% comment %}
     Due to HTML's limitation in supporting nested forms, we employ a

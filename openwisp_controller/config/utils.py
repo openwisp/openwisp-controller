@@ -1,8 +1,10 @@
+import copy
 import logging
 import time
 
+import shortuuid
 from django.core.cache import cache
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db.models import Q
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404 as base_get_object_or_404
@@ -10,6 +12,8 @@ from django.urls import path
 from django.utils.translation import gettext_lazy as _
 from openwisp_notifications.signals import notify
 from openwisp_notifications.utils import _get_object_link
+
+from openwisp_controller.config import settings as app_settings
 
 logger = logging.getLogger(__name__)
 
@@ -85,6 +89,74 @@ def update_last_ip(device, request):
         device.save(update_fields=update_fields)
 
     return bool(update_fields)
+
+
+def generate_common_name(device):
+    """
+    Returns a unique common name for a device certificate.
+    """
+    end = 63 - len(device.mac_address)
+    truncated_name = device.name[:end]
+    unique_slug = shortuuid.ShortUUID().random(length=8)
+    cn_format = app_settings.COMMON_NAME_FORMAT
+    if cn_format == "{mac_address}-{name}" and truncated_name == device.mac_address:
+        cn_format = "{mac_address}"
+    format_dict = {**device.__dict__, "name": truncated_name}
+    common_name = cn_format.format(**format_dict)[:55]
+    common_name = f"{common_name}-{unique_slug}"
+    return common_name
+
+
+DEFAULT_CLIENT_EXTENSIONS = [
+    {"name": "nsCertType", "value": "client", "critical": False}
+]
+
+
+def copy_ca_attributes(ca, blueprint=None):
+    """
+    Extracts base X.509 attributes (such as key length, digest, and
+    location data) from the provided CA or blueprint certificate.
+    """
+    source = blueprint or ca
+    digest = str(source.digest)
+    return dict(
+        key_length=source.key_length,
+        digest=digest,
+        country_code=source.country_code,
+        state=source.state,
+        city=source.city,
+        organization_name=source.organization_name,
+        organizational_unit_name=source.organizational_unit_name,
+        email=source.email,
+    )
+
+
+def get_client_extensions(blueprint=None, hardware_oids=None, ca=None):
+    """
+    Compiles the list of X.509 extensions for a new client certificate.
+    """
+    source = blueprint or ca
+    if source and source.extensions:
+        extensions = copy.deepcopy(source.extensions)
+    else:
+        extensions = copy.deepcopy(DEFAULT_CLIENT_EXTENSIONS)
+    if hardware_oids:
+        oid_values = {ext["oid"] for ext in hardware_oids if ext.get("oid")}
+        extensions = [ext for ext in extensions if ext.get("oid") not in oid_values]
+        extensions.extend(hardware_oids)
+    return extensions
+
+
+def revoke_device_cert(instance):
+    """
+    Revokes the certificate of a VPN client or device certificate
+    instance if it exists and was auto-provisioned.
+    """
+    try:
+        if instance.cert and getattr(instance, "auto_cert", True):
+            instance.cert.revoke()
+    except ObjectDoesNotExist:
+        pass
 
 
 def forbid_unallowed(request, param_group, param, allowed_values=None):
