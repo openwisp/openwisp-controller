@@ -83,6 +83,11 @@ def get_api_urls(api_views):
                 api_download_views.download_device_config,
                 name="download_device_config",
             ),
+            path(
+                "controller/organization/<uuid:pk>/config-settings/",
+                api_views.organization_config_settings,
+                name="organization_config_settings",
+            ),
         ]
     else:
         return []
