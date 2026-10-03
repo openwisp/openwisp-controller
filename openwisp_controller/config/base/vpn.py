@@ -927,6 +927,12 @@ class AbstractVpnClient(models.Model):
         verbose_name = _("VPN client")
         verbose_name_plural = _("VPN clients")
 
+    @classmethod
+    def from_db(cls, db, field_names, values):
+        instance = super().from_db(db, field_names, values)
+        instance._original_pk = instance.pk
+        return instance
+
     def clean(self, *args, **kwargs):
         """
         Validates that VpnClient fields are not modified after creation.
@@ -935,8 +941,18 @@ class AbstractVpnClient(models.Model):
         if hasattr(super(), "clean"):
             super().clean(*args, **kwargs)
 
-        if self.pk is None:
+        if self._state.adding and self.pk is None:
             return
+
+        if not self._state.adding and (
+            self.pk is None or self.pk != getattr(self, "_original_pk", None)
+        ):
+            raise ValidationError(
+                _(
+                    "VPN client primary key cannot be modified after creation. "
+                    "To apply changes, remove the template and re-add it."
+                )
+            )
 
         immutable_fields = [
             "config_id",
