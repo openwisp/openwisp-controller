@@ -48,6 +48,7 @@ Device = load_model("config", "Device")
 DeviceGroup = load_model("config", "DeviceGroup")
 Template = load_model("config", "Template")
 Vpn = load_model("config", "Vpn")
+VpnClient = load_model("config", "VpnClient")
 OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
 Ca = load_model("django_x509", "Ca")
 Cert = load_model("django_x509", "Cert")
@@ -1676,6 +1677,172 @@ class TestAdmin(
         self.assertContains(
             response, 'value="openwisp_controller.vpn_backends.OpenVpn" selected'
         )
+
+    def test_delete_cert_in_use_by_vpn_client_blocked(self):
+        org = self._get_org()
+        vpn = self._create_vpn()
+        config = self._create_config(organization=org)
+        vpn_template = self._create_template(
+            name="vpn-cert-client-1419", type="vpn", vpn=vpn, auto_cert=True
+        )
+        config.templates.add(vpn_template)
+        vpnclient = config.vpnclient_set.first()
+        cert = vpnclient.cert
+        self.assertIsNotNone(cert)
+
+        app_label = Cert._meta.app_label
+        path = reverse(f"admin:{app_label}_cert_delete", args=[cert.pk])
+        response = self.client.get(path)
+        self.assertEqual(response.status_code, 200)
+        expected_msg = (
+            f"The certificate &quot;{cert.name}&quot; is currently used by the "
+            f"device &quot;{config.device.name}&quot;; remove the VPN template "
+            "from the device before deleting this certificate."
+        )
+        self.assertContains(response, expected_msg)
+        self.assertNotContains(response, 'value="Yes, I’m sure"')
+        self.assertNotContains(response, 'value="Yes, I&#x27;m sure"')
+
+        response = self.client.post(path, data={"post": "yes"}, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(Cert.objects.filter(pk=cert.pk).exists())
+        self.assertTrue(VpnClient.objects.filter(pk=vpnclient.pk).exists())
+
+    def test_delete_cert_in_use_by_vpn_server_blocked(self):
+        vpn = self._create_vpn()
+        cert = vpn.cert
+        self.assertIsNotNone(cert)
+
+        app_label = Cert._meta.app_label
+        path = reverse(f"admin:{app_label}_cert_delete", args=[cert.pk])
+        response = self.client.get(path)
+        self.assertEqual(response.status_code, 200)
+        expected_msg = (
+            f"The certificate &quot;{cert.name}&quot; is currently used by the "
+            f"VPN server &quot;{vpn.name}&quot;; change the VPN certificate "
+            "before deleting this one."
+        )
+        self.assertContains(response, expected_msg)
+        self.assertNotContains(response, 'value="Yes, I’m sure"')
+        self.assertNotContains(response, 'value="Yes, I&#x27;m sure"')
+
+        response = self.client.post(path, data={"post": "yes"}, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(Cert.objects.filter(pk=cert.pk).exists())
+        self.assertTrue(Vpn.objects.filter(pk=vpn.pk).exists())
+
+    def test_delete_ca_in_use_by_vpn_server_blocked(self):
+        vpn = self._create_vpn()
+        ca = vpn.ca
+        self.assertIsNotNone(ca)
+
+        app_label = Ca._meta.app_label
+        path = reverse(f"admin:{app_label}_ca_delete", args=[ca.pk])
+        response = self.client.get(path)
+        self.assertEqual(response.status_code, 200)
+        expected_msg = (
+            f"The CA &quot;{ca.name}&quot; is currently used by the VPN server "
+            f"&quot;{vpn.name}&quot;; change the VPN CA before deleting this one."
+        )
+        self.assertContains(response, expected_msg)
+        self.assertNotContains(response, 'value="Yes, I’m sure"')
+        self.assertNotContains(response, 'value="Yes, I&#x27;m sure"')
+
+        response = self.client.post(path, data={"post": "yes"}, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(Ca.objects.filter(pk=ca.pk).exists())
+        self.assertTrue(Vpn.objects.filter(pk=vpn.pk).exists())
+
+    def test_delete_ca_in_use_by_vpn_client_blocked(self):
+        org = self._get_org()
+        vpn = self._create_vpn()
+        config = self._create_config(organization=org)
+        vpn_template = self._create_template(
+            name="vpn-ca-client-1419", type="vpn", vpn=vpn, auto_cert=True
+        )
+        config.templates.add(vpn_template)
+        vpnclient = config.vpnclient_set.first()
+        ca = vpnclient.cert.ca
+        self.assertIsNotNone(ca)
+
+        app_label = Ca._meta.app_label
+        path = reverse(f"admin:{app_label}_ca_delete", args=[ca.pk])
+        response = self.client.get(path)
+        self.assertEqual(response.status_code, 200)
+        expected_msg = (
+            f"The CA &quot;{ca.name}&quot; issued a certificate used by the "
+            f"device &quot;{config.device.name}&quot;; remove the VPN template "
+            "from the device before deleting this CA."
+        )
+        self.assertContains(response, expected_msg)
+        self.assertNotContains(response, 'value="Yes, I’m sure"')
+        self.assertNotContains(response, 'value="Yes, I&#x27;m sure"')
+
+        response = self.client.post(path, data={"post": "yes"}, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(Ca.objects.filter(pk=ca.pk).exists())
+        self.assertTrue(VpnClient.objects.filter(pk=vpnclient.pk).exists())
+
+    def test_bulk_delete_certs_blocked(self):
+        org = self._get_org()
+        vpn = self._create_vpn()
+        config = self._create_config(organization=org)
+        vpn_template = self._create_template(
+            name="vpn-bulk-cert-1419", type="vpn", vpn=vpn, auto_cert=True
+        )
+        config.templates.add(vpn_template)
+        vpnclient = config.vpnclient_set.first()
+        in_use_cert = vpnclient.cert
+        free_cert = self._create_cert(name="free-cert-1419")
+
+        app_label = Cert._meta.app_label
+        path = reverse(f"admin:{app_label}_cert_changelist")
+        post_data = {
+            "action": "delete_selected",
+            "select_across": 0,
+            "index": 0,
+            "_selected_action": [str(in_use_cert.pk), str(free_cert.pk)],
+        }
+        response = self.client.post(path, data=post_data)
+        self.assertEqual(response.status_code, 200)
+        expected_msg = (
+            f"The certificate &quot;{in_use_cert.name}&quot; is currently used "
+            f"by the device &quot;{config.device.name}&quot;; remove the VPN "
+            "template from the device before deleting this certificate."
+        )
+        self.assertContains(response, expected_msg)
+
+        post_data["post"] = "yes"
+        response = self.client.post(path, data=post_data, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(Cert.objects.filter(pk=in_use_cert.pk).exists())
+
+    def test_bulk_delete_cas_blocked(self):
+        vpn = self._create_vpn()
+        in_use_ca = vpn.ca
+        free_ca = self._create_ca(name="free-ca-1419")
+
+        app_label = Ca._meta.app_label
+        path = reverse(f"admin:{app_label}_ca_changelist")
+        post_data = {
+            "action": "delete_selected",
+            "select_across": 0,
+            "index": 0,
+            "_selected_action": [str(in_use_ca.pk), str(free_ca.pk)],
+        }
+        response = self.client.post(path, data=post_data)
+        self.assertEqual(response.status_code, 200)
+        expected_msg = (
+            f"The CA &quot;{in_use_ca.name}&quot; is currently used by the "
+            f"VPN server &quot;{vpn.name}&quot;; change the VPN CA before "
+            "deleting this one."
+        )
+        self.assertContains(response, expected_msg)
+
+        post_data["post"] = "yes"
+        response = self.client.post(path, data=post_data, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(Ca.objects.filter(pk=in_use_ca.pk).exists())
 
     def test_vpn_clients_deleted(self):
         def _update_template(templates):
