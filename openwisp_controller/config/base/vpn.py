@@ -970,7 +970,7 @@ class AbstractVpnClient(models.Model):
         try:
             # The object may not exist in the database yet (e.g., edge cases),
             # so we skip validation if it cannot be found.
-            original = self.__class__.objects.get(pk=self.pk)
+            original = self.__class__.objects.using(self._state.db).get(pk=self.pk)
         except self.__class__.DoesNotExist:
             return
 
@@ -1014,13 +1014,17 @@ class AbstractVpnClient(models.Model):
 
     def save(self, *args, **kwargs):
         """Performs automatic provisioning if ``auto_cert`` is True."""
+        was_adding = self._state.adding
         if self.auto_cert:
             self._auto_x509()
             self._auto_ip()
             self._auto_wireguard()
             self._auto_vxlan()
             self._auto_secret()
-        super().save(*args, **kwargs)
+        result = super().save(*args, **kwargs)
+        if was_adding:
+            self._original_pk = self.pk
+        return result
 
     def _auto_x509(self):
         """
