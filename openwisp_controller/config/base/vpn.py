@@ -927,6 +927,46 @@ class AbstractVpnClient(models.Model):
         verbose_name = _("VPN client")
         verbose_name_plural = _("VPN clients")
 
+    def clean(self, *args, **kwargs):
+        """
+        Validates that VpnClient fields are not modified after creation.
+        If configuration changes are needed, the object should be recreated.
+        """
+        if hasattr(super(), "clean"):
+            super().clean(*args, **kwargs)
+
+        if self._state.adding:
+            return
+
+        immutable_fields = [
+            "config_id",
+            "template_id",
+            "vpn_id",
+            "cert_id",
+            "auto_cert",
+            "ip_id",
+            "public_key",
+            "private_key",
+            "secret",
+            "vni",
+        ]
+
+        try:
+            # The object may not exist in the database yet (e.g., edge cases),
+            # so we skip validation if it cannot be found.
+            original = self.__class__.objects.get(pk=self.pk)
+        except self.__class__.DoesNotExist:
+            return
+
+        for field in immutable_fields:
+            if getattr(self, field) != getattr(original, field):
+                raise ValidationError(
+                    _(
+                        "VPN client fields cannot be modified after creation. "
+                        "To apply changes, remove the template and re-add it."
+                    )
+                )
+
     @cached_property
     def zerotier_member_id(self):
         """

@@ -162,6 +162,40 @@ class TestVpn(BaseTestVpn, TestCase):
         self.assertEqual(VpnClient.objects.filter(pk=vpnclient.pk).count(), 0)
         self.assertEqual(Cert.objects.filter(pk=cert_pk).count(), 0)
 
+    def test_vpn_client_immutability(self):
+        org = self._get_org()
+        vpn = self._create_vpn()
+        t = self._create_template(name="vpn-test", type="vpn", vpn=vpn, auto_cert=True)
+        c = self._create_config(organization=org)
+        c.templates.add(t)
+
+        vpnclient = c.vpnclient_set.first()
+
+        with self.subTest("Unchanged object passes validation"):
+            # Should not raise any errors
+            vpnclient.full_clean()
+
+        with self.subTest("Changing auto_cert fails validation"):
+            vpnclient.refresh_from_db()
+            vpnclient.auto_cert = False
+            with self.assertRaises(ValidationError) as context:
+                vpnclient.full_clean()
+            self.assertIn(
+                "VPN client fields cannot be modified after creation",
+                context.exception.message_dict["__all__"][0],
+            )
+
+        with self.subTest("Changing vpn backend fails validation"):
+            vpnclient.refresh_from_db()
+            other_vpn = self._create_vpn(name="other-vpn")
+            vpnclient.vpn = other_vpn
+            with self.assertRaises(ValidationError) as context:
+                vpnclient.full_clean()
+            self.assertIn(
+                "VPN client fields cannot be modified after creation",
+                context.exception.message_dict["__all__"][0],
+            )
+
     def test_vpn_cert_and_ca_mismatch(self):
         ca = self._create_ca()
         different_ca = self._create_ca(common_name="different-ca")
@@ -284,10 +318,9 @@ class TestVpn(BaseTestVpn, TestCase):
             c.templates.add(t)
             vpnclient = c.vpnclient_set.first()
             cert = vpnclient.cert
-            # Set auto_cert field to false
-            vpnclient.auto_cert = False
-            vpnclient.full_clean()
-            vpnclient.save()
+            # Set auto_cert field to false bypassing validation to test post_delete
+            VpnClient.objects.filter(pk=vpnclient.pk).update(auto_cert=False)
+            vpnclient.refresh_from_db()
             _assert_vpn_client_cert(cert, vpnclient, 1, 0)
 
     def test_vpn_client_get_common_name(self):
