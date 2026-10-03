@@ -214,6 +214,20 @@ configuration.
 
 Finally you can add the new template to your devices.
 
+.. important::
+
+    **VPN Client Immutability**
+
+    Once a VPN client template is applied to a device and the VPN client
+    object is created, its core fields (such as the associated VPN server,
+    IP, and certificate settings) become **immutable** to prevent data
+    inconsistency.
+    
+    If you need to change the configuration of an existing VPN client, you
+    cannot edit it directly. Instead, you must remove the VPN client
+    template from the device, save it, and then re-add the template to
+    generate a new configuration.
+
 .. tip::
 
     If you need to troubleshoot any issue, increase the verbosity of the

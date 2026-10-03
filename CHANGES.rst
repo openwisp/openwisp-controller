@@ -4,7 +4,13 @@ Changelog
 Version 1.4.0 [unreleased]
 --------------------------
 
-Work in progress.
+Changes
+~~~~~~~
+
+- Changed ``VpnClient`` behavior so its fields cannot be modified after creation
+  (`issue #1428 <https://github.com/openwisp/openwisp-controller/issues/1428>`_).
+  To apply configuration changes to an existing VPN client, you must now remove
+  and re-add the VPN template to the device configuration.
 
 Version 1.3.0 [2026-09-03]
 --------------------------
