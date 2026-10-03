@@ -935,7 +935,7 @@ class AbstractVpnClient(models.Model):
         if hasattr(super(), "clean"):
             super().clean(*args, **kwargs)
 
-        if self._state.adding:
+        if self.pk is None:
             return
 
         immutable_fields = [
