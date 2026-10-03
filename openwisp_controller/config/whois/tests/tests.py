@@ -1,11 +1,9 @@
-import copy
 import importlib
 from datetime import timedelta
 from io import StringIO
 from unittest import mock
 from uuid import uuid4
 
-from django.conf import settings
 from django.contrib.gis.geos import Point
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.core.cache import cache
@@ -24,7 +22,7 @@ from swapper import load_model
 from openwisp_controller.config.signals import whois_fetched, whois_lookup_skipped
 from openwisp_utils.tests import SeleniumTestMixin, catch_signal
 
-from ....tests.utils import TestAdminMixin
+from ....tests.utils import LOCAL_MEMORY_CACHE, TestAdminMixin
 from ... import settings as app_settings
 from ..handlers import connect_whois_handlers
 from ..service import WHOISService
@@ -42,10 +40,6 @@ WHOISInfo = load_model("config", "WHOISInfo")
 Notification = load_model("openwisp_notifications", "Notification")
 OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
 
-MODIFIED_CACHE = copy.deepcopy(settings.CACHES)
-# add key_prefix to avoid conflicts in parallel tests
-MODIFIED_CACHE["default"]["KEY_PREFIX"] = "whois_failure"
-
 
 def _notification_qs():
     return Notification.objects.all()
@@ -53,6 +47,7 @@ def _notification_qs():
 
 # SESSION_ENGINE set to DB to avoid conflicts in parallel tests
 @override_settings(SESSION_ENGINE="django.contrib.sessions.backends.db")
+@override_settings(CACHES=LOCAL_MEMORY_CACHE)
 class TestWHOIS(CreateWHOISMixin, TestAdminMixin, TestCase):
     # Signals are connected when apps are loaded,
     # and if WHOIS is Configured all related WHOIS
@@ -428,6 +423,7 @@ class TestWHOISInfoModel(CreateWHOISMixin, TestCase):
 
 # SESSION_ENGINE set to DB to avoid conflicts in parallel tests
 @override_settings(SESSION_ENGINE="django.contrib.sessions.backends.db")
+@override_settings(CACHES=LOCAL_MEMORY_CACHE)
 class TestWHOISTransaction(
     CreateWHOISMixin, WHOISTransactionMixin, TransactionTestCase
 ):
@@ -440,6 +436,7 @@ class TestWHOISTransaction(
     _WHOIS_TASK_NAME = "openwisp_controller.config.whois.tasks.fetch_whois_details"
 
     def setUp(self):
+        cache.clear()
         super().setUp()
         self.admin = self._get_admin()
 
@@ -952,7 +949,6 @@ class TestWHOISTransaction(
         assert_logging_on_exception(RequestException, notification_count=0)
         cache.clear()
 
-    @override_settings(CACHES=MODIFIED_CACHE)
     @override_settings(CELERY_TASK_EAGER_PROPAGATES=False)
     @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
     def test_task_failure_cache(self):
