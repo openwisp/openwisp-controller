@@ -1,46 +1,51 @@
 from django.urls import path
 
-from . import views as api_views
+from . import views
 
 app_name = "openwisp_controller"
 
 
-def get_api_urls(api_views):
+def get_api_urls(api_views=views):
     """
-    returns:: all the API urls of the config app
+    returns:: all the API urls of the connection app
     """
+
+    def get_view(name):
+        """Fall back to the standard view when a custom view is unavailable."""
+        return getattr(api_views, name, getattr(views, name))
+
     return [
         path(
             "api/v1/controller/device/<uuid:device_id>/command/",
-            api_views.command_list_create_view,
+            get_view("command_list_create_view"),
             name="device_command_list",
         ),
         path(
             "api/v1/controller/device/<uuid:device_id>/command/<uuid:pk>/",
-            api_views.command_details_view,
+            get_view("command_details_view"),
             name="device_command_details",
         ),
         path(
             "api/v1/controller/credential/",
-            api_views.credential_list_create_view,
+            get_view("credential_list_create_view"),
             name="credential_list",
         ),
         path(
             "api/v1/controller/credential/<uuid:pk>/",
-            api_views.credential_detail_view,
+            get_view("credential_detail_view"),
             name="credential_detail",
         ),
         path(
             "api/v1/controller/device/<uuid:device_id>/connection/",
-            api_views.deviceconnection_list_create_view,
+            get_view("deviceconnection_list_create_view"),
             name="deviceconnection_list",
         ),
         path(
             "api/v1/controller/device/<uuid:device_id>/connection/<uuid:pk>/",
-            api_views.deviceconnection_detail_view,
+            get_view("deviceconnection_detail_view"),
             name="deviceconnection_detail",
         ),
     ]
 
 
-urlpatterns = get_api_urls(api_views)
+urlpatterns = get_api_urls()
