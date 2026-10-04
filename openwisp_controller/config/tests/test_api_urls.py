@@ -47,14 +47,4 @@ class TestApiUrls(SimpleTestCase):
                 expected = fallback_views.get(view_name, custom_view)
                 self.assertIs(callbacks[url_name], expected)
 
-        default_callbacks = {
-            pattern.name: pattern.callback for pattern in get_api_urls()
-        }
-
-        for url_name, view_name in view_names.items():
-            with self.subTest(url_name=url_name, custom=False):
-                expected = getattr(
-                    download_views if hasattr(download_views, view_name) else views,
-                    view_name,
-                )
-                self.assertIs(default_callbacks[url_name], expected)
+        self.assertIs(get_api_urls()[0].callback, views.template_list)

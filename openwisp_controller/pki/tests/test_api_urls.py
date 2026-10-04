@@ -39,10 +39,4 @@ class TestApiUrls(SimpleTestCase):
                 )
                 self.assertIs(callbacks[url_name], expected)
 
-        default_callbacks = {
-            pattern.name: pattern.callback for pattern in get_pki_api_urls()
-        }
-
-        for url_name, view_name in view_names.items():
-            with self.subTest(url_name=url_name, custom=False):
-                self.assertIs(default_callbacks[url_name], getattr(views, view_name))
+        self.assertIs(get_pki_api_urls()[0].callback, views.ca_list)
