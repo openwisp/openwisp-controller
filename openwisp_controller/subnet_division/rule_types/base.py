@@ -235,7 +235,17 @@ class BaseSubnetDivisionRuleType(object):
             ).values_list("ip_address", flat=True)
         )
         generated_subnets = []
-        for required_subnet in master_subnet.get_available_subnets(division_rule.size):
+        ip_indexes = BaseSubnetDivisionRuleType.get_ip_indexes(
+            next(
+                IPNetwork(str(master_subnet.subnet)).subnet(
+                    prefixlen=division_rule.size
+                )
+            ),
+            division_rule.number_of_ips,
+        )
+        for required_subnet in master_subnet.get_available_subnets(
+            division_rule.size, ip_indexes=ip_indexes
+        ):
             if len(generated_subnets) == division_rule.number_of_subnets:
                 break
             if str(required_subnet) == reserved_subnet:
@@ -245,9 +255,7 @@ class BaseSubnetDivisionRuleType(object):
             # with an existing assignment in the related hierarchy.
             if any(
                 str(required_subnet[ip_index]) in allocated_ips
-                for ip_index in BaseSubnetDivisionRuleType.get_ip_indexes(
-                    required_subnet, division_rule.number_of_ips
-                )
+                for ip_index in ip_indexes
             ):
                 continue
             subnet_obj = Subnet(

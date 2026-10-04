@@ -5,7 +5,7 @@ coverage erase
 
 echo "Starting standard tests"
 coverage run runtests.py --parallel --exclude-tag=selenium_tests \
-  || coverage run ./runtests.py
+  || coverage run ./runtests.py --exclude-tag=selenium_tests
 
 echo "Starting selenium browser tests"
 coverage run runtests.py --tag=selenium_tests --no-input --exclude-pytest
