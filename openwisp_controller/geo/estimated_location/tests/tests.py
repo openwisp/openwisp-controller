@@ -18,7 +18,7 @@ from swapper import load_model
 from openwisp_controller.config.whois.handlers import connect_whois_handlers
 from openwisp_controller.config.whois.tests.utils import WHOISTransactionMixin
 
-from ....tests.utils import TestAdminMixin
+from ....tests.utils import LOCAL_MEMORY_CACHE, TestAdminMixin
 from ... import estimated_location
 from ...tests.utils import TestGeoMixin
 from ..handlers import register_estimated_location_notification_types
@@ -41,9 +41,14 @@ def _notification_qs():
     return Notification.objects.all()
 
 
+@override_settings(CACHES=LOCAL_MEMORY_CACHE)
 class TestEstimatedLocation(
     TestEstimatedLocationMixin, TestAdminMixin, TestGeoMixin, TestCase
 ):
+    def setUp(self):
+        cache.clear()
+        super().setUp()
+
     @override_settings(
         OPENWISP_CONTROLLER_WHOIS_GEOIP_ACCOUNT="test_account",
         OPENWISP_CONTROLLER_WHOIS_GEOIP_KEY="test_key",
@@ -359,6 +364,7 @@ class TestEstimatedLocation(
         self.assertEqual(device_location.content_object, device)
 
 
+@override_settings(CACHES=LOCAL_MEMORY_CACHE)
 class TestEstimatedLocationTransaction(
     TestEstimatedLocationMixin, WHOISTransactionMixin, TestGeoMixin, TransactionTestCase
 ):
@@ -383,6 +389,7 @@ class TestEstimatedLocationTransaction(
     _WHOIS_TASK_NAME = "openwisp_controller.config.whois.tasks.fetch_whois_details"
 
     def setUp(self):
+        cache.clear()
         super().setUp()
         self.admin = self._get_admin()
         # Unregister the notification type if it was previously registered

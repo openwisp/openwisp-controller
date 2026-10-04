@@ -2,8 +2,8 @@ from unittest.mock import patch
 
 from celery.exceptions import Retry
 from django.apps.registry import apps
-from django.conf import settings
-from django.test import TransactionTestCase
+from django.core.cache import cache
+from django.test import TransactionTestCase, override_settings
 from django.urls import reverse
 from requests.exceptions import RequestException
 from swapper import load_model
@@ -12,6 +12,7 @@ from openwisp_controller.config.tests.utils import (
     CreateConfigMixin,
     TestZeroTierVpnMixin,
 )
+from openwisp_controller.tests.utils import LOCAL_MEMORY_CACHE
 
 from ..settings import API_TASK_RETRY_OPTIONS
 from ..signals import device_registered
@@ -23,6 +24,7 @@ Notification = load_model("openwisp_notifications", "Notification")
 notification_qs = Notification.objects.all()
 
 
+@override_settings(CACHES=LOCAL_MEMORY_CACHE)
 class TestNotifications(
     CreateConfigMixin,
     TestZeroTierVpnMixin,
@@ -36,9 +38,12 @@ class TestNotifications(
     )
     _ZT_API_TASKS_ERR_LOGGER = "openwisp_controller.config.tasks_zerotier.logger.error"
     # As the locmem cache does not support the redis backend cache.keys() method
-    _ZT_API_TASKS_LOCMEM_CACHE_KEYS = f"{settings.CACHES['default']['BACKEND']}.keys"
+    _ZT_API_TASKS_LOCMEM_CACHE_KEYS = (
+        "django.core.cache.backends.locmem.LocMemCache.keys"
+    )
 
     def setUp(self):
+        cache.clear()
         self.admin = self._get_admin()
 
     def test_config_problem_notification(self):
