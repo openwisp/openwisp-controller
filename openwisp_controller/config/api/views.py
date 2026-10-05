@@ -185,6 +185,12 @@ class OrganizationConfigSettingsView(ProtectedAPIMixin, RetrieveUpdateAPIView):
                     pk__in=self.request.user.organizations_managed
                 )
             organization = get_object_or_404(org_queryset, pk=self.kwargs["pk"])
+            add_permission = (
+                f"{OrganizationConfigSettings._meta.app_label}."
+                f"add_{OrganizationConfigSettings._meta.model_name}"
+            )
+            if not self.request.user.has_perm(add_permission):
+                self.permission_denied(self.request)
             return OrganizationConfigSettings(organization=organization)
 
 

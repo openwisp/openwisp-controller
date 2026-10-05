@@ -1333,6 +1333,21 @@ class TestConfigApi(
             config_settings.refresh_from_db()
             self.assertTrue(config_settings.registration_enabled)
             self.assertEqual(config_settings.shared_secret, "b" * 32)
+        with self.subTest("Test PATCH without add permission"):
+            org2 = self._create_org(name="org2", slug="org2")
+            OrganizationUser.objects.create(
+                user=test_user, organization=org2, is_admin=True
+            )
+            path2 = reverse("config_api:organization_config_settings", args=[org2.pk])
+            response = self.client.patch(
+                path2,
+                data={"registration_enabled": False},
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 403)
+            self.assertFalse(
+                OrganizationConfigSettings.objects.filter(organization=org2).exists()
+            )
 
     def test_devicegroup_commonname(self):
         org = self._get_org()
