@@ -92,7 +92,7 @@ def get_api_urls(api_views=views):
             ),
             path(
                 "controller/organization/<uuid:pk>/config-settings/",
-                api_views.organization_config_settings,
+                get_view("organization_config_settings"),
                 name="organization_config_settings",
             ),
         ]
