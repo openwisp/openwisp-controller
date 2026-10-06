@@ -38,7 +38,6 @@ class ZerotierService:
             "rulesSource",
             "ssoEnabled",
             "creationTime",
-            "name",
             "nwid",
             "objtype",
             "revision",
