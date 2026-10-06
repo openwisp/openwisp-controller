@@ -5,6 +5,23 @@ Sending Commands to Devices
     :depth: 3
     :local:
 
+Single Device Commands
+----------------------
+
+Commands can be sent to one device at a time from the device detail page,
+as shown in the GIF below:
+
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/single_command_demo.gif
+    :target: https://github.com/openwisp/openwisp-controller/tree/docs/docs/single_command_demo.gif
+    :alt: Sending a single command
+
+Click the **Send Command** button, select the command type and fill in the
+required inputs. The command is sent to the device and its status is shown
+in the **Recent Commands** section of the device detail page.
+
+To send the same command to many devices at once, refer to
+:ref:`mass_commands`.
+
 Default Commands
 ----------------
 
@@ -40,6 +57,76 @@ shell commands, you can add new commands by following instructions in the
 
     You can also use the :ref:`REST API <controller_execute_command_api>`
     to execute commands on a device.
+
+.. _mass_commands:
+
+Mass Commands
+-------------
+
+Mass commands run the same command on many devices at once, for example to
+reboot all the devices of a organization, as shown in the GIF below:
+
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/mass-command-tutorial/mass_command_demo.gif
+    :target: https://github.com/openwisp/openwisp-controller/tree/docs/docs/mass-command-tutorial/mass_command_demo.gif
+    :alt: Sending a mass command
+
+Sending a Mass Command
+~~~~~~~~~~~~~~~~~~~~~~
+
+1. Open *Network Operations* > *Run Mass command*.
+2. Choose the command, a **label** to recognize it later, and the
+   **targets**: organization, device group and location. Combining targets
+   narrows the selection.
+3. Review the matched devices, uncheck any you want to leave out, and
+   click **Execute**.
+
+Superusers can leave every target empty to run the command on all the
+devices, as shown in the GIF below:
+
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/mass-command-tutorial/mass_command_superuser.gif
+    :target: https://github.com/openwisp/openwisp-controller/tree/docs/docs/mass-command-tutorial/mass_command_superuser.gif
+    :alt: Running a mass command on all devices as a superuser
+
+Other users must choose at least one target and can only use the commands
+enabled for their organization (see
+:ref:`openwisp_controller_organization_enabled_commands`).
+
+From the Device List
+~~~~~~~~~~~~~~~~~~~~
+
+A mass command can also be started from the device list, as shown in the
+GIF below:
+
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/mass-command-tutorial/mass_command_action.gif
+    :target: https://github.com/openwisp/openwisp-controller/tree/docs/docs/mass-command-tutorial/mass_command_action.gif
+    :alt: Sending a mass command to selected devices
+
+Select the devices, choose *Execute mass command* from the actions
+dropdown and click **Go**. Then choose the command and review the devices
+as described above. The selected devices must belong to the same
+organization.
+
+Following the Results
+~~~~~~~~~~~~~~~~~~~~~
+
+After executing, the mass command page shows the status and output of each
+device, updated in real time, as shown in the GIF below:
+
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/mass-command-tutorial/mass_command_results.gif
+    :target: https://github.com/openwisp/openwisp-controller/tree/docs/docs/mass-command-tutorial/mass_command_results.gif
+    :alt: Following the results of a mass command
+
+- Devices which cannot run the command, for example because they have no
+  access credentials, are marked as *skipped* together with the reason.
+- Past mass commands are listed in *Network Operations* > *Mass commands*.
+- Commands sent by a mass command also appear in the **Recent Commands**
+  of each device, with a link back to the mass command.
+
+REST API
+~~~~~~~~
+
+Mass commands can also be sent and followed through the :ref:`Batch
+Command API <controller_batch_command_api>`.
 
 .. _defining_new_menu_options:
 
@@ -183,118 +270,3 @@ How to register or unregister commands
 
 Refer to :ref:`registering_unregistering_commands` in the developer
 documentation.
-
-.. _mass_commands:
-
-Mass Commands
--------------
-
-Mass commands allow you to execute a command on multiple devices
-simultaneously, rather than issuing commands one device at a time. This is
-useful for rebooting all devices in a group, changing passwords across
-multiple devices, or running diagnostics on all devices in an
-organization.
-
-Sending a Mass Command
-~~~~~~~~~~~~~~~~~~~~~~
-
-Open *Network Operations* > *Run Mass command* from the menu. The first
-step asks for:
-
-- the **command type** and its inputs, which change with the type
-  selected;
-- a **label** to identify the mass command later, and optional **notes**;
-- the **targets**: organization, device group and location.
-
-The targets decide which devices are matched. Using more than one narrows
-the selection: a group and a location together match only the devices
-which are in that group *and* at that location.
-
-Superusers can leave every target empty to run the command on all the
-devices of the system. Other users must choose at least one target, and
-only see the command types enabled for their organizations (see
-:ref:`openwisp_controller_organization_enabled_commands`).
-
-Sending a Mass Command to Selected Devices
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-A mass command can also be started from the device list: select the
-devices with their checkboxes, choose *Execute mass command* from the
-actions dropdown and click *Go*.
-
-The first step opens with the selection already applied: a message at the
-top of the page states how many devices the command will run on, and the
-organization is filled in and cannot be changed, while device group and
-location are not asked for, since the devices are already known.
-
-The selected devices must belong to the same organization, otherwise the
-action refuses to start. The exception is a superuser selecting every
-device of the system: the command then runs on all of them and no target
-is asked for.
-
-The rest of the workflow is the same as described below: the devices can
-still be reviewed and left out before executing.
-
-Reviewing the Devices
-~~~~~~~~~~~~~~~~~~~~~
-
-The second step shows a summary of the command and the list of the devices
-it matched.
-
-Devices can be left out by unchecking them: the counter and the *Execute
-on N devices* button follow the selection, which is kept while paging
-through the list. *Back* returns to the first step with the form still
-filled in.
-
-The mass command starts when the *Execute* button is clicked.
-
-Following the Results
-~~~~~~~~~~~~~~~~~~~~~
-
-After executing, the mass command page opens. It shows the status of the
-mass command, how many devices are affected, the devices which were
-skipped, and one row per device with its status and output.
-
-The rows are updated in real time, so the page does not need to be
-reloaded to follow the progress. The table can be searched by device name
-and filtered by status, device group and location (and by organization for
-superusers).
-
-.. note::
-
-    Commands are executed asynchronously in the background: each device is
-    handled by an independent background task, so how many devices are
-    contacted at the same time depends on the concurrency of the Celery
-    workers. A mass command sent to many devices keeps updating for a
-    while after the page is opened.
-
-Finding Past Mass Commands
-~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-*Network Operations* > *Mass commands* lists the mass commands which were
-sent, most recent first.
-
-The list can be searched by label, notes, organization, device, location
-and group name, and filtered by organization, status, type, group and
-location. Clicking a mass command opens the page described above.
-
-Skipped Devices
-~~~~~~~~~~~~~~~
-
-A device is skipped when the command cannot be created for it, for example
-when the device has no access credentials, or when the command type is not
-enabled for its organization.
-
-Skipped devices are not executed, but they are shown: the **Skipped
-devices** field summarizes how many there are and why, and each one is
-listed in the results table with the *skipped* status and the reason as
-its output. They can be found with the status filter.
-
-Using the API
-~~~~~~~~~~~~~
-
-The same operations are available over the REST API, which also accepts an
-explicit list of devices instead of the targets described above. All
-explicit devices must belong to the same organization. Refer to the
-:ref:`Batch Command API <controller_batch_command_api>` documentation for
-the available endpoints, request parameters and examples.
