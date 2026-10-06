@@ -2,6 +2,7 @@ import swapper
 
 from .base.config import AbstractConfig
 from .base.device import AbstractDevice
+from .base.device_certificate import AbstractDeviceCertificate
 from .base.device_group import AbstractDeviceGroup
 from .base.multitenancy import (
     AbstractOrganizationConfigSettings,
@@ -91,6 +92,16 @@ class VpnClient(AbstractVpnClient):
     class Meta(AbstractVpnClient.Meta):
         abstract = False
         swappable = swapper.swappable_setting("config", "VpnClient")
+
+
+class DeviceCertificate(AbstractDeviceCertificate):
+    """
+    m2m through model
+    """
+
+    class Meta(AbstractDeviceCertificate.Meta):
+        abstract = False
+        swappable = swapper.swappable_setting("config", "DeviceCertificate")
 
 
 class OrganizationConfigSettings(AbstractOrganizationConfigSettings):
