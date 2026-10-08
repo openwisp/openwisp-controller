@@ -47,17 +47,17 @@ def get_api_urls(api_views=views):
         ),
         path(
             "api/v1/controller/batch-command/",
-            api_views.batch_command_list_view,
+            get_view("batch_command_list_view"),
             name="batch_command_list",
         ),
         path(
             "api/v1/controller/batch-command/<uuid:pk>/",
-            api_views.batch_command_detail_view,
+            get_view("batch_command_detail_view"),
             name="batch_command_detail",
         ),
         path(
             "api/v1/controller/batch-command/execute/",
-            api_views.batch_command_execute_view,
+            get_view("batch_command_execute_view"),
             name="batch_command_execute",
         ),
     ]

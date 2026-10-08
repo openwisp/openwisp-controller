@@ -152,6 +152,7 @@ class BatchCommandExecuteView(ProtectedAPIMixin, GenericAPIView):
     model = BatchCommand
     queryset = BatchCommand.objects.all()
     serializer_class = BatchCommandExecuteSerializer
+    pagination_class = OpenWispPagination
 
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
@@ -178,8 +179,8 @@ class BatchCommandExecuteView(ProtectedAPIMixin, GenericAPIView):
                 getattr(e, "message_dict", e.messages),
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        data["devices"] = [str(d.pk) for d in data["devices"]]
-        return Response(data)
+        page = self.paginate_queryset(data["devices"])
+        return self.get_paginated_response([str(device.pk) for device in page])
 
 
 class BatchCommandListView(ProtectedAPIMixin, ListAPIView):
