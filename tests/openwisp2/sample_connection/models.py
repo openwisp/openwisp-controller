@@ -1,6 +1,7 @@
 from django.db import models
 
 from openwisp_controller.connection.base.models import (
+    AbstractBatchCommand,
     AbstractCommand,
     AbstractCredentials,
     AbstractDeviceConnection,
@@ -26,4 +27,9 @@ class DeviceConnection(DetailsModel, AbstractDeviceConnection):
 
 class Command(AbstractCommand):
     class Meta(AbstractCommand.Meta):
+        abstract = False
+
+
+class BatchCommand(AbstractBatchCommand):
+    class Meta(AbstractBatchCommand.Meta):
         abstract = False

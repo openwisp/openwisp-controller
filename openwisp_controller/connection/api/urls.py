@@ -45,6 +45,21 @@ def get_api_urls(api_views=views):
             get_view("deviceconnection_detail_view"),
             name="deviceconnection_detail",
         ),
+        path(
+            "api/v1/controller/batch-command/",
+            get_view("batch_command_list_view"),
+            name="batch_command_list",
+        ),
+        path(
+            "api/v1/controller/batch-command/<uuid:pk>/",
+            get_view("batch_command_detail_view"),
+            name="batch_command_detail",
+        ),
+        path(
+            "api/v1/controller/batch-command/execute/",
+            get_view("batch_command_execute_view"),
+            name="batch_command_execute",
+        ),
     ]
 
 

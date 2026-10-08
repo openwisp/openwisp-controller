@@ -5,6 +5,23 @@ Sending Commands to Devices
     :depth: 3
     :local:
 
+Single Device Commands
+----------------------
+
+Commands can be sent to one device at a time from the device detail page,
+as shown in the GIF below:
+
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/single_command_demo.gif
+    :target: https://github.com/openwisp/openwisp-controller/tree/docs/docs/single_command_demo.gif
+    :alt: Sending a single command
+
+Click the **Send Command** button, select the command type and fill in the
+required inputs. The command is sent to the device and its status is shown
+in the **Recent Commands** section of the device detail page.
+
+To send the same command to many devices at once, refer to
+:ref:`mass_commands`.
+
 Default Commands
 ----------------
 
@@ -40,6 +57,76 @@ shell commands, you can add new commands by following instructions in the
 
     You can also use the :ref:`REST API <controller_execute_command_api>`
     to execute commands on a device.
+
+.. _mass_commands:
+
+Mass Commands
+-------------
+
+Mass commands run the same command on many devices at once, for example to
+reboot all the devices of a organization, as shown in the GIF below:
+
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/mass-command-tutorial/mass_command_demo.gif
+    :target: https://github.com/openwisp/openwisp-controller/tree/docs/docs/mass-command-tutorial/mass_command_demo.gif
+    :alt: Sending a mass command
+
+Sending a Mass Command
+~~~~~~~~~~~~~~~~~~~~~~
+
+1. Open *Network Operations* > *Run Mass command*.
+2. Choose the command, a **label** to recognize it later, and the
+   **targets**: organization, device group and location. Combining targets
+   narrows the selection.
+3. Review the matched devices, uncheck any you want to leave out, and
+   click **Execute**.
+
+Superusers can leave every target empty to run the command on all the
+devices, as shown in the GIF below:
+
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/mass-command-tutorial/mass_command_superuser.gif
+    :target: https://github.com/openwisp/openwisp-controller/tree/docs/docs/mass-command-tutorial/mass_command_superuser.gif
+    :alt: Running a mass command on all devices as a superuser
+
+Other users must choose at least one target and can only use the commands
+enabled for their organization (see
+:ref:`openwisp_controller_organization_enabled_commands`).
+
+From the Device List
+~~~~~~~~~~~~~~~~~~~~
+
+A mass command can also be started from the device list, as shown in the
+GIF below:
+
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/mass-command-tutorial/mass_command_action.gif
+    :target: https://github.com/openwisp/openwisp-controller/tree/docs/docs/mass-command-tutorial/mass_command_action.gif
+    :alt: Sending a mass command to selected devices
+
+Select the devices, choose *Execute mass command* from the actions
+dropdown and click **Go**. Then choose the command and review the devices
+as described above. The selected devices must belong to the same
+organization.
+
+Following the Results
+~~~~~~~~~~~~~~~~~~~~~
+
+After executing, the mass command page shows the status and output of each
+device, updated in real time, as shown in the GIF below:
+
+.. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/mass-command-tutorial/mass_command_results.gif
+    :target: https://github.com/openwisp/openwisp-controller/tree/docs/docs/mass-command-tutorial/mass_command_results.gif
+    :alt: Following the results of a mass command
+
+- Devices which cannot run the command, for example because they have no
+  access credentials, are marked as *skipped* together with the reason.
+- Past mass commands are listed in *Network Operations* > *Mass commands*.
+- Commands sent by a mass command also appear in the **Recent Commands**
+  of each device, with a link back to the mass command.
+
+REST API
+~~~~~~~~
+
+Mass commands can also be sent and followed through the :ref:`Batch
+Command API <controller_batch_command_api>`.
 
 .. _defining_new_menu_options:
 
