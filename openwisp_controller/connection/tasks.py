@@ -101,8 +101,8 @@ def launch_command(command_id):
         command._save_without_resurrecting()
 
 
-@shared_task(bind=True)
-def launch_batch_command(self, batch_id):
+@shared_task
+def launch_batch_command(batch_id):
     BatchCommand = load_model("connection", "BatchCommand")
     try:
         batch = BatchCommand.objects.get(pk=batch_id)

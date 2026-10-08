@@ -15,7 +15,11 @@ from openwisp_controller.tests.utils import TestAdminMixin
 from openwisp_users.tests.test_api import AuthenticationMixin
 
 from .. import settings as app_settings
-from ..api.views import BatchCommandListView, CommandListCreateView
+from ..api.views import (
+    BatchCommandExecuteView,
+    BatchCommandListView,
+    CommandListCreateView,
+)
 from ..commands import ORGANIZATION_ENABLED_COMMANDS
 from .utils import CreateCommandMixin, CreateConnectionsMixin
 
@@ -964,7 +968,7 @@ class TestBatchCommandsAPI(
             )
             response = self.client.get(url)
             self.assertEqual(response.status_code, 200)
-            self.assertEqual(response.data["devices"], [str(device1.pk)])
+            self.assertEqual(response.data["results"], [str(device1.pk)])
 
         with self.subTest("dry run with group"):
             url = "{0}?organization={1}&group={2}".format(
@@ -974,8 +978,8 @@ class TestBatchCommandsAPI(
             )
             response = self.client.get(url)
             self.assertEqual(response.status_code, 200)
-            self.assertIn(str(device1.pk), response.data["devices"])
-            self.assertNotIn(str(device2.pk), response.data["devices"])
+            self.assertIn(str(device1.pk), response.data["results"])
+            self.assertNotIn(str(device2.pk), response.data["results"])
 
         with self.subTest("dry run with location"):
             url = "{0}?organization={1}&location={2}".format(
@@ -985,8 +989,8 @@ class TestBatchCommandsAPI(
             )
             response = self.client.get(url)
             self.assertEqual(response.status_code, 200)
-            self.assertIn(str(device2.pk), response.data["devices"])
-            self.assertNotIn(str(device1.pk), response.data["devices"])
+            self.assertIn(str(device2.pk), response.data["results"])
+            self.assertNotIn(str(device1.pk), response.data["results"])
 
         with self.subTest("dry run with group and location"):
             DeviceLocation.objects.create(content_object=device1, location=location)
@@ -998,15 +1002,15 @@ class TestBatchCommandsAPI(
             )
             response = self.client.get(url)
             self.assertEqual(response.status_code, 200)
-            self.assertIn(str(device1.pk), response.data["devices"])
-            self.assertNotIn(str(device2.pk), response.data["devices"])
+            self.assertIn(str(device1.pk), response.data["results"])
+            self.assertNotIn(str(device2.pk), response.data["results"])
 
         with self.subTest("dry run org-wide"):
             url = "{0}?organization={1}".format(base_url, str(org.pk))
             response = self.client.get(url)
             self.assertEqual(response.status_code, 200)
-            self.assertIn(str(device1.pk), response.data["devices"])
-            self.assertIn(str(device2.pk), response.data["devices"])
+            self.assertIn(str(device1.pk), response.data["results"])
+            self.assertIn(str(device2.pk), response.data["results"])
 
         with self.subTest("dry run with type and input"):
             url = (
@@ -1015,8 +1019,55 @@ class TestBatchCommandsAPI(
             ).format(base_url, str(org.pk))
             response = self.client.get(url)
             self.assertEqual(response.status_code, 200)
-            self.assertIn(str(device1.pk), response.data["devices"])
-            self.assertIn(str(device2.pk), response.data["devices"])
+            self.assertIn(str(device1.pk), response.data["results"])
+            self.assertIn(str(device2.pk), response.data["results"])
+
+    def test_batch_command_dry_run_pagination(self):
+        org = self._get_org()
+        devices = [
+            self._create_device(
+                name=f"dryp-dev{index}",
+                mac_address=f"00:11:22:33:4d:{index:02x}",
+                organization=org,
+            )
+            for index in range(5)
+        ]
+        url = "{0}?organization={1}".format(
+            reverse("connection_api:batch_command_execute"), str(org.pk)
+        )
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["count"], 5)
+        self.assertEqual(len(response.data["results"]), 5)
+        with patch.object(
+            BatchCommandExecuteView, "pagination_page_size", 2, create=True
+        ):
+            pages = []
+
+            with self.subTest("first page"):
+                response = self.client.get(f"{url}&page=1")
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.data["count"], 5)
+                self.assertEqual(len(response.data["results"]), 2)
+                self.assertIsNotNone(response.data["next"])
+                pages += response.data["results"]
+
+            with self.subTest("second page"):
+                response = self.client.get(f"{url}&page=2")
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(len(response.data["results"]), 2)
+                pages += response.data["results"]
+
+            with self.subTest("last page"):
+                response = self.client.get(f"{url}&page=3")
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(len(response.data["results"]), 1)
+                self.assertIsNone(response.data["next"])
+                pages += response.data["results"]
+
+            with self.subTest("the pages do not overlap"):
+                self.assertEqual(len(set(pages)), 5)
+                self.assertEqual(set(pages), {str(device.pk) for device in devices})
 
     def test_batch_command_endpoints_no_of_queries(self):
         with self.subTest("list queries"):
@@ -1285,13 +1336,13 @@ class TestBatchCommandsAPI(
         with self.subTest("dry-run targets all devices"):
             response = self.client.get(url)
             self.assertEqual(response.status_code, 200)
-            self.assertIn(str(device1.pk), response.data["devices"])
-            self.assertIn(str(device2.pk), response.data["devices"])
+            self.assertIn(str(device1.pk), response.data["results"])
+            self.assertIn(str(device2.pk), response.data["results"])
 
         with self.subTest("dry-run with explicit devices"):
             response = self.client.get(f"{url}?devices={str(device1.pk)}")
             self.assertEqual(response.status_code, 200)
-            self.assertIn(str(device1.pk), response.data["devices"])
+            self.assertIn(str(device1.pk), response.data["results"])
 
         with self.subTest("dry-run with devices of different organizations"):
             response = self.client.get(
@@ -1397,7 +1448,7 @@ class TestBatchCommandsAPI(
                 data={"organization": str(org.pk)},
             )
             self.assertEqual(response.status_code, 200)
-            self.assertIn("devices", response.data)
+            self.assertIn("results", response.data)
 
         with self.subTest("execute org-wide"):
             payload = {
@@ -1451,7 +1502,7 @@ class TestBatchCommandsAPI(
                 data={"organization": str(org.pk)},
             )
             self.assertEqual(response.status_code, 200)
-            self.assertIn("devices", response.data)
+            self.assertIn("results", response.data)
 
         with self.subTest("execute org-wide"):
             payload = {

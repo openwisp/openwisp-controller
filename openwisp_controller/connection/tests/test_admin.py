@@ -1,5 +1,8 @@
 import json
+import re
+from html import unescape
 from unittest.mock import patch
+from urllib.parse import parse_qs, urlparse
 from uuid import uuid4
 
 from django.contrib import admin
@@ -582,18 +585,19 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
 
             monitoring_status.short_description = "monitoring status"
 
+        def register_device_admin(admin_class):
+            if admin.site.is_registered(Device):
+                admin.site.unregister(Device)
+            admin.site.register(Device, admin_class)
+
         model_admin = BatchCommandAdmin(BatchCommand, admin.site)
         device_admin_class = type(admin.site.get_model_admin(Device))
-        admin.site.unregister(Device)
-        admin.site.register(Device, ReplacementDeviceAdmin)
-        try:
-            registered_readonly = list(ReplacementDeviceAdmin.readonly_fields)
-            device_admin = model_admin.get_device_admin(Device.objects.none())
-            model_admin.get_device_admin(Device.objects.none())
-            template = model_admin.get_device_changelist_template()
-        finally:
-            admin.site.unregister(Device)
-            admin.site.register(Device, device_admin_class)
+        self.addCleanup(register_device_admin, device_admin_class)
+        register_device_admin(ReplacementDeviceAdmin)
+        registered_readonly = list(ReplacementDeviceAdmin.readonly_fields)
+        device_admin = model_admin.get_device_admin(Device.objects.none())
+        model_admin.get_device_admin(Device.objects.none())
+        template = model_admin.get_device_changelist_template()
 
         self.assertIsInstance(device_admin, ReplacementDeviceAdmin)
         self.assertTrue(hasattr(device_admin, "monitoring_status"))
@@ -608,16 +612,12 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
             class BareDeviceAdmin(DeviceAdmin):
                 change_list_template = None
 
-            admin.site.unregister(Device)
-            admin.site.register(Device, BareDeviceAdmin)
-            try:
-                self.assertEqual(
-                    model_admin.get_device_changelist_template(),
-                    "admin/change_list.html",
-                )
-            finally:
-                admin.site.unregister(Device)
-                admin.site.register(Device, device_admin_class)
+            register_device_admin(BareDeviceAdmin)
+            self.assertEqual(
+                model_admin.get_device_changelist_template(),
+                "admin/change_list.html",
+            )
+            register_device_admin(device_admin_class)
 
         self.assertIs(type(admin.site.get_model_admin(Device)), device_admin_class)
 
@@ -1348,6 +1348,39 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
                     )
                 )
         return commands
+
+    def test_change_view_pagination_links(self):
+        """The links keep the filters of the page and encode hostile keys.
+
+        The keys come from the query string, so a key which contains a
+        delimiter must not be able to add a parameter of its own.
+        """
+        org = self._get_org()
+        batch = self._create_batch_command(organization=org)
+        devices = [
+            self._create_device(
+                name=f"page-dev{index}",
+                mac_address=f"00:11:22:33:4a:{index:02x}",
+                organization=org,
+            )
+            for index in range(4)
+        ]
+        self._create_commands(batch, devices)
+        self._login()
+        url = reverse(f"admin:{self.app_label}_batchcommand_change", args=[batch.pk])
+        with patch.object(BatchCommandAdmin, "device_commands_per_page", 3):
+            response = self.client.get(f"{url}?status=in-progress&a%26page=9&page=1")
+            links = [
+                parse_qs(urlparse(unescape(href)).query)
+                for href in re.findall(
+                    r'<a href="(\?[^"]+)">\s*(?:Previous|Next)',
+                    response.content.decode(),
+                )
+            ]
+            self.assertEqual(len(links), 1, msg="only the next link is expected")
+            self.assertEqual(links[0]["status"], ["in-progress"])
+            self.assertEqual(links[0]["page"], ["2"])
+            self.assertEqual(links[0]["a&page"], ["9"])
 
     def test_change_view_command_rows(self):
         org = self._get_org()

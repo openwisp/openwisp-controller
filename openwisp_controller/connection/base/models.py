@@ -1083,7 +1083,7 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
             qs = qs.filter(group=self.group)
         if self.location:
             qs = qs.filter(devicelocation__location=self.location)
-        return qs
+        return qs.order_by("-created")
 
     @classmethod
     def execute(cls, **kwargs):
