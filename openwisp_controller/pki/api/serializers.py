@@ -98,6 +98,7 @@ def get_ca_detail_fields(fields):
 
 class CaDetailSerializer(BaseSerializer):
     extensions = serializers.JSONField(read_only=True)
+    common_name = serializers.CharField(read_only=True)
 
     class Meta:
         model = Ca
@@ -181,6 +182,7 @@ def get_cert_detail_fields(fields):
 
 class CertDetailSerializer(BaseSerializer):
     extensions = serializers.JSONField(read_only=True)
+    common_name = serializers.CharField(read_only=True)
 
     class Meta:
         model = Cert
