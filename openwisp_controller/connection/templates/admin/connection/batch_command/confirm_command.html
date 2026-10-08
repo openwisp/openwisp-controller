@@ -80,11 +80,8 @@ see BatchCommandAdmin.get_device_changelist_template()
     <div class="flex-container">
       <label>{% trans 'Will run on' %}</label>
       <div class="readonly">
-        {% blocktrans trimmed count counter=device_count %}
-        <strong id="selected-count">{{ counter }}</strong>&nbsp;<span id="selected-count-label">device</span>
-        {% plural %}
-        <strong id="selected-count">{{ counter }}</strong>&nbsp;<span id="selected-count-label">devices</span>
-        {% endblocktrans %}
+        <strong id="selected-count">{{ device_count }}</strong>&nbsp;<span
+          id="selected-count-label">{% blocktrans count counter=device_count %}device{% plural %}devices{% endblocktrans %}</span>
       </div>
     </div>
   </div>

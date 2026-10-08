@@ -160,7 +160,7 @@
   <div class="pagination">
     <span class="step-links">
       {% if page_obj.has_previous %}
-      <a href="?{% for key,value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value|urlencode }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}">
+      <a href="{% querystring page=page_obj.previous_page_number %}">
         {% trans 'Previous' %}
       </a>
       {% endif %}
@@ -168,7 +168,7 @@
         {% blocktrans with current=page_obj.number total=page_obj.paginator.num_pages %}Page {{ current }} of {{ total }}{% endblocktrans %}
       </span>
       {% if page_obj.has_next %}
-      <a href="?{% for key,value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value|urlencode }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}">
+      <a href="{% querystring page=page_obj.next_page_number %}">
         {% trans 'Next' %}
       </a>
       {% endif %}
