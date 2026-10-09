@@ -31,8 +31,9 @@ criteria for automatically provisioning subnets under the master subnet.
 
 If the master subnet belongs to an organization, the rule uses the same
 organization automatically and its organization field is hidden. The field
-is shown only for shared master subnets, where the organization of each
-rule must be selected.
+is shown for shared master subnets, where the organization of each rule
+must be selected, and for existing rules whose organization differs from
+the organization of the master subnet.
 
 The type of subnet division rule determines when subnets and IP addresses
 are assigned to devices.
