@@ -29,6 +29,11 @@ be provisioned.
 On the same page, add a **subnet division rule**. This rule defines the
 criteria for automatically provisioning subnets under the master subnet.
 
+If the master subnet belongs to an organization, the rule uses the same
+organization automatically and its organization field is hidden. The field
+is shown only for shared master subnets, where the organization of each
+rule must be selected.
+
 The type of subnet division rule determines when subnets and IP addresses
 are assigned to devices.
 
