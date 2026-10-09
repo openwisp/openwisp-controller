@@ -5,8 +5,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import Select
 from swapper import load_model
 
-from openwisp_utils.tests import SeleniumTestMixin
-
+from ...config.tests.test_selenium import SeleniumTestMixin
 from .helpers import SubnetDivisionTestMixin
 
 SubnetDivisionRule = load_model("subnet_division", "SubnetDivisionRule")
@@ -21,15 +20,7 @@ class TestSubnetAdmin(
         prefix = "subnetdivisionrule_set-0"
         self.login()
         self.open(reverse("admin:openwisp_ipam_subnet_add"))
-        self.find_element(By.CSS_SELECTOR, "#select2-id_organization-container").click()
-        self.wait_for_invisibility(
-            By.CSS_SELECTOR, ".select2-results__option.loading-results"
-        )
-        self.find_element(By.CLASS_NAME, "select2-search__field").send_keys(org.name)
-        self.wait_for_invisibility(
-            By.CSS_SELECTOR, ".select2-results__option.loading-results"
-        )
-        self.find_element(By.CLASS_NAME, "select2-results__option").click()
+        self._select_organization(org)
         self.find_element(
             By.CSS_SELECTOR, "#subnetdivisionrule_set-group .add-row a"
         ).click()
@@ -57,4 +48,21 @@ class TestSubnetAdmin(
         self.find_element(By.NAME, "_save").click()
         self.wait_for_admin_success_message()
         self.assertEqual(SubnetDivisionRule.objects.get(label="TEST").organization, org)
+        self.assert_no_browser_errors()
+
+    def test_rule_organization_of_shared_subnet(self):
+        org1 = self._get_org()
+        org2 = self._create_org(name="org2")
+        subnet = self._create_subnet(subnet="10.0.0.0/16", organization=None)
+        self._get_device_subdivision_rule(master_subnet=subnet, organization=org1)
+        row = "#subnetdivisionrule_set-0 .form-row.field-organization"
+        self.login()
+        self.open(reverse("admin:openwisp_ipam_subnet_change", args=[subnet.pk]))
+
+        with self.subTest("Shared subnet"):
+            self.wait_for_visibility(By.CSS_SELECTOR, row)
+
+        with self.subTest("Rule of a different organization"):
+            self._select_organization(org2)
+            self.wait_for_visibility(By.CSS_SELECTOR, row)
         self.assert_no_browser_errors()
