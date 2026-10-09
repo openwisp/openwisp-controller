@@ -49,6 +49,39 @@ class TestSubnetAdmin(
                 f'<a href="{url}">{self.config.device.name}</a>',
             )
 
+    def test_add_subnet_rule_without_organization(self):
+        """
+        A rule submitted without organization must not cause a server error
+        """
+        org = self._get_org()
+        rule_type = (
+            "openwisp_controller.subnet_division.rule_types."
+            "device.DeviceSubnetDivisionRuleType"
+        )
+        prefix = "subnetdivisionrule_set"
+        response = self.client.post(
+            reverse(f"admin:{self.ipam_label}_subnet_add"),
+            {
+                "organization": str(org.pk),
+                "name": "Test",
+                "subnet": "172.16.0.0/16",
+                "description": "",
+                "master_subnet": "",
+                f"{prefix}-TOTAL_FORMS": "1",
+                f"{prefix}-INITIAL_FORMS": "0",
+                f"{prefix}-MIN_NUM_FORMS": "0",
+                f"{prefix}-MAX_NUM_FORMS": "1000",
+                f"{prefix}-0-organization": "",
+                f"{prefix}-0-type": rule_type,
+                f"{prefix}-0-label": "TEST",
+                f"{prefix}-0-number_of_subnets": "2",
+                f"{prefix}-0-size": "24",
+                f"{prefix}-0-number_of_ips": "2",
+            },
+        )
+        self.assertContains(response, "This field is required.")
+        self.assertFalse(Subnet.objects.filter(name="Test").exists())
+
     def test_device_filter(self):
         subnet_changelist = reverse(f"admin:{self.ipam_label}_subnet_changelist")
         config2 = self._create_config(

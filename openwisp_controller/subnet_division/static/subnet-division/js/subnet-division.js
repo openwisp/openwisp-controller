@@ -32,25 +32,33 @@ django.jQuery(function ($) {
 
   // If subnet is not shared, hide organization field from Subnet Division Rule
   function hideOrganizationFieldForNonSharedSubnet() {
-    if ($("#id_organization").val() !== "") {
-      $('#subnetdivisionrule_set-group select[name$="-organization"]').each(
-        function (index, element) {
-          element = $(element);
-          if (element.val() === "" || element.val() === $("#id_organization").val()) {
-            element.val($("#id_organization").val());
-            element.parent().parent().parent().hide();
-          } else {
-            element.parent().parent().parent().show();
+    var subnetOrg = $("#id_organization"),
+      orgId = subnetOrg.val();
+    $('#subnetdivisionrule_set-group select[name$="-organization"]').each(
+      function (index, element) {
+        element = $(element);
+        var row = element.closest(".form-row");
+        if (!orgId || (element.val() && element.val() !== orgId)) {
+          row.show();
+          return;
+        }
+        if (element.val() !== orgId) {
+          // The autocomplete widget loads its options on demand,
+          // hence the option of the subnet organization may be missing
+          if (element.find('option[value="' + orgId + '"]').length === 0) {
+            element.append(new Option(subnetOrg.find("option:selected").text(), orgId));
           }
-        },
-      );
-    } else {
-      $("#subnetdivisionrule_set-group .form-row.field-organization").show();
-    }
+          element.val(orgId).trigger("change");
+        }
+        row.hide();
+      },
+    );
   }
   hideOrganizationFieldForNonSharedSubnet();
-  $("#subnetdivisionrule_set-group .add-row a").click(
-    hideOrganizationFieldForNonSharedSubnet,
-  );
+  document.addEventListener("formset:added", function (event) {
+    if (event.detail.formsetName === "subnetdivisionrule_set") {
+      hideOrganizationFieldForNonSharedSubnet();
+    }
+  });
   $("#id_organization").change(hideOrganizationFieldForNonSharedSubnet);
 });

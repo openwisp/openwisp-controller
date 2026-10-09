@@ -284,6 +284,25 @@ class TestSubnetDivisionRule(
                 {"organization": ["Organization should be same as the subnet"]},
             )
 
+        with self.subTest("Test organization inherited from master subnet"):
+            options = default_options.copy()
+            del options["organization"]
+            options["label"] = "OW_INHERITED"
+            rule = SubnetDivisionRule(**options)
+            rule.full_clean()
+            self.assertEqual(rule.organization_id, self.org.id)
+
+        with self.subTest("Test organization required with shared master subnet"):
+            options = default_options.copy()
+            del options["organization"]
+            options["master_subnet"] = self._create_subnet(
+                subnet="172.16.0.0/16", organization=None
+            )
+            rule = SubnetDivisionRule(**options)
+            with self.assertRaises(ValidationError) as error:
+                rule.full_clean()
+            self.assertIn("organization", error.exception.message_dict)
+
     def test_slash_32_rule_ipv4(self):
         rule = self._get_vpn_subdivision_rule(
             size=32, number_of_ips=1, number_of_subnets=1

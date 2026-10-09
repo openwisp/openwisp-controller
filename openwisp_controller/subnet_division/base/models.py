@@ -68,6 +68,14 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
     def rule_class(self):
         return import_string(self.type)
 
+    def full_clean(self, *args, **kwargs):
+        # Inherit the organization of the master subnet before
+        # the field validation reports it as missing
+        master_subnet = getattr(self, "master_subnet", None)
+        if self.organization_id is None and master_subnet:
+            self.organization_id = master_subnet.organization_id
+        return super().full_clean(*args, **kwargs)
+
     def clean(self):
         super().clean()
         self._validate_label()
@@ -141,8 +149,8 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
             )
         # Validate organization of master subnet
         if (
-            self.master_subnet.organization is not None
-            and self.master_subnet.organization != self.organization
+            self.master_subnet.organization_id is not None
+            and self.master_subnet.organization_id != self.organization_id
         ):
             raise ValidationError(
                 {"organization": _("Organization should be same as the subnet")}
