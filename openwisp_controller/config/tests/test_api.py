@@ -1333,11 +1333,10 @@ class TestConfigApi(
             config_settings.refresh_from_db()
             self.assertTrue(config_settings.registration_enabled)
             self.assertEqual(config_settings.shared_secret, "b" * 32)
+
         with self.subTest("Test PATCH without add permission"):
             org2 = self._create_org(name="org2", slug="org2")
-            OrganizationUser.objects.create(
-                user=test_user, organization=org2, is_admin=True
-            )
+            self._create_org_user(user=test_user, organization=org2, is_admin=True)
             path2 = reverse("config_api:organization_config_settings", args=[org2.pk])
             response = self.client.patch(
                 path2,
