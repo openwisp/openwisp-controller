@@ -490,8 +490,8 @@ Dry-Run Mass Command
 
     GET /api/v1/controller/batch-command/execute/
 
-Returns the list of devices that would be targeted without executing
-anything. Useful for previewing which devices are affected.
+Returns the paginated list of devices that would be targeted without
+executing anything. Useful for previewing which devices are affected.
 
 **Query Parameters:**
 

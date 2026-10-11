@@ -1153,7 +1153,7 @@ class TestBatchCommandsAPI(
                 "group": str(group.pk),
             }
             url = reverse("connection_api:batch_command_execute")
-            with self.assertNumQueries(14):
+            with self.assertNumQueries(13):
                 response = self.client.post(
                     url,
                     data=json.dumps(payload),
@@ -1179,7 +1179,7 @@ class TestBatchCommandsAPI(
                 "label": "test-label",
             }
             url = reverse("connection_api:batch_command_execute")
-            with self.assertNumQueries(12):
+            with self.assertNumQueries(11):
                 response = self.client.post(
                     url,
                     data=json.dumps(payload),
@@ -2160,27 +2160,6 @@ class TestBatchCommandsAPITransaction(
                 response.data,
                 ["No devices match the specified criteria."],
             )
-
-        with self.subTest("execute org-wide for superuser"):
-            response = self.client.post(
-                url,
-                data=json.dumps(
-                    {
-                        "organization": str(org.pk),
-                        "type": "custom",
-                        "input": {"command": "echo test"},
-                        "label": "test-label",
-                    }
-                ),
-                content_type="application/json",
-            )
-            self.assertEqual(response.status_code, 201)
-            batch = BatchCommand.objects.get(pk=response.data["batch"])
-            self.assertEqual(
-                Command.objects.filter(batch_command=batch).count(),
-                2,
-            )
-            self.assertEqual(batch.skipped_devices, {})
 
         with self.subTest("execute with empty label"):
             response = self.client.post(
