@@ -1064,13 +1064,17 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
             raise ValidationError({"input": e.message})
 
     def resolve_devices(self):
+        """Returns a queryset of the devices this batch command runs on.
+
+        Until the batch is saved, those are the devices which match its
+        organization, group and location. execute() stores the devices it
+        matched, so a saved batch returns its stored selection as it is:
+        deleting its devices empties the selection, and matching the
+        organization, group and location again would hand back devices
+        which were never selected. Callers which walk the whole result
+        should consume it with iterator().
         """
-        Returns a queryset of devices targeted by this batch command,
-        resolved from explicit M2M devices or filtered by organization,
-        group, and location. Callers which walk the whole result should
-        consume it with iterator().
-        """
-        if self.pk and self.devices.exists():
+        if not self._state.adding:
             qs = self.devices.select_related("config")
             if self.organization_id:
                 qs = qs.filter(organization_id=self.organization_id)
@@ -1097,14 +1101,17 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
         batch = cls(**kwargs)
         with transaction.atomic():
             batch.full_clean()
-            batch.save()
             if devices_list is None:
+                # the batch is still unsaved, so this matches the
+                # organization, group and location
                 devices_list = list(batch.resolve_devices())
+                batch.save()
                 batch.devices.set(devices_list)
             else:
                 cls._validate_devices_org(
                     devices_list, batch.organization_id, system_wide=system_wide
                 )
+                batch.save()
                 batch.devices.set(devices_list)
                 batch._validate_org_relations()
             if not devices_list:
@@ -1143,6 +1150,14 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
             self.input = {"password": "********"}
 
     def _skip_transferred_devices(self):
+        """Records the devices which left the organization as skipped.
+
+        The name is the one the device has when the batch runs, moments
+        after it was created, and the device belonged to this
+        organization when it was selected: only a rename made by the new
+        organization in that window would differ, which is not worth
+        storing a copy of every selected name up front.
+        """
         if not self.pk or not self.organization_id:
             return
         transferred = self.devices.exclude(organization_id=self.organization_id)
@@ -1178,13 +1193,10 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
         self.status = "in-progress"
         self.save(update_fields=["status"])
         Command = load_model("connection", "Command")
-        Device = load_model("config", "Device")
         self.skipped_devices = {}
-        device_pks = []
         created_count = 0
         self._skip_transferred_devices()
         for device in self.resolve_devices().iterator():
-            device_pks.append(device.pk)
             command = Command(
                 device=device,
                 type=self.type,
@@ -1208,11 +1220,13 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
                     self.pk,
                     e,
                 )
-        if not self.devices.exists() and device_pks:
-            self.devices.set(Device.objects.filter(pk__in=device_pks))
         if self.skipped_devices:
             self.save(update_fields=["skipped_devices"])
-        self.calculate_and_update_status()
+        if not created_count and not self.skipped_devices:
+            self.status = "failed"
+            self.save(update_fields=["status"])
+        else:
+            self.calculate_and_update_status()
         self._clean_sensitive_info()
         if self.type == "change_password":
             self.save(update_fields=["input"])
