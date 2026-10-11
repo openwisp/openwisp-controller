@@ -1197,6 +1197,55 @@ class TestAdmin(
             self.assertEqual(c.name, "test-device-templates-cleared")
             self.assertTrue(c.templates.filter(pk=t.pk).exists())
 
+    def test_change_device_preserves_optional_cert_with_required_template(self):
+        """
+        Saving the device admin form with an unchanged selection must not
+        revoke and regenerate the certificate of an optional certificate
+        template while a required template is restored during the save.
+        """
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        required = self._create_template(
+            name="Required Cert",
+            type="cert",
+            ca=ca,
+            organization=org,
+            required=True,
+            config={},
+        )
+        optional = self._create_template(
+            name="Optional Cert",
+            type="cert",
+            ca=ca,
+            organization=org,
+            config={},
+        )
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        config.templates.set([required, optional])
+        dc = config.device_certificate_relations.get(template=optional)
+        original_cert_id = dc.cert_id
+        path = reverse(f"admin:{self.app_label}_device_change", args=[device.pk])
+        params = self._get_device_params(org=org)
+        params.update(
+            {
+                "name": device.name,
+                "config-0-id": str(config.pk),
+                "config-0-device": str(device.pk),
+                "config-0-templates": f"{required.pk},{optional.pk}",
+                "config-INITIAL_FORMS": 1,
+            }
+        )
+        response = self.client.post(path, params)
+        self.assertEqual(response.status_code, 302)
+        config.refresh_from_db()
+        dc = config.device_certificate_relations.get(template=optional)
+        self.assertEqual(
+            dc.cert_id,
+            original_cert_id,
+            "Admin save regenerated the optional certificate!",
+        )
+
     def test_change_device_org_required_templates(self):
         org1 = self._create_org(name="org1")
         org2 = self._create_org(name="org2")

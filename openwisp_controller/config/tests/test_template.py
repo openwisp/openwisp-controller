@@ -1975,6 +1975,59 @@ class TestTemplateCertificates(
             "Certificate was erroneously revoked during reordering!",
         )
 
+    def test_cert_template_preserved_when_required_template_restored(self):
+        """
+        Applying the same selection again must not revoke and regenerate the
+        certificate of an optional template while a required template is
+        restored during the intermediate post_clear/post_add of ``set()``.
+        """
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        required_template = self._create_template(
+            name="Required Cert Template",
+            type="cert",
+            ca=ca,
+            organization=org,
+            required=True,
+            config={},
+        )
+        optional_template = self._create_template(
+            name="Optional Cert Template",
+            type="cert",
+            ca=ca,
+            organization=org,
+            config={},
+        )
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        config.templates.set([required_template, optional_template])
+        dev_cert = config.device_certificate_relations.get(template=optional_template)
+        original_dev_cert_id = dev_cert.pk
+        original_cert_id = dev_cert.cert_id
+        with self.captureOnCommitCallbacks(execute=True):
+            config.templates.set([required_template, optional_template])
+        self.assertEqual(config.device_certificate_relations.count(), 2)
+        surviving_dev_cert = config.device_certificate_relations.get(
+            template=optional_template
+        )
+        self.assertEqual(
+            surviving_dev_cert.pk,
+            original_dev_cert_id,
+            "DeviceCertificate was deleted and recreated while required "
+            "templates were restored!",
+        )
+        self.assertEqual(
+            surviving_dev_cert.cert_id,
+            original_cert_id,
+            "Underlying X.509 Cert was replaced while required "
+            "templates were restored!",
+        )
+        self.assertFalse(
+            surviving_dev_cert.cert.revoked,
+            "Certificate was erroneously revoked while required "
+            "templates were restored!",
+        )
+
     def test_cert_template_partial_replacement_cleans_up(self):
         """
         Verify that when a subset of templates is replaced via .set(..., clear=True),

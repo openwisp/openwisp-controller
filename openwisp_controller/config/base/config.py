@@ -677,7 +677,13 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
             templates = pk_set
         # deletes orphaned certificates that are no
         # longer assigned in the templates list.
-        if (
+        # Required templates are added back on "post_clear" (see
+        # "enforce_required_templates"). During that intermediate post_add the
+        # final template selection is not known yet, so deleting orphans would
+        # wrongly revoke optional certificates that are about to be restored by
+        # the enclosing set()/add() operation. Defer the cleanup until the
+        # final template selection is applied.
+        if not instance._is_enforcing_required_templates and (
             getattr(instance, SORTED_M2M_SET_ATTR, False)
             or len(pk_set) != templates.filter(required=True).count()
         ):
