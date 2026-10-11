@@ -1338,13 +1338,8 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
             )
             with patch.object(Command, "_schedule_command"):
                 commands.append(
-                    Command.objects.create(
-                        batch_command=batch,
-                        device=device,
-                        connection=connection,
-                        type="custom",
-                        input={"command": "echo test"},
-                        **kwargs,
+                    self._create_command(
+                        device_conn=connection, batch_command=batch, **kwargs
                     )
                 )
         return commands

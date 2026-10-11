@@ -1477,7 +1477,12 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
         device = self._create_device(organization=org)
         self._create_config(device=device)
         self._create_device_connection(device=device)
-        batch = self._create_batch_command(organization=org)
+        batch = BatchCommand.execute(
+            organization=org,
+            type="custom",
+            input={"command": "echo test"},
+            label="test-label",
+        )
         batch.create_commands()
         batch.refresh_from_db()
         self.assertEqual(
@@ -1503,11 +1508,10 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
                 organization=org,
                 devices=[device1],
             )
-            resolved = list(batch.resolve_devices())
-            self.assertEqual(resolved, [device1])
+            self.assertEqual(list(batch.resolve_devices()), [device1])
 
         with self.subTest("organization-scoped (no explicit devices)"):
-            batch = self._create_batch_command(organization=org)
+            batch = BatchCommand(organization=org)
             resolved = list(batch.resolve_devices())
             self.assertIn(device1, resolved)
             self.assertIn(device2, resolved)
@@ -1516,7 +1520,7 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
             group = DeviceGroup.objects.create(name="test-group", organization=org)
             device1.group = group
             device1.save()
-            batch = self._create_batch_command(organization=org, group=group)
+            batch = BatchCommand(organization=org, group=group)
             resolved = list(batch.resolve_devices())
             self.assertIn(device1, resolved)
             self.assertNotIn(device2, resolved)
@@ -1528,14 +1532,14 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
                 organization=org,
             )
             DeviceLocation.objects.create(content_object=device2, location=location)
-            batch = self._create_batch_command(organization=org, location=location)
+            batch = BatchCommand(organization=org, location=location)
             resolved = list(batch.resolve_devices())
             self.assertIn(device2, resolved)
             self.assertNotIn(device1, resolved)
 
         with self.subTest("group and location combined"):
             DeviceLocation.objects.create(content_object=device1, location=location)
-            batch = self._create_batch_command(
+            batch = BatchCommand(
                 organization=org,
                 group=device1.group,
                 location=location,
@@ -1549,12 +1553,79 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
                 name="empty-group",
                 organization=org,
             )
-            batch = self._create_batch_command(
+            batch = BatchCommand(
                 organization=org,
                 group=empty_group,
             )
             resolved = list(batch.resolve_devices())
             self.assertEqual(resolved, [])
+
+    def test_batch_command_emptied_selection_does_not_target_other_devices(self):
+        org = self._get_org()
+        selected = self._create_device(
+            name="selected",
+            mac_address="00:11:22:33:44:11",
+            organization=org,
+        )
+        other = self._create_device(
+            name="other",
+            mac_address="00:11:22:33:44:12",
+            organization=org,
+        )
+        credentials = self._create_credentials(organization=org)
+        for device in (selected, other):
+            self._create_config(device=device)
+            self._create_device_connection(device=device, credentials=credentials)
+
+        for organization in (org, None):
+            with self.subTest(organization=organization):
+                batch = self._create_batch_command(
+                    organization=organization,
+                    devices=[selected],
+                )
+                batch.devices.clear()
+                self.assertEqual(list(batch.resolve_devices()), [])
+                batch.create_commands()
+                self.assertEqual(batch.batch_commands.count(), 0)
+                self.assertEqual(batch.skipped_devices, {})
+                self.assertFalse(other.command_set.exists())
+
+    def test_batch_command_without_devices_fails(self):
+        """A batch which ran on no device must not report idle.
+
+        The selection is emptied when the devices it holds are deleted,
+        so the batch creates no command. "idle" means the batch did not
+        start yet, and no command is left to calculate the status from,
+        so it would stay idle and be accepted for another launch.
+        """
+        org = self._get_org()
+        device = self._create_device(
+            name="repro-device",
+            mac_address="00:11:22:33:44:21",
+            organization=org,
+        )
+        self._create_config(device=device)
+        self._create_device_connection(device=device)
+        batch = BatchCommand.execute(
+            organization=org,
+            type="custom",
+            input={"command": "echo test"},
+            label="repro",
+            devices=[device],
+        )
+        self.assertEqual(batch.status, "idle")
+        self.assertEqual(list(batch.devices.all()), [device])
+        device.deactivate()
+        device.config.set_status_deactivated()
+        device.delete(check_deactivated=False)
+        batch.refresh_from_db()
+        self.assertEqual(list(batch.devices.all()), [])
+        batch.create_commands()
+        batch.refresh_from_db()
+        self.assertEqual(batch.batch_commands.count(), 0)
+        self.assertEqual(batch.skipped_devices, {})
+        self.assertEqual(batch.status, "failed")
+        self.assertFalse(BatchCommand.objects.filter(pk=batch.pk, status="idle"))
 
     def test_batch_command_dry_run_method(self):
         org = self._get_org()

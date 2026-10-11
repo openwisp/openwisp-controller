@@ -155,10 +155,11 @@ class CreateCommandMixin(CreateConnectionsMixin):
             "type": "custom",
             "input": {"command": "echo test"},
         }
+        opts.update(kwargs)
         return Command.objects.create(**opts)
 
 
-class BatchCommandMixin(TestAdminMixin, CreateConnectionsMixin):
+class BatchCommandMixin(TestAdminMixin, CreateCommandMixin):
     @staticmethod
     def _pk_list(devices):
         return ",".join(str(device.pk) for device in devices)
