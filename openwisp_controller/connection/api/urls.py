@@ -56,6 +56,11 @@ def get_api_urls(api_views=views):
             name="batch_command_detail",
         ),
         path(
+            "api/v1/controller/batch-command/<uuid:batch_id>/command/",
+            get_view("batch_command_result_list_view"),
+            name="batch_command_result_list",
+        ),
+        path(
             "api/v1/controller/batch-command/execute/",
             get_view("batch_command_execute_view"),
             name="batch_command_execute",

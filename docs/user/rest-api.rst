@@ -594,6 +594,17 @@ Get Mass Command Detail
 Returns detailed information about a batch command, including the list of
 targeted devices.
 
+List Mass Command Results
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: text
+
+    GET /api/v1/controller/batch-command/{id}/command/
+
+Returns the paginated list of commands the mass command created, with the
+status and output of each device. The commands of a device which was moved
+to another organization are only returned to superusers.
+
 List Device Groups
 ~~~~~~~~~~~~~~~~~~
 
