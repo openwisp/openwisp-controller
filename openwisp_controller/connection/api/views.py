@@ -15,6 +15,8 @@ from rest_framework.generics import (
 from rest_framework.response import Response
 from swapper import load_model
 
+from openwisp_users.api.mixins import FilterByParentManaged
+from openwisp_users.api.mixins import ProtectedAPIMixin as BaseProtectedAPIMixin
 from openwisp_utils.api.pagination import OpenWispPagination
 
 from ...mixins import (
@@ -214,6 +216,22 @@ class BatchCommandDetailView(ProtectedAPIMixin, RetrieveAPIView):
         return qs
 
 
+class BatchCommandResultListView(
+    FilterByParentManaged, BaseProtectedAPIMixin, ListAPIView
+):
+    model = Command
+    queryset = Command.objects.select_related("device").order_by("-created")
+    serializer_class = CommandSerializer
+    pagination_class = OpenWispPagination
+
+    def get_parent_queryset(self):
+        return BatchCommand.objects.filter(pk=self.kwargs["batch_id"])
+
+    def get_queryset(self):
+        qs = super().get_queryset().filter(batch_command_id=self.kwargs["batch_id"])
+        return BatchCommand.scope_commands(qs, self.request.user)
+
+
 class DeviceConnectionDetailView(BaseDeviceConnection, RetrieveUpdateDestroyAPIView):
     def get_object(self):
         queryset = self.filter_queryset(self.get_queryset())
@@ -228,6 +246,7 @@ class DeviceConnectionDetailView(BaseDeviceConnection, RetrieveUpdateDestroyAPIV
 batch_command_execute_view = BatchCommandExecuteView.as_view()
 batch_command_list_view = BatchCommandListView.as_view()
 batch_command_detail_view = BatchCommandDetailView.as_view()
+batch_command_result_list_view = BatchCommandResultListView.as_view()
 command_list_create_view = CommandListCreateView.as_view()
 command_details_view = CommandDetailsView.as_view()
 credential_list_create_view = CredentialListCreateView.as_view()
