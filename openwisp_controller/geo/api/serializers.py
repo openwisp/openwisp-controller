@@ -103,10 +103,16 @@ class NestedFloorplanSerializer(BaseFloorPlanSerializer):
         # for non-handled fields.
         return data
 
+    def get_queryset(self):
+        user = self.context["request"].user
+        if user.is_superuser:
+            return FloorPlan.objects.all()
+        return FloorPlan.objects.filter(organization__in=user.organizations_managed)
+
     def to_internal_value(self, data):
         if isinstance(data, str):
             try:
-                self.instance = FloorPlan.objects.get(id=data)
+                self.instance = self.get_queryset().get(id=data)
                 return self.instance
             except (ValidationError, FloorPlan.DoesNotExist):
                 raise serializers.ValidationError(
@@ -260,10 +266,16 @@ class NestedtLocationSerializer(
             return dictionary.get(self.field_name)
         return super().get_value(dictionary)
 
+    def get_queryset(self):
+        user = self.context["request"].user
+        if user.is_superuser:
+            return Location.objects.all()
+        return Location.objects.filter(organization__in=user.organizations_managed)
+
     def to_internal_value(self, data):
         if isinstance(data, str):
             try:
-                return Location.objects.get(id=data)
+                return self.get_queryset().get(id=data)
             except (ValidationError, Location.DoesNotExist):
                 raise serializers.ValidationError(
                     detail={
@@ -335,7 +347,9 @@ class DeviceLocationSerializer(serializers.ModelSerializer):
         return floorplan_data
 
     def _validate(self, data):
-        instance = self.instance or self.Meta.model(**data)
+        instance = self.instance or self.Meta.model()
+        for field, value in data.items():
+            setattr(instance, field, value)
         try:
             instance.full_clean()
         except ValidationError as error:

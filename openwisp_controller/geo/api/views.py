@@ -1,4 +1,5 @@
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from django.db import transaction
 from django.db.models import Count, Prefetch
 from django.http import Http404
 from django.utils.translation import gettext_lazy as _
@@ -180,6 +181,7 @@ class DeviceLocationView(
         context.update({"device_id": self.kwargs["pk"]})
         return context
 
+    @transaction.atomic
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop("partial", False)
         instance = self.get_object_or_none()

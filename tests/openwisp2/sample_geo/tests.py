@@ -5,6 +5,9 @@ from openwisp_controller.geo.tests.test_admin_inline import (
 )
 from openwisp_controller.geo.tests.test_api import TestApi as BaseTestApi
 from openwisp_controller.geo.tests.test_api import TestGeoApi as BaseTestGeoApi
+from openwisp_controller.geo.tests.test_api import (
+    TestMultitenantApi as BaseTestMultitenantApi,
+)
 from openwisp_controller.geo.tests.test_models import TestModels as BaseTestModels
 
 
@@ -24,6 +27,10 @@ class TestGeoApi(BaseTestGeoApi):
     pass
 
 
+class TestMultitenantApi(BaseTestMultitenantApi):
+    pass
+
+
 class TestApps(BaseTestApps):
     pass
 
@@ -36,5 +43,6 @@ del BaseTestAdmin
 del BaseTestAdminInline
 del BaseTestApi
 del BaseTestGeoApi
+del BaseTestMultitenantApi
 del BaseTestApps
 del BaseTestModels
