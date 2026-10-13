@@ -18,6 +18,7 @@ from .. import settings as app_settings
 from ..api.views import (
     BatchCommandExecuteView,
     BatchCommandListView,
+    BatchCommandResultListView,
     CommandListCreateView,
 )
 from ..commands import ORGANIZATION_ENABLED_COMMANDS
@@ -871,7 +872,7 @@ class TestConnectionApi(
 
 
 class TestBatchCommandsAPI(
-    TestAdminMixin, AuthenticationMixin, TestCase, CreateConnectionsMixin
+    TestAdminMixin, AuthenticationMixin, TestCase, CreateCommandMixin
 ):
     url_namespace = "connection_api"
 
@@ -933,6 +934,111 @@ class TestBatchCommandsAPI(
         self.assertIn("devices", response.data)
         self.assertEqual(response.data["devices"], [str(device.pk)])
         self.assertEqual(response.data["device_count"], 1)
+
+    def test_batch_command_result_list(self):
+        org = self._get_org()
+        batch = self._create_batch_command(organization=org)
+        other_batch = self._create_batch_command(organization=org)
+        credentials = self._create_credentials(organization=org)
+        commands = []
+        for index in range(3):
+            device = self._create_device(
+                name=f"result-dev{index}",
+                mac_address=f"00:11:22:33:46:{index:02x}",
+                organization=org,
+            )
+            self._create_config(device=device)
+            connection = self._create_device_connection(
+                device=device, credentials=credentials
+            )
+            with patch.object(Command, "_schedule_command"):
+                commands.append(
+                    self._create_command(
+                        device_conn=connection,
+                        batch_command=batch,
+                        status="success",
+                        output="done\n",
+                    )
+                )
+        with patch.object(Command, "_schedule_command"):
+            other_command = self._create_command(
+                device_conn=connection, batch_command=other_batch
+            )
+        url = reverse("connection_api:batch_command_result_list", args=[batch.pk])
+
+        with self.subTest("lists the commands of the mass command"):
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data["count"], 3)
+            listed = [result["id"] for result in response.data["results"]]
+            self.assertNotIn(str(other_command.pk), listed)
+            self.assertEqual(set(listed), {str(command.pk) for command in commands})
+            result = response.data["results"][0]
+            self.assertEqual(result["batch_command"], str(batch.pk))
+            self.assertEqual(result["status"], "success")
+            self.assertEqual(result["output"], "done\n")
+            self.assertIn("device", result)
+
+        with self.subTest("the newest command is listed first"):
+            created = [result["created"] for result in response.data["results"]]
+            self.assertEqual(created, sorted(created, reverse=True))
+
+        with self.subTest("an unknown mass command is not found"):
+            response = self.client.get(
+                reverse("connection_api:batch_command_result_list", args=[uuid.uuid4()])
+            )
+            self.assertEqual(response.status_code, 404)
+
+        with patch.object(
+            BatchCommandResultListView, "pagination_page_size", 2, create=True
+        ):
+            with self.subTest("pagination page 1"):
+                response = self.client.get(f"{url}?page=1")
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(len(response.data["results"]), 2)
+
+            with self.subTest("pagination page 2"):
+                response = self.client.get(f"{url}?page=2")
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(len(response.data["results"]), 1)
+
+    def test_batch_command_result_list_hides_transferred_device(self):
+        """A device can be moved to another organization after its command.
+
+        Belonging to the mass command is then not enough to be listed, so
+        the command is hidden from everyone but a superuser.
+        """
+        org = self._get_org()
+        org2 = self._create_org(name="org2", slug="org2")
+        batch = self._create_batch_command(organization=org)
+        device = self._create_device(
+            name="moved-dev",
+            mac_address="00:11:22:33:47:01",
+            organization=org2,
+        )
+        self._create_config(device=device)
+        connection = self._create_device_connection(
+            device=device, credentials=self._create_credentials(organization=org2)
+        )
+        with patch.object(Command, "_schedule_command"):
+            self._create_command(device_conn=connection, batch_command=batch)
+        url = reverse("connection_api:batch_command_result_list", args=[batch.pk])
+
+        with self.subTest("a superuser sees the command"):
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data["count"], 1)
+
+        with self.subTest("a manager of the mass command does not"):
+            self.client.logout()
+            operator = self._create_operator(organizations=[org])
+            operator.user_permissions.add(
+                Permission.objects.get(codename="view_batchcommand")
+            )
+            self.client.force_login(operator)
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data["count"], 0)
 
     def test_batch_command_dry_run_endpoint(self):
         org = self._get_org()
@@ -1660,6 +1766,23 @@ class TestBatchCommandsAPI(
             response = self.client.get(url)
             self.assertEqual(response.status_code, 200)
 
+        with self.subTest("results own org"):
+            url = reverse(
+                "connection_api:batch_command_result_list",
+                args=[batch_org1.pk],
+            )
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data["count"], 0)
+
+        with self.subTest("results cross-org"):
+            url = reverse(
+                "connection_api:batch_command_result_list",
+                args=[batch_org2.pk],
+            )
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 404)
+
     def test_shared_batch_command_hidden_from_non_superuser(self):
         org = self._get_org()
         org2 = self._create_org(name="org2", slug="org2")
@@ -1683,6 +1806,11 @@ class TestBatchCommandsAPI(
             response = self.client.get(url)
             self.assertEqual(response.status_code, 404)
 
+        with self.subTest("results return 404 for org-wide batch"):
+            url = reverse("connection_api:batch_command_result_list", args=[batch.pk])
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 404)
+
         with self.subTest("superuser still sees org-wide batch"):
             self.client.logout()
             self._login()
@@ -1703,6 +1831,14 @@ class TestBatchCommandsAPI(
         with self.subTest("Detail"):
             url = reverse(
                 "connection_api:batch_command_detail",
+                args=[uuid.uuid4()],
+            )
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 401)
+
+        with self.subTest("Results"):
+            url = reverse(
+                "connection_api:batch_command_result_list",
                 args=[uuid.uuid4()],
             )
             response = self.client.get(url)
