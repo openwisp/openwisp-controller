@@ -40,13 +40,16 @@ Install the system dependencies:
     sudo apt update
     sudo apt install -y sqlite3 libsqlite3-dev openssl libssl-dev
     sudo apt install -y gdal-bin libproj-dev libgeos-dev libspatialite-dev libsqlite3-mod-spatialite
-    sudo apt install -y chromium-browser
+    # For running E2E Selenium tests (Firefox is the default browser)
+    sudo apt install firefox chromium
 
-Fork and clone the forked repository:
+Fork the `openwisp-controller repository
+<https://github.com/openwisp/openwisp-controller>`_ on GitHub, then clone
+your fork. Replace ``YOUR_GITHUB_USERNAME`` with your GitHub username:
 
 .. code-block:: shell
 
-    git clone git://github.com/<your_fork>/openwisp-controller
+    git clone git@github.com:YOUR_GITHUB_USERNAME/openwisp-controller.git
 
 Navigate into the cloned repository:
 
@@ -144,11 +147,11 @@ To install the latest development version tarball via HTTPs:
 
     pip install https://github.com/openwisp/openwisp-controller/tarball/master
 
-Alternatively you can use the git protocol:
+Alternatively you can install the latest development version from Git:
 
 .. code-block:: shell
 
-    pip install -e git+git://github.com/openwisp/openwisp-controller#egg=openwisp_controller
+    pip install -e git+https://github.com/openwisp/openwisp-controller#egg=openwisp_controller
 
 .. _controller_dev_docker:
 
