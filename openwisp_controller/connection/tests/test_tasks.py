@@ -1,12 +1,13 @@
+import json
 import uuid
-from contextlib import redirect_stderr
-from io import StringIO
 from unittest import mock
 
 from celery.exceptions import SoftTimeLimitExceeded
 from django.db import DatabaseError
 from django.test import TestCase, TransactionTestCase
 from swapper import load_model
+
+from openwisp_utils.tests import capture_stderr
 
 from ...config.tests.test_controller import TestRegistrationMixin
 from .. import tasks
@@ -16,6 +17,7 @@ from .utils import CreateConnectionsMixin
 Command = load_model("connection", "Command")
 DeviceConnection = load_model("connection", "DeviceConnection")
 OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
+BatchCommand = load_model("connection", "BatchCommand")
 
 
 class TestTasks(CreateConnectionsMixin, TestCase):
@@ -163,9 +165,10 @@ class TestTasks(CreateConnectionsMixin, TestCase):
             "The command took longer than expected: connection timed out after 30s\n",
         )
 
+    @capture_stderr()
     @mock.patch(_mock_execute, side_effect=RuntimeError("test error"))
     @mock.patch(_mock_connect, return_value=True)
-    def test_launch_command_exception(self, *args):
+    def test_launch_command_exception(self, stderr, *args):
         dc = self._create_device_connection()
         command = Command(
             device=dc.device,
@@ -176,13 +179,36 @@ class TestTasks(CreateConnectionsMixin, TestCase):
         command.full_clean()
         command.save()
         # must call this explicitly because lack of transactions in this test case
-        with redirect_stderr(StringIO()) as stderr:
-            tasks.launch_command.delay(command.pk)
-            expected = f"An exception was raised while executing command {command.pk}"
-            self.assertIn(expected, stderr.getvalue())
+        tasks.launch_command.delay(command.pk)
+        expected = f"An exception was raised while executing command {command.pk}"
+        self.assertIn(expected, stderr.getvalue())
         command.refresh_from_db()
         self.assertEqual(command.status, "failed")
         self.assertEqual(command.output, "Internal system error: test error\n")
+
+    @capture_stderr()
+    def test_launch_command_failure_cleans_change_password_input(self, stderr):
+        dc = self._create_device_connection()
+        password = "SuperSecret123"
+        errors = (
+            SoftTimeLimitExceeded(),
+            CommandTimeoutException("connection timed out after 30s"),
+            RuntimeError("test error"),
+        )
+        for error in errors:
+            with self.subTest(type(error).__name__):
+                command = Command(
+                    device=dc.device,
+                    connection=dc,
+                    type="change_password",
+                    input={"password": password, "confirm_password": password},
+                )
+                command.full_clean()
+                command.save()
+                with mock.patch.object(Command, "execute", side_effect=error):
+                    tasks.launch_command(command.pk)
+                command.refresh_from_db()
+                self.assertNotIn(password, json.dumps(command.input))
 
     @mock.patch(
         "openwisp_controller.connection.base.models.AbstractCommand._exec_command"
@@ -315,3 +341,188 @@ class TestTransactionTasks(
         with mock.patch.object(Command, "execute", _delete_then_raise):
             tasks.launch_command(command.pk)
         self.assertFalse(Command.objects.filter(pk=command.pk).exists())
+
+    @mock.patch("logging.Logger.warning")
+    def test_launch_batch_command_skips_deleted_batch(self, mocked_warning):
+        batch_id = uuid.uuid4()
+        tasks.launch_batch_command(batch_id=batch_id)
+        mocked_warning.assert_called_with(
+            f"The BatchCommand object with id {batch_id} has been deleted"
+        )
+
+    @mock.patch("openwisp_controller.connection.tasks.launch_command.delay")
+    def test_launch_batch_command_creates_commands(self, mocked_delay):
+        org = self._get_org()
+        device = self._create_device(organization=org)
+        self._create_config(device=device)
+        self._create_device_connection(device=device)
+        batch = BatchCommand(
+            organization=org,
+            type="custom",
+            input={"command": "echo 'test'"},
+            label="test-label",
+        )
+        batch.full_clean()
+        batch.save()
+        batch.devices.set([device])
+        tasks.launch_batch_command(batch_id=batch.pk)
+        batch.refresh_from_db()
+        self.assertEqual(batch.batch_commands.count(), 1)
+        command = batch.batch_commands.first()
+        self.assertEqual(command.device, device)
+        self.assertEqual(command.type, batch.type)
+        self.assertEqual(command.status, "in-progress")
+        mocked_delay.assert_called_once_with(command.pk)
+
+    @mock.patch("openwisp_controller.connection.tasks.launch_command.delay")
+    def test_launch_batch_command_creates_commands_for_multiple_devices(
+        self, mocked_delay
+    ):
+        org = self._get_org()
+        cred = self._create_credentials(organization=org, name="Multi device cred")
+        devices = []
+        for i in range(2):
+            d = self._create_device(
+                name=f"task-dev-{i}",
+                mac_address=f"00:11:22:33:44:{i + 0x50:02x}",
+                organization=org,
+            )
+            self._create_config(device=d)
+            self._create_device_connection(device=d, credentials=cred)
+            devices.append(d)
+        batch = BatchCommand(
+            organization=org,
+            type="custom",
+            input={"command": "echo test"},
+            label="test-label",
+        )
+        batch.full_clean()
+        batch.save()
+        batch.devices.set(devices)
+        tasks.launch_batch_command(batch_id=batch.pk)
+        batch.refresh_from_db()
+        self.assertEqual(batch.batch_commands.count(), 2)
+        cmd_devices = [c.device for c in batch.batch_commands.all()]
+        for d in devices:
+            self.assertIn(d, cmd_devices)
+        self.assertEqual(batch.status, "in-progress")
+        self.assertEqual(mocked_delay.call_count, 2)
+
+    @mock.patch(
+        "openwisp_controller.connection.base.models.AbstractBatchCommand"
+        ".create_commands",
+        side_effect=SoftTimeLimitExceeded(),
+    )
+    def test_launch_batch_command_timeout(self, mocked_create_commands):
+        org = self._get_org()
+        device = self._create_device(organization=org)
+        self._create_config(device=device)
+        batch = BatchCommand(
+            organization=org,
+            type="custom",
+            input={"command": "echo test"},
+            label="test-label",
+        )
+        batch.full_clean()
+        batch.save()
+        tasks.launch_batch_command(batch_id=batch.pk)
+        batch.refresh_from_db()
+        self.assertEqual(batch.status, "failed")
+
+    @capture_stderr()
+    @mock.patch(
+        "openwisp_controller.connection.base.models.AbstractBatchCommand"
+        ".create_commands",
+        side_effect=RuntimeError("test error"),
+    )
+    def test_launch_batch_command_exception(self, stderr, mocked_create_commands):
+        org = self._get_org()
+        device = self._create_device(organization=org)
+        self._create_config(device=device)
+
+        with self.subTest("custom command"):
+            batch = BatchCommand(
+                organization=org,
+                type="custom",
+                input={"command": "echo test"},
+                label="test-label",
+            )
+            batch.full_clean()
+            batch.save()
+            tasks.launch_batch_command(batch_id=batch.pk)
+            self.assertIn(
+                f"An exception was raised while executing batch command {batch.pk}",
+                stderr.getvalue(),
+            )
+            batch.refresh_from_db()
+            self.assertEqual(batch.status, "failed")
+
+        with self.subTest("change_password input is cleaned up"):
+            password = "SuperSecret123"
+            batch = BatchCommand(
+                organization=org,
+                type="change_password",
+                input={"password": password, "confirm_password": password},
+                label="test-pwd",
+            )
+            batch.full_clean()
+            batch.save()
+            tasks.launch_batch_command(batch_id=batch.pk)
+            self.assertIn(
+                f"An exception was raised while executing batch command {batch.pk}",
+                stderr.getvalue(),
+            )
+            batch.refresh_from_db()
+            self.assertEqual(batch.status, "failed")
+            self.assertNotIn(password, json.dumps(batch.input))
+
+    @capture_stderr()
+    @mock.patch("openwisp_controller.connection.tasks.launch_command.delay")
+    def test_launch_batch_command_all_devices_skipped(self, stderr, mocked_delay):
+        org = self._get_org()
+        device = self._create_device(organization=org)
+        self._create_config(device=device)
+        device.deactivate()
+        device.config.set_status_deactivated()
+        batch = BatchCommand(
+            organization=org,
+            type="custom",
+            input={"command": "echo test"},
+            label="test-label",
+        )
+        batch.full_clean()
+        batch.save()
+        batch.devices.set([device])
+        tasks.launch_batch_command(batch_id=batch.pk)
+        batch.refresh_from_db()
+        self.assertEqual(batch.batch_commands.count(), 0)
+        self.assertIn(str(device.pk), batch.skipped_devices)
+        self.assertEqual(batch.status, "failed")
+        mocked_delay.assert_not_called()
+        self.assertIn("Skipping device", stderr.getvalue())
+
+    @mock.patch("openwisp_controller.connection.tasks.launch_command.delay")
+    def test_launch_batch_command_already_processed(self, mocked_delay):
+        org = self._get_org()
+        device = self._create_device(organization=org)
+        self._create_config(device=device)
+        self._create_device_connection(device=device)
+        batch = BatchCommand(
+            organization=org,
+            type="custom",
+            input={"command": "echo test"},
+            label="test-label",
+        )
+        batch.full_clean()
+        batch.save()
+        batch.devices.set([device])
+        # First call — creates commands
+        tasks.launch_batch_command(batch_id=batch.pk)
+        batch.refresh_from_db()
+        self.assertEqual(batch.batch_commands.count(), 1)
+        first_call_count = mocked_delay.call_count
+        # Second call — should be a no-op (idempotency guard)
+        tasks.launch_batch_command(batch_id=batch.pk)
+        batch.refresh_from_db()
+        self.assertEqual(batch.batch_commands.count(), 1)
+        self.assertEqual(mocked_delay.call_count, first_call_count)
