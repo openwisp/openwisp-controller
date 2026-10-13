@@ -37,6 +37,9 @@ class BaseLocation(OrgMixin, AbstractLocation):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._set_initial_values_for_changed_checked_fields()
+        self._initial_organization_id = self.__dict__.get(
+            "organization_id", models.DEFERRED
+        )
 
     def _set_initial_values_for_changed_checked_fields(self):
         deferred_fields = self.get_deferred_fields()
@@ -104,7 +107,21 @@ class BaseLocation(OrgMixin, AbstractLocation):
             changed_fields = {"is_estimated"}
         if update_fields := kwargs.get("update_fields"):
             kwargs["update_fields"] = set(update_fields) | changed_fields
+        update_fields = kwargs.get("update_fields", args[3] if len(args) > 3 else None)
+        organization_saved = update_fields is None or bool(
+            {"organization", "organization_id"}.intersection(update_fields)
+        )
+        adding = self._state.adding
         result = super().save(*args, **kwargs)
+        if organization_saved:
+            if not adding and self._initial_organization_id != self.organization_id:
+                floorplan_model = swapper.load_model("geo", "FloorPlan")
+                floorplan_model.objects.using(self._state.db).filter(
+                    location_id=self.pk
+                ).exclude(organization_id=self.organization_id).update(
+                    organization_id=self.organization_id
+                )
+            self._initial_organization_id = self.organization_id
         self._set_initial_values_for_changed_checked_fields()
         return result
 
