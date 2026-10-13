@@ -1,8 +1,9 @@
 from datetime import timedelta
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from django.contrib.auth.models import Permission
 from django.core.cache import cache
+from django.core.exceptions import ValidationError
 from django.http.response import Http404
 from django.test import TestCase
 from django.test.client import BOUNDARY, MULTIPART_CONTENT, encode_multipart
@@ -33,6 +34,7 @@ Device = load_model("config", "Device")
 Config = load_model("config", "Config")
 DeviceGroup = load_model("config", "DeviceGroup")
 OrganizationUser = load_model("openwisp_users", "OrganizationUser")
+DeviceCertificate = load_model("config", "DeviceCertificate")
 
 
 class ApiTestMixin:
@@ -555,7 +557,7 @@ class TestConfigApi(
         d1 = self._create_device()
         self._create_config(device=d1)
         path = reverse("config_api:download_device_config", args=[d1.pk])
-        with self.assertNumQueries(7):
+        with self.assertNumQueries(8):
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
 
@@ -718,13 +720,25 @@ class TestConfigApi(
 
     def test_template_list_api(self):
         org1 = self._get_org()
+        ca = self._create_ca(organization=org1)
+        blueprint = self._create_cert(ca=ca, organization=org1)
         initial_count = Template.objects.count()
-        self._create_template(name="t1", organization=org1)
+        template = self._create_template(
+            name="t1",
+            organization=org1,
+            type="cert",
+            ca=ca,
+            blueprint_cert=blueprint,
+            config={},
+        )
         path = reverse("config_api:template_list")
         with self.assertNumQueries(4):
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
         self.assertEqual(Template.objects.count(), initial_count + 1)
+        self.assertEqual(r.data["results"][0]["id"], str(template.pk))
+        self.assertEqual(r.data["results"][0]["ca"], ca.pk)
+        self.assertEqual(r.data["results"][0]["blueprint_cert"], blueprint.pk)
 
     def test_template_list_api_filter(self):
         org1 = self._create_org()
@@ -743,7 +757,7 @@ class TestConfigApi(
             self.assertEqual(response.status_code, 200)
             data = response.data
             self.assertEqual(data["count"], 1)
-            self.assertEqual(len(data["results"][0]), 14)
+            self.assertEqual(len(data["results"][0]), 16)
             self.assertEqual(data["results"][0]["id"], str(template.pk))
             self.assertEqual(data["results"][0]["name"], str(template.name))
             self.assertEqual(
@@ -813,12 +827,22 @@ class TestConfigApi(
 
     # template-detail having no Org
     def test_template_detail_api(self):
-        t1 = self._create_template(name="t1")
+        ca = self._create_ca()
+        blueprint = self._create_cert(ca=ca)
+        t1 = self._create_template(
+            name="t1",
+            type="cert",
+            ca=ca,
+            blueprint_cert=blueprint,
+            config={},
+        )
         path = reverse("config_api:template_detail", args=[t1.pk])
         with self.assertNumQueries(3):
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data["organization"], None)
+        self.assertEqual(r.data["ca"], ca.pk)
+        self.assertEqual(r.data["blueprint_cert"], blueprint.pk)
 
     def test_template_put_api(self):
         t1 = self._create_template(name="t1", organization=None)
@@ -1374,6 +1398,381 @@ class TestConfigApi(
                 HTTP_AUTHORIZATION=f"Bearer {token}",
             )
             self.assertEqual(response.status_code, 200)
+
+    def test_template_create_cert_type_api(self):
+        """Create a template of type 'cert' with a CA"""
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        path = reverse("config_api:template_list")
+        data = self._template_data
+        data.update(
+            {
+                "name": "API Cert Template",
+                "type": "cert",
+                "ca": ca.pk,
+                "organization": str(org.pk),
+                "config": {},
+            }
+        )
+        r = self.client.post(path, data, content_type="application/json")
+        self.assertEqual(r.status_code, 201)
+        self.assertEqual(r.data["ca"], ca.pk)
+        self.assertTrue(Template.objects.get(pk=r.data["id"]).auto_cert)
+
+        with self.subTest("DEFAULT_AUTO_CERT=False"):
+            with patch(
+                "openwisp_controller.config.base.template.DEFAULT_AUTO_CERT", False
+            ):
+                data.update(
+                    {
+                        "name": "API Cert Template Auto False",
+                        "organization": str(org.pk),
+                    }
+                )
+                r = self.client.post(path, data, content_type="application/json")
+                self.assertEqual(r.status_code, 201)
+                self.assertTrue(Template.objects.get(pk=r.data["id"]).auto_cert)
+
+    def test_template_create_cert_rejects_without_ca(self):
+        """Rejects cert template if CA is missing"""
+        org = self._get_org()
+        path = reverse("config_api:template_list")
+        data = self._template_data
+        data.update(
+            {
+                "name": "API Invalid Cert Template",
+                "type": "cert",
+                "organization": str(org.pk),
+                "config": {},
+            }
+        )
+        r = self.client.post(path, data, content_type="application/json")
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("ca", r.data)
+
+    def test_template_create_cert_blueprint_assignment(self):
+        """Can assign a blueprint certificate"""
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        blueprint = self._create_cert(ca=ca, organization=org)
+        path = reverse("config_api:template_list")
+        data = self._template_data
+        data.update(
+            {
+                "name": "API Blueprint Template",
+                "type": "cert",
+                "ca": ca.pk,
+                "blueprint_cert": blueprint.pk,
+                "organization": str(org.pk),
+                "config": {},
+            }
+        )
+        r = self.client.post(path, data, content_type="application/json")
+        self.assertEqual(r.status_code, 201)
+        self.assertEqual(r.data["blueprint_cert"], blueprint.pk)
+
+    def test_template_create_api_blueprint_ca_mismatch(self):
+        """Blueprint cert must belong to the selected CA"""
+        org = self._get_org()
+        ca1 = self._create_ca(name="CA1", common_name="CA1", organization=org)
+        ca2 = self._create_ca(name="CA2", common_name="CA2", organization=org)
+        blueprint = self._create_cert(name="BP", ca=ca1, organization=org)
+        path = reverse("config_api:template_list")
+        data = self._template_data
+        data.update(
+            {
+                "name": "Mismatch Template",
+                "type": "cert",
+                "ca": ca2.pk,
+                "blueprint_cert": blueprint.pk,
+                "organization": str(org.pk),
+                "config": {},
+            }
+        )
+        r = self.client.post(path, data, content_type="application/json")
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("blueprint_cert", r.data)
+        self.assertIn(
+            "match the selected Certificate Authority", str(r.data["blueprint_cert"])
+        )
+
+    def test_template_create_api_blueprint_already_assigned(self):
+        """Serializer correctly rejects an already assigned blueprint_cert"""
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        blueprint = self._create_cert(ca=ca, organization=org)
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        dummy_template = self._create_template(
+            type="cert", ca=ca, organization=org, config={}
+        )
+        config.templates.add(dummy_template)
+        dc = DeviceCertificate.objects.get(config=config, template=dummy_template)
+        dc.cert = blueprint
+        dc.save()
+        path = reverse("config_api:template_list")
+        data = self._template_data
+        data.update(
+            {
+                "name": "Assigned BP Template",
+                "type": "cert",
+                "ca": str(ca.pk),
+                "blueprint_cert": str(blueprint.pk),
+                "organization": str(org.pk),
+                "config": {},
+            }
+        )
+        r = self.client.post(path, data, content_type="application/json")
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("blueprint_cert", r.data)
+        self.assertIn(
+            "already assigned to a device configuration profile.",
+            str(r.data["blueprint_cert"]),
+        )
+
+    def test_template_update_api_active_change_blocked(self):
+        """Cannot mutate cert-specific fields on active templates"""
+        org = self._get_org()
+        ca1 = self._create_ca(name="CA1", common_name="CA1", organization=org)
+        ca2 = self._create_ca(name="CA2", common_name="CA2", organization=org)
+        blueprint = self._create_cert(
+            name="BP", common_name="BP_CN", ca=ca1, organization=org
+        )
+        template = self._create_template(
+            name="Active Template", type="cert", ca=ca1, organization=org, config={}
+        )
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        config.templates.add(template)
+        path = reverse("config_api:template_detail", args=[template.pk])
+        data = {"ca": ca2.pk}
+        r = self.client.patch(path, data, content_type="application/json")
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("ca", r.data)
+        self.assertIn("already assigned to active devices", str(r.data["ca"]))
+        r = self.client.patch(
+            path, {"blueprint_cert": blueprint.pk}, content_type="application/json"
+        )
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("blueprint_cert", r.data)
+        self.assertIn(
+            "already assigned to active devices", str(r.data["blueprint_cert"])
+        )
+        r = self.client.patch(
+            path, {"type": "generic"}, content_type="application/json"
+        )
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("type", r.data)
+        self.assertIn("already assigned to active devices", str(r.data["type"]))
+        org2 = self._create_org(name="Org2", slug="org2")
+        r = self.client.patch(
+            path, {"organization": str(org2.pk)}, content_type="application/json"
+        )
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("organization", r.data)
+        self.assertIn("already assigned to active devices", str(r.data["organization"]))
+
+    def test_template_create_api_org_scoping(self):
+        """Filters CA and Blueprint by the requesting manager's organizations."""
+        org1 = self._get_org()
+        org2 = self._create_org(name="Org2", slug="org2")
+        user = self._create_administrator(organizations=[org1])
+        self.client.force_login(user)
+        ca_org2 = self._create_ca(name="CA2", common_name="CA2", organization=org2)
+        shared_ca = self._create_ca(
+            name="Shared CA", common_name="Shared CA", organization=None
+        )
+        blueprint_org2 = self._create_cert(
+            name="BP2",
+            common_name="BP2",
+            ca=shared_ca,
+            organization=org2,
+        )
+        shared_blueprint = self._create_cert(
+            name="Shared BP",
+            common_name="Shared BP",
+            ca=shared_ca,
+            organization=None,
+        )
+        path = reverse("config_api:template_list")
+        data = {
+            **self._template_data,
+            "type": "cert",
+            "organization": str(org1.pk),
+            "config": {},
+        }
+        with self.subTest("Rejects CA from unmanaged organization"):
+            data.update(name="Org Scope CA Template", ca=ca_org2.pk)
+            r = self.client.post(path, data, content_type="application/json")
+            self.assertEqual(r.status_code, 400)
+            self.assertIn("ca", r.data)
+
+        with self.subTest("Rejects blueprint from unmanaged organization"):
+            data.update(
+                name="Org Scope Blueprint Template",
+                ca=shared_ca.pk,
+                blueprint_cert=blueprint_org2.pk,
+            )
+            r = self.client.post(path, data, content_type="application/json")
+            self.assertEqual(r.status_code, 400)
+            self.assertIn("blueprint_cert", r.data)
+
+        with self.subTest("Accepts shared CA and blueprint"):
+            data.update(
+                name="Org Scope Shared Template",
+                ca=shared_ca.pk,
+                blueprint_cert=shared_blueprint.pk,
+            )
+            r = self.client.post(path, data, content_type="application/json")
+            self.assertEqual(r.status_code, 201, r.data)
+            self.assertEqual(r.data["ca"], shared_ca.pk)
+            self.assertEqual(r.data["blueprint_cert"], shared_blueprint.pk)
+
+    def test_device_api_cert_template_lifecycle(self):
+        """Assigning/removing a cert template triggers DeviceCertificate lifecycle"""
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        cert_template = self._create_template(
+            name="API Lifecycle Cert", type="cert", ca=ca, organization=org, config={}
+        )
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        path = reverse("config_api:device_detail", args=[device.pk])
+        data = self._device_data
+        data.update(
+            {
+                "name": device.name,
+                "organization": str(org.pk),
+                "mac_address": device.mac_address,
+            }
+        )
+        with self.subTest("Assigning template via API creates DeviceCertificate"):
+            data["config"]["templates"] = [str(cert_template.pk)]
+            response = self.client.put(path, data, content_type="application/json")
+            self.assertEqual(response.status_code, 200, response.data)
+            self.assertEqual(config.templates.count(), 1)
+            self.assertEqual(config.device_certificate_relations.count(), 1)
+            generated_cert = config.device_certificate_relations.get().cert
+
+        with self.subTest(
+            "Removing template via API deletes/revokes DeviceCertificate"
+        ):
+            data["config"]["templates"] = []
+            with self.captureOnCommitCallbacks(execute=True):
+                response = self.client.put(path, data, content_type="application/json")
+            self.assertEqual(response.status_code, 200, response.data)
+            self.assertEqual(config.templates.count(), 0)
+            self.assertEqual(config.device_certificate_relations.count(), 0)
+            generated_cert.refresh_from_db()
+            self.assertTrue(generated_cert.revoked)
+
+    def test_device_api_cert_template_generation_error(self):
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        cert_template = self._create_template(
+            name="API Invalid Generated Cert",
+            type="cert",
+            ca=ca,
+            organization=org,
+            config={},
+        )
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        path = reverse("config_api:device_detail", args=[device.pk])
+        data = self._device_data
+        data.update(
+            {
+                "name": device.name,
+                "organization": str(org.pk),
+                "mac_address": device.mac_address,
+            }
+        )
+        data["config"]["templates"] = [str(cert_template.pk)]
+        cert = Mock()
+        cert.full_clean.side_effect = ValidationError("invalid generated certificate")
+        with patch.object(DeviceCertificate, "_build_cert", return_value=cert):
+            response = self.client.put(path, data, content_type="application/json")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("config", response.data)
+        self.assertIn("invalid generated certificate", str(response.data["config"]))
+        self.assertEqual(config.templates.count(), 0)
+        self.assertEqual(config.device_certificate_relations.count(), 0)
+
+    def test_device_api_required_cert_template_preserved(self):
+        """
+        When a required certificate template is omitted from the submitted
+        templates list, the DeviceCertificate and its underlying certificate
+        must not be deleted and recreated.
+        """
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        required_cert_template = self._create_template(
+            name="Required Cert Template",
+            type="cert",
+            ca=ca,
+            organization=org,
+            required=True,
+            config={},
+        )
+        regular_template = self._create_template(
+            name="Regular Template",
+            organization=org,
+            config={"system": {"hostname": "test_router"}},
+        )
+        device = self._create_device(organization=org)
+        config = self._create_config(device=device)
+        config.templates.add(required_cert_template)
+        dev_cert = config.device_certificate_relations.first()
+        self.assertIsNotNone(dev_cert)
+        original_dev_cert_id = dev_cert.pk
+        original_cert_id = dev_cert.cert.pk
+        path = reverse("config_api:device_detail", args=[device.pk])
+        data = self._device_data
+        data.update(
+            {
+                "name": device.name,
+                "organization": str(org.pk),
+                "mac_address": device.mac_address,
+                "config": {
+                    "backend": "netjsonconfig.OpenWrt",
+                    "status": "modified",
+                    "templates": [str(regular_template.pk)],
+                    "context": {},
+                    "config": {},
+                },
+            }
+        )
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.put(path, data, content_type="application/json")
+        self.assertEqual(response.status_code, 200, response.data)
+        config.refresh_from_db()
+        self.assertIn(
+            required_cert_template,
+            config.templates.all(),
+        )
+        self.assertIn(
+            regular_template,
+            config.templates.all(),
+        )
+        self.assertEqual(config.device_certificate_relations.count(), 1)
+        surviving_dev_cert = config.device_certificate_relations.first()
+        self.assertEqual(
+            surviving_dev_cert.pk,
+            original_dev_cert_id,
+            "DeviceCertificate was deleted and recreated "
+            "when a required cert template was omitted from the submitted list!",
+        )
+        self.assertEqual(
+            surviving_dev_cert.cert.pk,
+            original_cert_id,
+            "Underlying X.509 Cert was replaced "
+            "when a required cert template was omitted from the submitted list!",
+        )
+        self.assertFalse(
+            surviving_dev_cert.cert.revoked,
+            "Certificate was erroneously revoked "
+            "when a required cert template was omitted from the submitted list!",
+        )
 
 
 class TestConfigApiTransaction(

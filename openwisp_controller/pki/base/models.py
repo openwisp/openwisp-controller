@@ -2,7 +2,7 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django_x509.base.models import AbstractCa as BaseCa
 from django_x509.base.models import AbstractCert as BaseCert
-from swapper import get_model_name
+from swapper import get_model_name, load_model
 
 from openwisp_users.mixins import ShareableOrgMixin
 
@@ -38,3 +38,14 @@ class AbstractCert(ShareableOrgMixin, UnqiueCommonNameMixin, BaseCert):
 
     def clean(self):
         self._validate_org_relation("ca")
+        self._validate_bound_cert_organization()
+
+    def _validate_bound_cert_organization(self):
+        """
+        Defers to ``config.DeviceCertificate`` to prevent moving a
+        certificate to another organization while it is assigned to a device.
+        """
+        DeviceCertificate = load_model("config", "DeviceCertificate", required=False)
+        if DeviceCertificate is None:
+            return
+        DeviceCertificate.validate_cert_bound_organization(self)

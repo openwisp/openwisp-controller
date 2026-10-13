@@ -34,6 +34,9 @@ REGISTRATION_SELF_CREATION = get_setting("REGISTRATION_SELF_CREATION", True)
 CONTEXT = get_setting("CONTEXT", {})
 assert isinstance(CONTEXT, dict), "OPENWISP_CONTROLLER_CONTEXT must be a dictionary"
 DEFAULT_AUTO_CERT = get_setting("DEFAULT_AUTO_CERT", True)
+REGENERATE_CERTS_ON_HARDWARE_CHANGE = get_setting(
+    "REGENERATE_CERTS_ON_HARDWARE_CHANGE", True
+)
 CERT_PATH = get_setting("CERT_PATH", "/etc/x509")
 COMMON_NAME_FORMAT = get_setting("COMMON_NAME_FORMAT", "{mac_address}-{name}")
 MANAGEMENT_IP_DEVICE_LIST = get_setting("MANAGEMENT_IP_DEVICE_LIST", True)

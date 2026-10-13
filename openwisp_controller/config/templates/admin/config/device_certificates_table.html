@@ -1,0 +1,77 @@
+{% load i18n static %}
+<div class="tabular inline-related results">
+    <table id="result_list">
+        <thead>
+            <tr>
+                <th>{% trans "Name" %}</th>
+                <th data-tooltip="{% trans 'The template which generated the X.509 certificate' %}" class="tooltip">
+                    <span>
+                        {% trans "Template" %}
+                        <button type="button"
+                                class="tooltip-toggle"
+                                aria-label="{% trans 'The template which generated the X.509 certificate' %}">
+                            <img src="{% static 'admin/img/icon-unknown.svg' %}" alt="">
+                        </button>
+                    </span>
+                </th>
+                <th>{% trans "CA" %}</th>
+                <th>{% trans "Key length" %}</th>
+                <th>{% trans "Digest Algorithm" %}</th>
+                <th>{% trans "Validity End" %}</th>
+                <th>{% trans "Revoked" %}</th>
+                <th>{% trans "Created" %}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for cert in certificates %}
+            <tr class="{% cycle 'row1' 'row2' %}">
+                <th class="field-name" scope="row">
+                    {% if cert.has_cert %}
+                        <a href="{{ cert.url }}" target="_blank">{{ cert.common_name }}</a>
+                    {% else %}
+                        {{ cert.common_name|default:"-" }}
+                    {% endif %}
+                </th>
+                <td>
+                    {% if cert.template_url %}
+                        <a href="{{ cert.template_url }}" target="_blank">{{ cert.template_name }}</a>
+                    {% else %}
+                        {{ cert.template_name }}
+                    {% endif %}
+                </td>
+                <td>
+                    {% if cert.ca_url %}
+                        <a href="{{ cert.ca_url }}" target="_blank">{{ cert.ca_name }}</a>
+                    {% else %}
+                        {{ cert.ca_name|default:"-" }}
+                    {% endif %}
+                </td>
+                <td>{{ cert.key_length_display|default:"-" }}</td>
+                <td>{{ cert.digest|default:"-"|upper }}</td>
+                <td>{{ cert.validity_end|default:"-" }}</td>
+                <td>
+                    {% if cert.has_cert %}
+                        {% if cert.is_revoked %}
+                            <img src="{% static 'admin/img/icon-yes.svg' %}" alt="{% trans 'Yes' %}">
+                        {% else %}
+                            <img src="{% static 'admin/img/icon-no.svg' %}" alt="{% trans 'No' %}">
+                        {% endif %}
+                    {% else %}
+                        {% trans "Pending Generation" %}
+                    {% endif %}
+                </td>
+                <td>{{ cert.created|default:"-" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="8">{% trans "No certificates generated." %}</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% if has_more %}
+    <div class="inline-quick-link-container">
+        <a href="{{ cert_list_url }}" class="button">
+            {% trans "View all X.509 certificates" %}
+        </a>
+    </div>
+    {% endif %}
+</div>

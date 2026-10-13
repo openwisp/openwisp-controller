@@ -1,3 +1,5 @@
+from unittest import mock
+
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from django.core.exceptions import ValidationError
@@ -63,3 +65,23 @@ class TestModels(TestAdminMixin, TestPkiMixin, TestOrganizationMixin, TestCase):
         self._create_cert(ca=ca)
         with self.assertRaises(ValidationError):
             self._create_cert(ca=ca)
+
+    def test_bound_cert_validation_skipped_without_config_app(self):
+        """The bound-certificate check is skipped if config is not installed."""
+        ca = self._create_ca()
+        cert = self._create_cert(ca=ca)
+        with mock.patch(
+            "openwisp_controller.pki.base.models.load_model", return_value=None
+        ):
+            self.assertIsNone(cert._validate_bound_cert_organization())
+
+    def test_bound_cert_validation_ignores_deleted_row(self):
+        """A stale certificate whose row was deleted must not error on clean."""
+        org = self._get_org()
+        ca = self._create_ca(organization=org)
+        cert = self._create_cert(ca=ca, organization=org)
+        pk = cert.pk
+        cert.delete()
+        stale = Cert(pk=pk, ca=ca, organization=org)
+        stale._state.adding = False
+        stale._validate_bound_cert_organization()

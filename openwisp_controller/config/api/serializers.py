@@ -17,6 +17,7 @@ Device = load_model("config", "Device")
 DeviceGroup = load_model("config", "DeviceGroup")
 Config = load_model("config", "Config")
 Organization = load_model("openwisp_users", "Organization")
+DeviceCertificate = load_model("config", "DeviceCertificate")
 
 
 class BaseMeta:
@@ -38,6 +39,8 @@ class TemplateSerializer(BaseSerializer):
             "type",
             "backend",
             "vpn",
+            "ca",
+            "blueprint_cert",
             "tags",
             "default",
             "required",
@@ -47,6 +50,16 @@ class TemplateSerializer(BaseSerializer):
             "created",
             "modified",
         ]
+        extra_kwargs = {
+            "blueprint_cert": {
+                "error_messages": {
+                    "does_not_exist": _(
+                        "This certificate does not exist or is already "
+                        "assigned to a device configuration profile."
+                    )
+                }
+            }
+        }
 
     def validate_vpn(self, value):
         """
@@ -63,11 +76,21 @@ class TemplateSerializer(BaseSerializer):
         """
         Display appropriate field name.
         """
-        if self.initial_data.get("type") == "generic" and value == {}:
+        template_type = self.initial_data.get(
+            "type", getattr(self.instance, "type", None)
+        )
+        if template_type == "generic" and value == {}:
             raise serializers.ValidationError(
                 _("The configuration field cannot be empty.")
             )
         return value
+
+    def validate(self, data):
+        template_type = data.get("type", getattr(self.instance, "type", "generic"))
+        if template_type != "cert":
+            data["ca"] = None
+            data["blueprint_cert"] = None
+        return super().validate(data)
 
 
 class VpnSerializer(BaseSerializer):
@@ -329,15 +352,18 @@ class DeviceDetailSerializer(WHOISMixin, DeviceConfigSerializer):
         ]
 
     def update(self, instance, validated_data):
-        config_data = validated_data.pop("config", {})
-        raw_data_for_signal_handlers = {
-            "organization": validated_data.get("organization", instance.organization)
-        }
-        if config_data:
-            self._update_config(instance, config_data)
-
-        elif instance._has_config() and validated_data.get("organization"):
-            if instance.organization != validated_data.get("organization"):
+        with transaction.atomic():
+            config_data = validated_data.pop("config", {})
+            raw_data_for_signal_handlers = {
+                "organization": validated_data.get(
+                    "organization", instance.organization
+                )
+            }
+            if (
+                validated_data.get("organization")
+                and instance.organization != validated_data.get("organization")
+                and instance._has_config()
+            ):
                 # config.device.organization is used for validating
                 # the organization of templates. It is also used for adding
                 # default and required templates configured for an organization.
@@ -345,6 +371,7 @@ class DeviceDetailSerializer(WHOISMixin, DeviceConfigSerializer):
                 # prevent access of the old value stored in the database
                 # while performing above operations.
                 instance.config.device.organization = validated_data.get("organization")
+                DeviceCertificate.objects.filter(config=instance.config).delete()
                 instance.config.templates.clear()
                 Config.enforce_required_templates(
                     action="post_clear",
@@ -353,7 +380,11 @@ class DeviceDetailSerializer(WHOISMixin, DeviceConfigSerializer):
                     pk_set=None,
                     raw_data=raw_data_for_signal_handlers,
                 )
-        return super().update(instance, validated_data)
+
+            if config_data:
+                self._update_config(instance, config_data)
+
+            return super().update(instance, validated_data)
 
 
 class FilterGroupTemplates(FilterTemplatesByOrganization):

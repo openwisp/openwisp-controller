@@ -1,9 +1,11 @@
-from django.db import transaction
+from django.db import models, transaction
+from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils.translation import gettext_lazy as _
 from openwisp_notifications.signals import notify
 from swapper import load_model
 
+from . import settings as app_settings
 from . import tasks
 from .signals import config_status_changed, device_registered
 
@@ -39,6 +41,56 @@ def device_registered_notification(sender, instance, is_new, **kwargs):
     notify.send(
         sender=instance, type="device_registered", target=instance, condition=condition
     )
+
+
+def _field_was_saved(update_fields, field_name):
+    return update_fields is None or field_name in update_fields
+
+
+def _hardware_fields_changed(update_fields):
+    return update_fields is None or (
+        "name" in update_fields or "mac_address" in update_fields
+    )
+
+
+@receiver(post_save, sender=Device, dispatch_uid="detect_device_property_change")
+def detect_device_property_change(sender, instance, created, **kwargs):
+    """
+    Triggers certificate regeneration if device identity fields
+    (name, MAC address) change.
+    """
+    if kwargs.get("raw"):
+        return
+    if created or not app_settings.REGENERATE_CERTS_ON_HARDWARE_CHANGE:
+        return
+    if not _hardware_fields_changed(kwargs.get("update_fields")):
+        return
+    update_fields = kwargs.get("update_fields")
+    initial_name = getattr(instance, "_initial_name", instance.name)
+    initial_mac = getattr(instance, "_initial_mac_address", instance.mac_address)
+    name_changed = (
+        _field_was_saved(update_fields, "name")
+        and initial_name is not models.DEFERRED
+        and initial_name != instance.name
+    )
+    mac_changed = (
+        _field_was_saved(update_fields, "mac_address")
+        and initial_mac is not models.DEFERRED
+        and initial_mac != instance.mac_address
+    )
+    if name_changed or mac_changed:
+        DeviceCertificate = load_model("config", "DeviceCertificate")
+        expected_cert_ids = list(
+            DeviceCertificate.active_auto_certs_for(instance).values_list(
+                "id", "cert_id"
+            )
+        )
+        if expected_cert_ids:
+            transaction.on_commit(
+                lambda: tasks.regenerate_device_certificates_task.delay(
+                    str(instance.id), expected_cert_ids
+                )
+            )
 
 
 def devicegroup_change_handler(instance, **kwargs):
