@@ -1,6 +1,6 @@
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import transaction
-from django.db.models import Count, Prefetch
+from django.db.models import Count, Prefetch, Q
 from django.http import Http404
 from django.utils.translation import gettext_lazy as _
 from django_filters import rest_framework as filters
@@ -169,9 +169,16 @@ class DeviceLocationView(
     def get_queryset(self):
         qs = super().get_queryset()
         try:
-            return qs.filter(content_object=self.kwargs["pk"])
+            qs = qs.filter(content_object=self.kwargs["pk"])
         except ValidationError:
             return qs.none()
+        if self.request.user.is_superuser:
+            return qs
+        organizations = self.request.user.organizations_managed
+        return qs.filter(
+            Q(location__isnull=True) | Q(location__organization__in=organizations),
+            Q(floorplan__isnull=True) | Q(floorplan__organization__in=organizations),
+        )
 
     def get_parent_queryset(self):
         return Device.objects.filter(pk=self.kwargs["pk"])
@@ -281,15 +288,15 @@ class LocationDeviceList(
 ):
     serializer_class = LocationDeviceSerializer
     pagination_class = OpenWispPagination
-    queryset = Device.objects.none()
+    queryset = Device.objects.all()
 
     def get_parent_queryset(self):
         qs = Location.objects.filter(pk=self.kwargs["pk"])
         return qs
 
     def get_queryset(self):
-        super().get_queryset()
-        qs = Device.objects.filter(devicelocation__location_id=self.kwargs["pk"])
+        qs = super().get_queryset()
+        qs = qs.filter(devicelocation__location_id=self.kwargs["pk"])
         return qs
 
     def get_has_floorplan(self, qs):
