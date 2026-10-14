@@ -286,7 +286,7 @@ class NestedtLocationSerializer(
 
 
 class DeviceLocationSerializer(FilterSerializerByOrgManaged, ValidatedModelSerializer):
-    location = NestedtLocationSerializer()
+    location = NestedtLocationSerializer(allow_null=True)
     floorplan = NestedFloorplanSerializer(required=False, allow_null=True)
 
     class Meta:
@@ -370,6 +370,9 @@ class DeviceLocationSerializer(FilterSerializerByOrgManaged, ValidatedModelSeria
     ):
         if location_serializer:
             validated_data["location"] = location_serializer.save()
+            if validated_data["location"].type == "outdoor":
+                validated_data["floorplan"] = None
+                validated_data["indoor"] = None
         if save_floorplan:
             validated_data["floorplan"].location = validated_data["location"]
             validated_data["floorplan"].save()
@@ -391,12 +394,20 @@ class DeviceLocationSerializer(FilterSerializerByOrgManaged, ValidatedModelSeria
         return super().create(validated_data)
 
     def update(self, instance, validated_data):
-        validated_data["location"], location_serializer = (
-            self.get_or_create_location_object(validated_data, instance.location)
-        )
-        validated_data["floorplan"], save_floorplan = (
-            self.get_or_create_floorplan_object(validated_data, instance.floorplan)
-        )
+        if "location" in validated_data:
+            validated_data["location"], location_serializer = (
+                self.get_or_create_location_object(validated_data, instance.location)
+            )
+        else:
+            validated_data["location"] = instance.location
+            location_serializer = None
+        if "floorplan" in validated_data:
+            validated_data["floorplan"], save_floorplan = (
+                self.get_or_create_floorplan_object(validated_data, instance.floorplan)
+            )
+        else:
+            validated_data["floorplan"] = instance.floorplan
+            save_floorplan = False
         validated_data = self._validate(validated_data)
         self._save_related_objects(validated_data, location_serializer, save_floorplan)
         return super().update(instance, validated_data)
