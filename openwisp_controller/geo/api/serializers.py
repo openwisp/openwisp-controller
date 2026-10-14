@@ -356,6 +356,8 @@ class DeviceLocationSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
     def update(self, instance, validated_data):
+        validated_data.setdefault("location", instance.location)
+        validated_data.setdefault("floorplan", instance.floorplan)
         validated_data["location"] = self.get_or_create_location_object(
             validated_data, instance.location
         )

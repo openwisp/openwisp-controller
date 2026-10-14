@@ -1024,6 +1024,8 @@ class TestGeoApi(
         self.assertEqual(response.status_code, 200)
         device_location.refresh_from_db()
         self.assertEqual(device_location.indoor, "0,0")
+        self.assertEqual(device_location.location, floorplan.location)
+        self.assertEqual(device_location.floorplan, floorplan)
 
     def test_update_devicelocation_floorplan_related_id(self):
         location = self._create_location(type="indoor")
