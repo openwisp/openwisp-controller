@@ -1324,11 +1324,54 @@ class TestGeoApi(
             "indoor": "0,0",
         }
         self.assertEqual(device_location.indoor, "-140.38620,40.369227")
-        with self.assertNumQueries(10):
+        with self.assertNumQueries(13):
             response = self.client.patch(path, data, content_type="application/json")
         self.assertEqual(response.status_code, 200)
         device_location.refresh_from_db()
         self.assertEqual(device_location.indoor, "0,0")
+
+        with self.subTest("preserves omitted relationships"):
+            self.assertEqual(
+                device_location.location,
+                floorplan.location,
+                "PATCH requests that omit location must preserve the assigned "
+                "location.",
+            )
+            self.assertEqual(
+                device_location.floorplan,
+                floorplan,
+                "PATCH requests that omit floorplan must preserve the assigned "
+                "floorplan.",
+            )
+
+        with self.subTest("invalid indoor coordinates"):
+            response = self.client.patch(
+                path, {"indoor": "invalid"}, content_type="application/json"
+            )
+            self.assertEqual(
+                response.status_code,
+                400,
+                "PATCH requests must validate indoor coordinates against the assigned "
+                "location and floorplan.",
+            )
+            self.assertIn("invalid value", response.data["indoor"][0])
+            device_location.refresh_from_db()
+            self.assertEqual(device_location.indoor, "0,0")
+
+        with self.subTest("explicitly null relationships"):
+            response = self.client.patch(
+                path,
+                {"location": None, "floorplan": None},
+                content_type="application/json",
+            )
+            self.assertEqual(
+                response.status_code,
+                200,
+                "PATCH requests must clear relationships when null is sent explicitly.",
+            )
+            device_location.refresh_from_db()
+            self.assertIsNone(device_location.location)
+            self.assertIsNone(device_location.floorplan)
 
     def test_update_devicelocation_patch_floorplan(self):
         floorplan = self._create_floorplan()
@@ -1355,9 +1398,11 @@ class TestGeoApi(
                 floorplan.image.name, image, "the existing image was replaced"
             )
 
-        with self.subTest("floorplan without location is rejected"):
+        with self.subTest("floorplan with null location is rejected"):
             response = self.client.patch(
-                path, {"floorplan": {"floor": 4}}, content_type="application/json"
+                path,
+                {"location": None, "floorplan": {"floor": 4}},
+                content_type="application/json",
             )
             self.assertEqual(response.status_code, 400)
             self.assertIn("location", response.data["floorplan"])
@@ -1375,7 +1420,7 @@ class TestGeoApi(
         data = {
             "floorplan": str(floor2.id),
         }
-        with self.assertNumQueries(13):
+        with self.assertNumQueries(14):
             response = self.client.patch(path, data, content_type="application/json")
         self.assertEqual(response.status_code, 200)
         device_location.refresh_from_db()
