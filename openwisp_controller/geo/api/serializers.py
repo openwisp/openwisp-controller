@@ -285,9 +285,7 @@ class NestedtLocationSerializer(
         return instance.location
 
 
-class DeviceLocationSerializer(
-    FilterSerializerByOrgManaged, serializers.ModelSerializer
-):
+class DeviceLocationSerializer(FilterSerializerByOrgManaged, ValidatedModelSerializer):
     location = NestedtLocationSerializer()
     floorplan = NestedFloorplanSerializer(required=False, allow_null=True)
 
@@ -298,6 +296,10 @@ class DeviceLocationSerializer(
             "floorplan",
             "indoor",
         )
+
+    def validate(self, data):
+        # Nested objects are prepared and validated in create() or update().
+        return data
 
     @property
     def device_organization_id(self):
@@ -351,19 +353,17 @@ class DeviceLocationSerializer(
         return floorplan_data, False
 
     def _validate(self, data):
-        instance = self.instance or self.Meta.model()
-        for field, value in data.items():
-            setattr(instance, field, value)
         exclude = [
             field
             for field in ["location", "floorplan"]
-            if getattr(instance, field) and getattr(instance, field)._state.adding
+            if getattr(data[field], "_state", None) and data[field]._state.adding
         ]
+        exclude_validation = self.exclude_validation
+        self.exclude_validation = exclude
         try:
-            instance.full_clean(exclude=exclude)
-        except ValidationError as error:
-            raise serializers.ValidationError(detail=error.error_dict)
-        return data
+            return super().validate(data)
+        finally:
+            self.exclude_validation = exclude_validation
 
     def _save_related_objects(
         self, validated_data, location_serializer, save_floorplan
