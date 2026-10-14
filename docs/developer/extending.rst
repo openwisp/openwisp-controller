@@ -362,10 +362,12 @@ Substitute ``sample_config``, ``sample_pki``, ``sample_connection``,
 step 1.
 
 When a location's organization is changed through ``save()``, its
-floorplans are updated to the same organization. This uses a bulk update
-on the swapped ``FloorPlan`` model; individual floorplan ``save()``
-methods and ``post_save`` signals are not called. A partial save which
-excludes the organization does not change floorplan organizations.
+floorplans are updated to the same organization in the same database
+transaction, so a failed floorplan update also rolls back the location
+change. This uses a bulk update on the swapped ``FloorPlan`` model;
+individual floorplan ``save()`` methods and ``post_save`` signals are not
+called. A partial save which excludes the organization does not change
+floorplan organizations.
 
 13. Create Database Migrations
 ------------------------------

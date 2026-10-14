@@ -1,8 +1,10 @@
+from contextlib import nullcontext
 from typing import ClassVar
 
 import swapper
 from django.contrib.gis.db import models
 from django.core.exceptions import ValidationError
+from django.db import router, transaction
 from django.utils.translation import gettext_lazy as _
 from django_loci.base.models import (
     AbstractFloorPlan,
@@ -111,16 +113,30 @@ class BaseLocation(OrgMixin, AbstractLocation):
         organization_saved = update_fields is None or bool(
             {"organization", "organization_id"}.intersection(update_fields)
         )
-        adding = self._state.adding
-        result = super().save(*args, **kwargs)
-        if organization_saved:
-            if not adding and self._initial_organization_id != self.organization_id:
+        organization_changed = (
+            organization_saved
+            and not self._state.adding
+            and self._initial_organization_id != self.organization_id
+        )
+        context = nullcontext()
+        if organization_changed:
+            using = kwargs.get("using", args[2] if len(args) > 2 else None)
+            using = using or router.db_for_write(self.__class__, instance=self)
+            if len(args) > 2:
+                args = (*args[:2], using, *args[3:])
+            else:
+                kwargs["using"] = using
+            context = transaction.atomic(using=using)
+        with context:
+            result = super().save(*args, **kwargs)
+            if organization_changed:
                 floorplan_model = swapper.load_model("geo", "FloorPlan")
                 floorplan_model.objects.using(self._state.db).filter(
                     location_id=self.pk
                 ).exclude(organization_id=self.organization_id).update(
                     organization_id=self.organization_id
                 )
+        if organization_saved:
             self._initial_organization_id = self.organization_id
         self._set_initial_values_for_changed_checked_fields()
         return result

@@ -634,7 +634,7 @@ class TestGeoApi(
             "address": "Via del Corso, Roma, Italia",
             "geometry": coords,
         }
-        with self.assertNumQueries(6):
+        with self.assertNumQueries(8):
             response = self.client.put(path, data, content_type="application/json")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["organization"], org1.pk)
@@ -648,7 +648,7 @@ class TestGeoApi(
         ]
         organization = self._create_org(name="second")
         path = reverse("geo_api:detail_location", args=[location.pk])
-        with self.assertNumQueries(6):
+        with self.assertNumQueries(8):
             response = self.client.patch(
                 path, {"organization": organization.pk}, content_type="application/json"
             )

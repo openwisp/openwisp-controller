@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from django.core.exceptions import ValidationError
 from django.db import connection
 from django.test import TestCase
@@ -47,6 +49,38 @@ class TestModels(TestGeoMixin, BaseTestModels, TestCase):
             self.assertEqual(floorplan.organization_id, organization.pk)
         unrelated.refresh_from_db()
         self.assertEqual(unrelated.organization_id, original_org)
+
+    def test_location_organization_update_rollback(self):
+        location = self._create_location(type="indoor")
+        floorplan = self._create_floorplan(location=location)
+        original_org = location.organization_id
+        organization = self._create_organization(name="second")
+        location.organization = organization
+        with patch.object(
+            type(FloorPlan.objects.all()),
+            "update",
+            side_effect=RuntimeError("floorplan update failed"),
+        ):
+            with self.assertRaisesMessage(RuntimeError, "floorplan update failed"):
+                location.save(using=connection.alias)
+        self.assertEqual(
+            Location.objects.get(pk=location.pk).organization_id,
+            original_org,
+            "A failed floorplan update must roll back the location organization",
+        )
+        floorplan.refresh_from_db()
+        self.assertEqual(floorplan.organization_id, original_org)
+        self.assertEqual(location._initial_organization_id, original_org)
+        with patch(
+            "django.db.router.db_for_write", return_value=connection.alias
+        ) as db:
+            location.save()
+        db.assert_called_once_with(Location, instance=location)
+        floorplan.refresh_from_db()
+        self.assertEqual(floorplan.organization_id, organization.pk)
+        self.assertEqual(
+            Location.objects.get(pk=location.pk).organization_id, organization.pk
+        )
 
     def test_location_organization_partial_save(self):
         location = self._create_location(type="indoor")
