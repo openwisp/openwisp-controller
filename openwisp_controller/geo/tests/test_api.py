@@ -1323,14 +1323,23 @@ class TestGeoApi(
         data = {
             "indoor": "0,0",
         }
-        self.assertEqual(device_location.indoor, "-140.38620,40.369227")
-        with self.assertNumQueries(13):
-            response = self.client.patch(path, data, content_type="application/json")
-        self.assertEqual(response.status_code, 200)
-        device_location.refresh_from_db()
-        self.assertEqual(device_location.indoor, "0,0")
+        indoor = device_location.indoor
+
+        def reset():
+            device_location.location = floorplan.location
+            device_location.floorplan = floorplan
+            device_location.indoor = indoor
+            device_location.save(update_fields=["location", "floorplan", "indoor"])
 
         with self.subTest("preserves omitted relationships"):
+            reset()
+            with self.assertNumQueries(13):
+                response = self.client.patch(
+                    path, data, content_type="application/json"
+                )
+            self.assertEqual(response.status_code, 200)
+            device_location.refresh_from_db()
+            self.assertEqual(device_location.indoor, "0,0")
             self.assertEqual(
                 device_location.location,
                 floorplan.location,
@@ -1345,6 +1354,7 @@ class TestGeoApi(
             )
 
         with self.subTest("invalid indoor coordinates"):
+            reset()
             response = self.client.patch(
                 path, {"indoor": "invalid"}, content_type="application/json"
             )
@@ -1356,9 +1366,10 @@ class TestGeoApi(
             )
             self.assertIn("invalid value", response.data["indoor"][0])
             device_location.refresh_from_db()
-            self.assertEqual(device_location.indoor, "0,0")
+            self.assertEqual(device_location.indoor, indoor)
 
         with self.subTest("explicitly null relationships"):
+            reset()
             response = self.client.patch(
                 path,
                 {"location": None, "floorplan": None},
