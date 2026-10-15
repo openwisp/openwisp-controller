@@ -91,12 +91,24 @@ class TestDeviceAdmin(
             by=By.CSS_SELECTOR,
             value='#id_command_set-0-input_jsoneditor input[name="root[command]"]',
         ).send_keys(command, Keys.TAB)
+        self.wait_for_script(
+            "return django._jsonEditors['id_command_set-0-input_jsoneditor']"
+            ".getValue().command === arguments[0];",
+            command,
+        )
         self.find_element(by=By.CSS_SELECTOR, value="#ow-command-submit-btn").click()
+        self.wait_until(
+            lambda _: Command.objects.filter(
+                device_id=device_conn.device_id, input={"command": command}
+            ).exists(),
+            timeout=5,
+        )
         self.wait_for_visibility(
             By.XPATH,
             '//div[contains(@class,"dynamic-command_set-2")]'
             '//div[contains(@class,"field-input")]'
             '//div[contains(.,"injected-command")]',
+            timeout=5,
         )
         inputs = [
             element.text
