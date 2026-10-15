@@ -1,6 +1,7 @@
 import json
 import tempfile
 import uuid
+from pathlib import Path
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -10,6 +11,7 @@ from django.test import TestCase
 from django.test.client import BOUNDARY, MULTIPART_CONTENT, encode_multipart
 from django.urls import reverse
 from django.urls.exceptions import NoReverseMatch
+from django_loci.storage import OverwriteStorage
 from PIL import Image
 from rest_framework.authtoken.models import Token
 from swapper import load_model
@@ -239,6 +241,12 @@ class TestMultitenantApi(TestGeoMixin, TestCase, CreateConfigTemplateMixin):
         location_b = self._create_location(organization=self._get_org("org_b"))
         self._create_device_location(content_object=device_a, location=location_a)
         self._create_device_location(content_object=device_b, location=location_b)
+        device_c = self._create_device(
+            name="device-c",
+            mac_address="00:11:22:33:44:CC",
+            organization=self._get_org("org_b"),
+        )
+        DeviceLocation.objects.create(content_object=device_c, location=location_a)
 
         with self.subTest("Test location device list for org operator"):
             self.client.login(username="operator", password="tester")
@@ -254,10 +262,177 @@ class TestMultitenantApi(TestGeoMixin, TestCase, CreateConfigTemplateMixin):
             r = self.client.get(reverse(url, args=[location_b.id]))
             self.assertContains(r, str(device_b.id))
 
+        with self.subTest("Test devices of other organizations are not listed"):
+            self.client.login(username="operator", password="tester")
+            r = self.client.get(reverse(url, args=[location_a.id]))
+            self.assertEqual(r.status_code, 200)
+            self.assertEqual(
+                [device["id"] for device in r.data["results"]],
+                [str(device_a.id)],
+                "devices of other organizations were listed",
+            )
+
+        with self.subTest("Test device keys are not returned"):
+            for username in ["operator", "admin"]:
+                self.client.login(username=username, password="tester")
+                r = self.client.get(reverse(url, args=[location_a.id]))
+                self.assertEqual(r.status_code, 200)
+                for device in r.data["results"]:
+                    self.assertNotIn(
+                        "key", device, f"the device key was returned to {username}"
+                    )
+
         with self.subTest("Test location device list for unauthenticated user"):
             self.client.logout()
             r = self.client.get(reverse(url, args=[location_a.id]))
             self.assertEqual(r.status_code, 401)
+
+    def test_device_location_rejects_other_organization_objects(self):
+        org_a = self._get_org("org_a")
+        org_b = self._get_org("org_b")
+        device = self._create_device(organization=org_a)
+        location_a = self._create_location(type="indoor", organization=org_a)
+        floorplan_a = self._create_floorplan(location=location_a)
+        location_b = self._create_location(type="indoor", organization=org_b)
+        floorplan_b = self._create_floorplan(location=location_b)
+        url = reverse("geo_api:device_location", args=[device.pk])
+        self.client.login(username="operator", password="tester")
+
+        with self.subTest("cannot create with a location of another organization"):
+            data = {
+                "location": str(location_b.id),
+                "floorplan.floor": 2,
+                "floorplan.image": self._get_simpleuploadedfile(),
+                "indoor": ["12.342,23.541"],
+            }
+            response = self.client.put(
+                url, encode_multipart(BOUNDARY, data), content_type=MULTIPART_CONTENT
+            )
+            self.assertEqual(response.status_code, 400)
+            self.assertIn(
+                "Location object with entered ID does not exists",
+                str(response.data["location"]),
+            )
+            self.assertEqual(
+                FloorPlan.objects.filter(location=location_b).count(),
+                1,
+                "a floorplan was created for the location of another organization",
+            )
+            self.assertFalse(
+                DeviceLocation.objects.exists(), "the device location was created"
+            )
+
+        device_location = self._create_device_location(
+            content_object=device,
+            location=location_a,
+            floorplan=floorplan_a,
+            indoor="1,1",
+        )
+
+        with self.subTest("cannot change to a location of another organization"):
+            response = self.client.patch(
+                url, {"location": str(location_b.id)}, content_type="application/json"
+            )
+            self.assertEqual(response.status_code, 400)
+            self.assertIn(
+                "Location object with entered ID does not exists",
+                str(response.data["location"]),
+            )
+            device_location.refresh_from_db()
+            self.assertEqual(
+                device_location.location,
+                location_a,
+                "the location of another organization was linked",
+            )
+
+        with self.subTest("cannot change to a floorplan of another organization"):
+            response = self.client.patch(
+                url, {"floorplan": str(floorplan_b.id)}, content_type="application/json"
+            )
+            self.assertEqual(response.status_code, 400)
+            self.assertIn(
+                "FloorPlan object with entered ID does not exists",
+                str(response.data["floorplan"]),
+            )
+            device_location.refresh_from_db()
+            self.assertEqual(
+                device_location.floorplan,
+                floorplan_a,
+                "the floorplan of another organization was linked",
+            )
+
+        with self.subTest("superuser cannot link a location of another organization"):
+            self.client.login(username="admin", password="tester")
+            response = self.client.patch(
+                url, {"location": str(location_b.id)}, content_type="application/json"
+            )
+            self.assertEqual(response.status_code, 400)
+            self.assertIn(
+                "Please ensure that the organization of this device "
+                "location and the organization of the related location match",
+                str(response.data["location"]),
+            )
+            device_location.refresh_from_db()
+            self.assertEqual(
+                device_location.location,
+                location_a,
+                "the location of another organization was linked",
+            )
+
+        with self.subTest("can link a location and floorplan of the organization"):
+            self.client.login(username="operator", password="tester")
+            location = self._create_location(type="indoor", organization=org_a)
+            floorplan = self._create_floorplan(location=location)
+            response = self.client.patch(
+                url,
+                {
+                    "location": str(location.id),
+                    "floorplan": str(floorplan.id),
+                    "indoor": "2,2",
+                },
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 200)
+            device_location.refresh_from_db()
+            self.assertEqual(
+                device_location.floorplan,
+                floorplan,
+                "the floorplan of the organization was not linked",
+            )
+
+    def test_device_location_existing_link_to_other_organization(self):
+        org_a = self._get_org("org_a")
+        org_b = self._get_org("org_b")
+        device_a = self._create_device(organization=org_a)
+        location_b = self._create_location(organization=org_b)
+        DeviceLocation.objects.create(content_object=device_a, location=location_b)
+        url = reverse("geo_api:device_location", args=[device_a.pk])
+        data = {
+            "location": {
+                "name": "transferred-location",
+                "type": "outdoor",
+                "geometry": "SRID=4326;POINT (12.512124 41.898903)",
+            },
+        }
+        self.client.login(username="operator", password="tester")
+
+        with self.subTest("the location of another organization is not shown"):
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 404)
+
+        with self.subTest("the location of another organization is not changed"):
+            response = self.client.patch(url, data, content_type="application/json")
+            self.assertEqual(response.status_code, 404)
+            response = self.client.put(url, data, content_type="application/json")
+            self.assertEqual(response.status_code, 400)
+            self.assertIn("content_object", response.data)
+            location_b.refresh_from_db()
+            self.assertEqual(
+                location_b.organization,
+                org_b,
+                "the location was transferred to another organization",
+            )
+            self.assertNotEqual(location_b.name, "transferred-location")
 
     @capture_any_output()
     def test_geojson_list(self):
@@ -832,7 +1007,7 @@ class TestGeoApi(
         floorplan = self._create_floorplan()
         location = floorplan.location
         url = reverse("geo_api:device_location", args=[device.id])
-        with self.assertNumQueries(17):
+        with self.assertNumQueries(19):
             response = self.client.put(
                 url,
                 data={
@@ -870,7 +1045,7 @@ class TestGeoApi(
             "floorplan.image": self._get_simpleuploadedfile(),
             "indoor": ["12.342,23.541"],
         }
-        with self.assertNumQueries(31):
+        with self.assertNumQueries(24):
             response = self.client.put(
                 url, encode_multipart(BOUNDARY, data), content_type=MULTIPART_CONTENT
             )
@@ -923,6 +1098,108 @@ class TestGeoApi(
                 str(response.data["__all__"]),
             )
 
+    def test_devicelocation_rejected_request_leaves_storage_unchanged(self):
+        location_data = {
+            "location.name": "test-location",
+            "location.address": "Via del Corso, Roma, Italia",
+            "location.geometry": "SRID=4326;POINT (12.512124 41.898903)",
+            "location.type": "indoor",
+            "floorplan.floor": 1,
+            "indoor": ["invalid"],
+        }
+        device = self._create_object()
+        url = reverse("geo_api:device_location", args=[device.id])
+        image_field = self.floorplan_model._meta.get_field("image")
+        with tempfile.TemporaryDirectory() as media, patch.object(
+            image_field, "storage", OverwriteStorage(location=media)
+        ):
+
+            with self.subTest("rejected creation stores nothing"):
+                data = {
+                    **location_data,
+                    "floorplan.image": self._get_simpleuploadedfile(),
+                }
+                response = self.client.put(
+                    url,
+                    encode_multipart(BOUNDARY, data),
+                    content_type=MULTIPART_CONTENT,
+                )
+                self.assertEqual(response.status_code, 400)
+                self.assertIn("indoor", response.data)
+                self.assertFalse(
+                    self.location_model.objects.exists(),
+                    "the location of the rejected request was saved",
+                )
+                self.assertFalse(
+                    self.floorplan_model.objects.exists(),
+                    "the floorplan of the rejected request was saved",
+                )
+                self.assertEqual(
+                    list(Path(media).rglob("*.*")),
+                    [],
+                    "the image of the rejected request was stored",
+                )
+
+            with self.subTest("rejected update keeps the existing image"):
+                floorplan = self._create_floorplan()
+                self._create_object_location(
+                    content_object=device,
+                    location=floorplan.location,
+                    floorplan=floorplan,
+                )
+                image_path = Path(floorplan.image.path)
+                image_content = image_path.read_bytes()
+                new_image = tempfile.NamedTemporaryFile(suffix=".jpg")
+                Image.new("RGB", (50, 50)).save(new_image.name)
+                new_image.seek(0)
+                data = {**location_data, "floorplan.image": new_image}
+                response = self.client.put(
+                    url,
+                    encode_multipart(BOUNDARY, data),
+                    content_type=MULTIPART_CONTENT,
+                )
+                self.assertEqual(response.status_code, 400)
+                self.assertIn("indoor", response.data)
+                self.assertEqual(
+                    image_path.read_bytes(),
+                    image_content,
+                    "the existing image was overwritten by the rejected request",
+                )
+                floorplan.delete()
+
+            with self.subTest("rejected change to outdoor keeps the existing image"):
+                floorplan = self._create_floorplan()
+                device = self._create_device(
+                    name="outdoor-device",
+                    mac_address="00:11:22:33:44:88",
+                    organization=floorplan.organization,
+                )
+                self._create_object_location(
+                    content_object=device,
+                    location=floorplan.location,
+                    floorplan=floorplan,
+                    indoor="1,1",
+                )
+                image_path = Path(floorplan.image.path)
+                response = self.client.put(
+                    reverse("geo_api:device_location", args=[device.id]),
+                    {
+                        "location": {
+                            "name": "test-location",
+                            "type": "outdoor",
+                            "geometry": "SRID=4326;POINT (12.512124 41.898903)",
+                        }
+                    },
+                    content_type="application/json",
+                )
+                self.assertEqual(response.status_code, 400)
+                self.assertIn("indoor", response.data)
+                self.assertTrue(
+                    image_path.exists(),
+                    "the existing image was deleted by the rejected request",
+                )
+                floorplan.delete()
+
     def test_create_devicelocation_only_location(self):
         device = self._create_object()
         self.assertEqual(self.location_model.objects.count(), 0)
@@ -937,7 +1214,7 @@ class TestGeoApi(
                 "type": "indoor",
             }
         }
-        with self.assertNumQueries(20):
+        with self.assertNumQueries(21):
             response = self.client.put(url, data=data, content_type="application/json")
         self.assertEqual(response.status_code, 201)
         self.assertEqual(self.location_model.objects.count(), 1)
@@ -954,7 +1231,7 @@ class TestGeoApi(
             "floorplan.floor": 1,
             "floorplan.image": self._get_simpleuploadedfile(),
         }
-        with self.assertNumQueries(7):
+        with self.assertNumQueries(10):
             response = self.client.put(
                 url, encode_multipart(BOUNDARY, data), content_type=MULTIPART_CONTENT
             )
@@ -977,7 +1254,7 @@ class TestGeoApi(
             "floorplan.image": self._get_simpleuploadedfile(),
             "indoor": ["12.342,23.541"],
         }
-        with self.assertNumQueries(25):
+        with self.assertNumQueries(22):
             response = self.client.put(
                 url, encode_multipart(BOUNDARY, data), content_type=MULTIPART_CONTENT
             )
@@ -1000,7 +1277,7 @@ class TestGeoApi(
         }
         self.assertEqual(device_location.location.type, "outdoor")
         self.assertEqual(device_location.floorplan, None)
-        with self.assertNumQueries(22):
+        with self.assertNumQueries(19):
             response = self.client.put(
                 path, encode_multipart(BOUNDARY, data), content_type=MULTIPART_CONTENT
             )
@@ -1008,6 +1285,34 @@ class TestGeoApi(
         device_location.refresh_from_db()
         self.assertEqual(device_location.location.type, "indoor")
         self.assertNotEqual(device_location.floorplan, None)
+
+    def test_update_devicelocation_change_location_indoor_to_outdoor(self):
+        floorplan = self._create_floorplan()
+        device_location = self._create_object_location(
+            floorplan=floorplan, location=floorplan.location, indoor="1,1"
+        )
+        image_path = Path(floorplan.image.path)
+        path = reverse("geo_api:device_location", args=[device_location.device.pk])
+        data = {
+            "location": {
+                "name": "test-location",
+                "type": "outdoor",
+                "geometry": "SRID=4326;POINT (12.512124 41.898903)",
+            },
+            "indoor": "",
+        }
+        response = self.client.put(path, data, content_type="application/json")
+        self.assertEqual(response.status_code, 200)
+        device_location.refresh_from_db()
+        self.assertEqual(device_location.location.type, "outdoor")
+        self.assertIsNone(device_location.floorplan)
+        self.assertFalse(
+            self.floorplan_model.objects.filter(location=floorplan.location).exists(),
+            "the floorplans of the outdoor location were not deleted",
+        )
+        self.assertFalse(
+            image_path.exists(), "the floorplan image of the outdoor location was kept"
+        )
 
     def test_update_devicelocation_patch_indoor(self):
         floorplan = self._create_floorplan()
@@ -1018,12 +1323,102 @@ class TestGeoApi(
         data = {
             "indoor": "0,0",
         }
-        self.assertEqual(device_location.indoor, "-140.38620,40.369227")
-        with self.assertNumQueries(11):
-            response = self.client.patch(path, data, content_type="application/json")
-        self.assertEqual(response.status_code, 200)
-        device_location.refresh_from_db()
-        self.assertEqual(device_location.indoor, "0,0")
+        indoor = device_location.indoor
+
+        def reset():
+            device_location.location = floorplan.location
+            device_location.floorplan = floorplan
+            device_location.indoor = indoor
+            device_location.save(update_fields=["location", "floorplan", "indoor"])
+
+        with self.subTest("preserves omitted relationships"):
+            reset()
+            with self.assertNumQueries(13):
+                response = self.client.patch(
+                    path, data, content_type="application/json"
+                )
+            self.assertEqual(response.status_code, 200)
+            device_location.refresh_from_db()
+            self.assertEqual(device_location.indoor, "0,0")
+            self.assertEqual(
+                device_location.location,
+                floorplan.location,
+                "PATCH requests that omit location must preserve the assigned "
+                "location.",
+            )
+            self.assertEqual(
+                device_location.floorplan,
+                floorplan,
+                "PATCH requests that omit floorplan must preserve the assigned "
+                "floorplan.",
+            )
+
+        with self.subTest("invalid indoor coordinates"):
+            reset()
+            response = self.client.patch(
+                path, {"indoor": "invalid"}, content_type="application/json"
+            )
+            self.assertEqual(
+                response.status_code,
+                400,
+                "PATCH requests must validate indoor coordinates against the assigned "
+                "location and floorplan.",
+            )
+            self.assertIn("invalid value", response.data["indoor"][0])
+            device_location.refresh_from_db()
+            self.assertEqual(device_location.indoor, indoor)
+
+        with self.subTest("explicitly null relationships"):
+            reset()
+            response = self.client.patch(
+                path,
+                {"location": None, "floorplan": None},
+                content_type="application/json",
+            )
+            self.assertEqual(
+                response.status_code,
+                200,
+                "PATCH requests must clear relationships when null is sent explicitly.",
+            )
+            device_location.refresh_from_db()
+            self.assertIsNone(device_location.location)
+            self.assertIsNone(device_location.floorplan)
+
+    def test_update_devicelocation_patch_floorplan(self):
+        floorplan = self._create_floorplan()
+        device_location = self._create_object_location(
+            floorplan=floorplan, location=floorplan.location, indoor="1,1"
+        )
+        path = reverse("geo_api:device_location", args=[device_location.device.pk])
+        image = floorplan.image.name
+
+        with self.subTest("floorplan is updated without image"):
+            response = self.client.patch(
+                path,
+                {
+                    "location": str(floorplan.location.pk),
+                    "floorplan": {"floor": 3},
+                    "indoor": "1,1",
+                },
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 200)
+            floorplan.refresh_from_db()
+            self.assertEqual(floorplan.floor, 3)
+            self.assertEqual(
+                floorplan.image.name, image, "the existing image was replaced"
+            )
+
+        with self.subTest("floorplan with null location is rejected"):
+            response = self.client.patch(
+                path,
+                {"location": None, "floorplan": {"floor": 4}},
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 400)
+            self.assertIn("location", response.data["floorplan"])
+            floorplan.refresh_from_db()
+            self.assertEqual(floorplan.floor, 3)
 
     def test_update_devicelocation_floorplan_related_id(self):
         location = self._create_location(type="indoor")
@@ -1036,7 +1431,7 @@ class TestGeoApi(
         data = {
             "floorplan": str(floor2.id),
         }
-        with self.assertNumQueries(13):
+        with self.assertNumQueries(14):
             response = self.client.patch(path, data, content_type="application/json")
         self.assertEqual(response.status_code, 200)
         device_location.refresh_from_db()
@@ -1050,7 +1445,7 @@ class TestGeoApi(
         data = {
             "location": str(location2.id),
         }
-        with self.assertNumQueries(10):
+        with self.assertNumQueries(12):
             response = self.client.patch(path, data, content_type="application/json")
         self.assertEqual(response.status_code, 200)
         device_location.refresh_from_db()
