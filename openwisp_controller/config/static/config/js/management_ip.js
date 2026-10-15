@@ -3,6 +3,14 @@ django.jQuery(function ($) {
   if ($(".add-form").length || !$("#device_form").length) {
     return;
   }
+  // For XSS prevention
+  function escapeHtml(text) {
+    if (text === null || text === undefined) return "";
+    const div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
   var editAltText = gettext("Edit"),
     cancelAltText = gettext("Cancel");
 
@@ -12,7 +20,7 @@ django.jQuery(function ($) {
   ipInput.after(function () {
     ipInput.hide();
     return (
-      `<span class="readonly" id="management_ip_text">${initialIp}</span>` +
+      `<span class="readonly" id="management_ip_text">${escapeHtml(initialIp)}</span>` +
       `<a class="related-widget-wrapper-link change-related" id="edit_management_ip"><img value="edit" src="${window.staticUrl}admin/img/icon-changelink.svg"` +
       ` alt="${editAltText}" title="${editAltText}"></a>`
     );

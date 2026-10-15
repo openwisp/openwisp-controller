@@ -106,6 +106,8 @@ class BaseLocation(OrgMixin, AbstractLocation):
             changed_fields = {"is_estimated"}
         if update_fields := kwargs.get("update_fields"):
             kwargs["update_fields"] = set(update_fields) | changed_fields
+        if len(args) > 3 and args[3] is not None:
+            args = (*args[:3], frozenset(args[3]), *args[4:])
         update_fields = kwargs.get("update_fields", args[3] if len(args) > 3 else None)
         organization_saved = update_fields is None or bool(
             {"organization", "organization_id"}.intersection(update_fields)

@@ -182,3 +182,24 @@ class TestModels(TestGeoMixin, BaseTestModels, TestCase):
             location.save(False, False, connection.alias, ["organization"])
         floorplan.refresh_from_db()
         self.assertEqual(floorplan.organization_id, organization.pk)
+
+    def test_location_organization_positional_iterator(self):
+        location = self._create_location(type="indoor")
+        floorplan = self._create_floorplan(location=location)
+        original_org = location.organization_id
+        organization = self._create_organization(name="second")
+        location.organization = organization
+        location.name = "renamed"
+        with self.assertWarns(RemovedInDjango60Warning):
+            location.save(False, False, connection.alias, iter(["name"]))
+        stored = Location.objects.get(pk=location.pk)
+        self.assertEqual(stored.name, "renamed")
+        self.assertEqual(stored.organization_id, original_org)
+        floorplan.refresh_from_db()
+        self.assertEqual(floorplan.organization_id, original_org)
+        with self.assertWarns(RemovedInDjango60Warning):
+            location.save(False, False, connection.alias, iter(["organization"]))
+        stored.refresh_from_db()
+        floorplan.refresh_from_db()
+        self.assertEqual(stored.organization_id, organization.pk)
+        self.assertEqual(floorplan.organization_id, organization.pk)

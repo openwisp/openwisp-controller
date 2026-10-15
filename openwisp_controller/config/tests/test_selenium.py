@@ -479,6 +479,33 @@ class TestDeviceAdmin(
             self.find_element(by=By.NAME, value="_save").click()
             self.wait_for_admin_success_message()
 
+    def test_device_form_shows_template_name_as_text(self):
+        name = '<b class="injected">template</b>'
+        template = self._create_template(name=name, organization=None)
+        device = self._create_config(organization=self._get_org()).device
+        self.login()
+        self.open(
+            reverse(f"admin:{self.config_app_label}_device_change", args=[device.id])
+            + "#config-group"
+        )
+        self.hide_loading_overlay()
+        label = self.find_element(
+            by=By.XPATH,
+            value=(
+                f'//ul[contains(@class,"sortedm2m-items")]'
+                f'//input[@value="{template.id}" and @data-required]/parent::label'
+            ),
+        )
+        self.assertEqual(
+            label.text.strip(), name, "the template name is not displayed as text"
+        )
+        self.assertFalse(
+            self.web_driver.find_elements(
+                By.CSS_SELECTOR, "ul.sortedm2m-items .injected"
+            ),
+            "the template name was rendered as HTML",
+        )
+
 
 @tag("selenium_tests")
 class TestDeviceGroupAdmin(
