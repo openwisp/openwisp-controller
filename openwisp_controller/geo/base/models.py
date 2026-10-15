@@ -39,9 +39,6 @@ class BaseLocation(OrgMixin, AbstractLocation):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._set_initial_values_for_changed_checked_fields()
-        self._initial_organization_id = self.__dict__.get(
-            "organization_id", models.DEFERRED
-        )
 
     def _set_initial_values_for_changed_checked_fields(self):
         deferred_fields = self.get_deferred_fields()
@@ -113,13 +110,9 @@ class BaseLocation(OrgMixin, AbstractLocation):
         organization_saved = update_fields is None or bool(
             {"organization", "organization_id"}.intersection(update_fields)
         )
-        organization_changed = (
-            organization_saved
-            and not self._state.adding
-            and self._initial_organization_id != self.organization_id
-        )
+        sync_floorplans = organization_saved and not self._state.adding
         context = nullcontext()
-        if organization_changed:
+        if sync_floorplans:
             using = kwargs.get("using", args[2] if len(args) > 2 else None)
             using = using or router.db_for_write(self.__class__, instance=self)
             if len(args) > 2:
@@ -129,15 +122,13 @@ class BaseLocation(OrgMixin, AbstractLocation):
             context = transaction.atomic(using=using)
         with context:
             result = super().save(*args, **kwargs)
-            if organization_changed:
+            if sync_floorplans:
                 floorplan_model = swapper.load_model("geo", "FloorPlan")
                 floorplan_model.objects.using(self._state.db).filter(
                     location_id=self.pk
                 ).exclude(organization_id=self.organization_id).update(
                     organization_id=self.organization_id
                 )
-        if organization_saved:
-            self._initial_organization_id = self.organization_id
         self._set_initial_values_for_changed_checked_fields()
         return result
 

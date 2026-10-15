@@ -361,10 +361,12 @@ Substitute ``sample_config``, ``sample_pki``, ``sample_connection``,
 ``sample_geo`` & ``sample_subnet_division`` with the name you chose in
 step 1.
 
-When a location's organization is changed through ``save()``, its
-floorplans are updated to the same organization in the same database
+When an existing location is saved with its organization, mismatched
+floorplans are updated to the persisted organization in the same database
 transaction, so a failed floorplan update also rolls back the location
-change. This uses a bulk update on the swapped ``FloorPlan`` model;
+change. This also applies to stale location instances and saves with an
+unchanged organization. Each such save performs one scoped bulk update on
+the swapped ``FloorPlan`` model, independent of the number of floorplans;
 individual floorplan ``save()`` methods and ``post_save`` signals are not
 called. A partial save which excludes the organization does not change
 floorplan organizations.

@@ -673,7 +673,7 @@ class TestGeoApi(
         self.assertEqual(l1.name, "test-location")
         path = reverse("geo_api:detail_location", args=[l1.pk])
         data = {"name": "change-test-location"}
-        with self.assertNumQueries(4):
+        with self.assertNumQueries(7):
             response = self.client.patch(path, data, content_type="application/json")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["name"], "change-test-location")
@@ -703,7 +703,7 @@ class TestGeoApi(
         fl = self._create_floorplan(location=l1)
         path = reverse("geo_api:detail_location", args=[l1.pk])
         data = {"floorplan": {"floor": 13}}
-        with self.assertNumQueries(12):
+        with self.assertNumQueries(15):
             response = self.client.patch(path, data, content_type="application/json")
         self.assertEqual(response.status_code, 200)
         fl.refresh_from_db()
@@ -714,7 +714,7 @@ class TestGeoApi(
         self._create_floorplan(location=l1)
         path = reverse("geo_api:detail_location", args=[l1.pk])
         data = {"type": "outdoor"}
-        with self.assertNumQueries(8):
+        with self.assertNumQueries(11):
             response = self.client.patch(path, data, content_type="application/json")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["floorplan"], [])
@@ -765,7 +765,7 @@ class TestGeoApi(
             "floorplan.floor": "23",
             "floorplan.image": fl_image,
         }
-        with self.assertNumQueries(15):
+        with self.assertNumQueries(21):
             response = self.client.put(
                 path, encode_multipart(BOUNDARY, data), content_type=MULTIPART_CONTENT
             )
@@ -1028,7 +1028,7 @@ class TestGeoApi(
         }
         self.assertEqual(device_location.location.type, "outdoor")
         self.assertEqual(device_location.floorplan, None)
-        with self.assertNumQueries(22):
+        with self.assertNumQueries(25):
             response = self.client.put(
                 path, encode_multipart(BOUNDARY, data), content_type=MULTIPART_CONTENT
             )

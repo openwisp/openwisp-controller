@@ -43,12 +43,52 @@ class TestModels(TestGeoMixin, BaseTestModels, TestCase):
         organization = self._create_organization(name="second")
         location.organization = organization
         location.full_clean()
-        location.save()
+        with CaptureQueriesContext(connection) as queries:
+            location.save()
+        self.assertEqual(
+            sum(
+                query["sql"].startswith("UPDATE")
+                and FloorPlan._meta.db_table in query["sql"]
+                for query in queries
+            ),
+            1,
+        )
         for floorplan in floorplans:
             floorplan.refresh_from_db()
             self.assertEqual(floorplan.organization_id, organization.pk)
         unrelated.refresh_from_db()
         self.assertEqual(unrelated.organization_id, original_org)
+
+    def test_location_stale_organization(self):
+        location = self._create_location(type="indoor")
+        floorplan = self._create_floorplan(location=location)
+        original_org = location.organization_id
+        first = Location.objects.get(pk=location.pk)
+        stale = Location.objects.get(pk=location.pk)
+        self.assertEqual(first.organization_id, original_org)
+        self.assertEqual(stale.organization_id, original_org)
+        organization = self._create_organization(name="second")
+        first.organization = organization
+        first.save()
+        location.refresh_from_db()
+        floorplan.refresh_from_db()
+        self.assertEqual(location.organization_id, organization.pk)
+        self.assertEqual(floorplan.organization_id, organization.pk)
+        for update_fields in (["name"], []):
+            stale.save(update_fields=update_fields)
+            location.refresh_from_db()
+            floorplan.refresh_from_db()
+            self.assertEqual(location.organization_id, organization.pk)
+            self.assertEqual(floorplan.organization_id, organization.pk)
+        stale.save()
+        location.refresh_from_db()
+        floorplan.refresh_from_db()
+        self.assertEqual(location.organization_id, original_org)
+        self.assertEqual(
+            floorplan.organization_id,
+            original_org,
+            "A stale location save must synchronize persisted floorplan ownership",
+        )
 
     def test_location_organization_update_rollback(self):
         location = self._create_location(type="indoor")
@@ -70,7 +110,6 @@ class TestModels(TestGeoMixin, BaseTestModels, TestCase):
         )
         floorplan.refresh_from_db()
         self.assertEqual(floorplan.organization_id, original_org)
-        self.assertEqual(location._initial_organization_id, original_org)
         with patch(
             "django.db.router.db_for_write", return_value=connection.alias
         ) as db:
@@ -117,13 +156,14 @@ class TestModels(TestGeoMixin, BaseTestModels, TestCase):
                 location.name = "renamed"
                 with CaptureQueriesContext(connection) as queries:
                     location.save(update_fields=update_fields)
-                self.assertFalse(
+                self.assertEqual(
                     any(
                         query["sql"].startswith("UPDATE")
                         and FloorPlan._meta.db_table in query["sql"]
                         for query in queries
                     ),
-                    "Saving an unchanged organization must not update floorplans",
+                    update_fields is None,
+                    "Only saves which persist organization may synchronize floorplans",
                 )
                 floorplan.refresh_from_db()
                 self.assertEqual(floorplan.organization_id, location.organization_id)
@@ -139,6 +179,6 @@ class TestModels(TestGeoMixin, BaseTestModels, TestCase):
         floorplan.refresh_from_db()
         self.assertEqual(floorplan.organization_id, original_org)
         with self.assertWarns(RemovedInDjango60Warning):
-            location.save(False, False, None, ["organization"])
+            location.save(False, False, connection.alias, ["organization"])
         floorplan.refresh_from_db()
         self.assertEqual(floorplan.organization_id, organization.pk)
