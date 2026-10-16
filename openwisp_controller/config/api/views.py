@@ -9,7 +9,9 @@ from rest_framework.generics import (
     GenericAPIView,
     ListCreateAPIView,
     RetrieveAPIView,
+    RetrieveUpdateAPIView,
     RetrieveUpdateDestroyAPIView,
+    get_object_or_404,
 )
 from rest_framework.response import Response
 from swapper import load_model
@@ -29,6 +31,7 @@ from .serializers import (
     DeviceDetailSerializer,
     DeviceGroupSerializer,
     DeviceListSerializer,
+    OrganizationConfigSettingsSerializer,
     TemplateSerializer,
     VpnListSerializer,
     VpnSerializer,
@@ -36,6 +39,8 @@ from .serializers import (
 
 Template = load_model("config", "Template")
 Vpn = load_model("config", "Vpn")
+OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
+Organization = load_model("openwisp_users", "Organization")
 Device = load_model("config", "Device")
 DeviceGroup = load_model("config", "DeviceGroup")
 Config = load_model("config", "Config")
@@ -161,6 +166,32 @@ class DeviceGroupListCreateView(ProtectedAPIMixin, ListCreateAPIView):
 class DeviceGroupDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
     serializer_class = DeviceGroupSerializer
     queryset = DeviceGroup.objects.select_related("organization").order_by("-created")
+
+
+class OrganizationConfigSettingsView(ProtectedAPIMixin, RetrieveUpdateAPIView):
+    serializer_class = OrganizationConfigSettingsSerializer
+    queryset = OrganizationConfigSettings.objects.select_related("organization")
+
+    def get_object(self):
+        queryset = self.filter_queryset(self.get_queryset())
+        try:
+            return queryset.get(organization_id=self.kwargs["pk"])
+        except OrganizationConfigSettings.DoesNotExist:
+            if self.request.method in ("GET", "HEAD"):
+                raise Http404
+            org_queryset = Organization.objects.all()
+            if not self.request.user.is_superuser:
+                org_queryset = org_queryset.filter(
+                    pk__in=self.request.user.organizations_managed
+                )
+            organization = get_object_or_404(org_queryset, pk=self.kwargs["pk"])
+            add_permission = (
+                f"{OrganizationConfigSettings._meta.app_label}."
+                f"add_{OrganizationConfigSettings._meta.model_name}"
+            )
+            if not self.request.user.has_perm(add_permission):
+                self.permission_denied(self.request)
+            return OrganizationConfigSettings(organization=organization)
 
 
 def get_cached_devicegroup_args_rewrite(cls, org_slugs, common_name):
@@ -298,3 +329,4 @@ device_deactivate = DeviceDeactivateView.as_view()
 devicegroup_list = DeviceGroupListCreateView.as_view()
 devicegroup_detail = DeviceGroupDetailView.as_view()
 devicegroup_commonname = DeviceGroupCommonName.as_view()
+organization_config_settings = OrganizationConfigSettingsView.as_view()
