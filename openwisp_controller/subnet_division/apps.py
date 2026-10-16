@@ -1,5 +1,5 @@
 from django.apps import AppConfig
-from django.db.models.signals import post_delete, post_save, pre_save
+from django.db.models.signals import post_delete, post_save, pre_delete, pre_save
 from django.utils.module_loading import import_string
 from django.utils.translation import gettext_lazy as _
 from swapper import load_model
@@ -42,11 +42,20 @@ class SubnetDivisionConfig(AppConfig):
             sender=self.subnetdivisionrule_model_,
             dispatch_uid="subnetdivisionrule_post_save",
         )
+        pre_delete.connect(
+            receiver=self._subnetdivisionrule_pre_delete,
+            sender=self.subnetdivisionrule_model_,
+            dispatch_uid="subnetdivisionrule_pre_delete",
+        )
         post_delete.connect(
             receiver=self.subnetdivisionrule_model_.post_delete,
             sender=self.subnetdivisionrule_model_,
             dispatch_uid="subnetdivisionrule_post_delete",
         )
+
+    @staticmethod
+    def _subnetdivisionrule_pre_delete(sender, instance, **kwargs):
+        instance._check_in_use()
 
     def _load_models(self):
         self.subnetdivisionrule_model_ = load_model(

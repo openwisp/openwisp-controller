@@ -14,6 +14,7 @@ from openwisp_users.tests.utils import TestMultitenantAdminMixin
 from .helpers import SubnetDivisionAdminTestMixin, SubnetDivisionTestMixin
 
 Subnet = load_model("openwisp_ipam", "Subnet")
+SubnetDivisionRule = load_model("subnet_division", "SubnetDivisionRule")
 Device = load_model("config", "Device")
 Config = load_model("config", "Config")
 
@@ -403,6 +404,46 @@ class TestTransactionDeviceAdmin(
         self.assertEqual(config.checksum, config.checksum_db)
 
 
+class TestSubnetDivisionRuleAdmin(
+    SubnetDivisionAdminTestMixin,
+    TestWireguardVpnMixin,
+    TestMultitenantAdminMixin,
+    TestCase,
+):
+    config_label = "config"
+    ipam_label = "openwisp_ipam"
+
+    def _affected_devices_url(self):
+        return (
+            reverse(f"admin:{self.config_label}_device_changelist")
+            + f"?subnet_division_rule={self.rule.pk}"
+        )
+
+    def test_delete_in_use_rule_shows_error_with_link(self):
+        delete_url = reverse(
+            "admin:subnet_division_subnetdivisionrule_delete", args=[self.rule.pk]
+        )
+        response = self.client.get(delete_url)
+        self.assertEqual(response.status_code, 200)
+        response = self.client.post(delete_url, {"post": "yes"}, follow=True)
+        self.assertContains(response, "used by device configurations")
+        self.assertContains(response, self._affected_devices_url())
+        self.assertTrue(SubnetDivisionRule.objects.filter(pk=self.rule.pk).exists())
+
+    def test_delete_unused_rule_succeeds(self):
+        rule2 = self._get_vpn_subdivision_rule(
+            number_of_ips=1,
+            number_of_subnets=1,
+            label="VPN2",
+        )
+        delete_url = reverse(
+            "admin:subnet_division_subnetdivisionrule_delete", args=[rule2.pk]
+        )
+        response = self.client.post(delete_url, {"post": "yes"})
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(SubnetDivisionRule.objects.filter(pk=rule2.pk).exists())
+
+
 class TestDeviceSubnetDivisionRuleFilter(
     SubnetDivisionAdminTestMixin,
     TestWireguardVpnMixin,
@@ -427,3 +468,11 @@ class TestDeviceSubnetDivisionRuleFilter(
         response = self.client.get(url)
         self.assertContains(response, self.config.device.name)
         self.assertNotContains(response, config2.device.name)
+
+    def test_filter_invalid_uuid_shows_error(self):
+        device_changelist = reverse(f"admin:{self.config_label}_device_changelist")
+        response = self.client.get(
+            f"{device_changelist}?subnet_division_rule=not-a-uuid"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Invalid subnet division rule ID")

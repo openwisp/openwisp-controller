@@ -484,6 +484,24 @@ class TestSubnetDivisionRule(
         self.assertEqual(ip_query.count(), 0)
         self.assertEqual(SubnetDivisionIndex.objects.count(), 0)
 
+    def test_rule_delete_blocked_via_queryset(self):
+        rule = self._get_vpn_subdivision_rule()
+        self.config.templates.add(self.template)
+        with self.assertRaises(ValidationError) as error:
+            SubnetDivisionRule.objects.filter(pk=rule.pk).delete()
+        self.assertEqual(error.exception.code, "subnet_division_rule_in_use")
+        self.assertTrue(SubnetDivisionRule.objects.filter(pk=rule.pk).exists())
+
+    def test_unused_rule_with_orphan_indexes_can_be_deleted(self):
+        rule = self._get_vpn_subdivision_rule()
+        SubnetDivisionIndex.objects.create(
+            rule=rule,
+            keyword="orphan_subnet",
+            subnet=self.master_subnet,
+        )
+        rule.delete()
+        self.assertFalse(SubnetDivisionRule.objects.filter(pk=rule.pk).exists())
+
     def test_vpnclient_deleted(self):
         rule = self._get_vpn_subdivision_rule()
         self.config.templates.add(self.template)
@@ -1078,6 +1096,12 @@ class TestSubnetDivisionRule(
             self.subnet_query.exclude(id=self.master_subnet.id).count(),
             rule1.number_of_subnets + rule2.number_of_subnets,
         )
+
+        # After the dependent config is removed, rule2 can be deleted.
+        self.config.delete()
+        rule2.delete()
+        self.assertFalse(SubnetDivisionRule.objects.filter(pk=rule2.pk).exists())
+        self.assertTrue(SubnetDivisionRule.objects.filter(pk=rule1.pk).exists())
 
     def test_single_subnet_vpn_device_rule(self):
         device_rule = self._get_device_subdivision_rule(label="LAN")

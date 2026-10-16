@@ -195,3 +195,16 @@ division rule.
 
 However, be aware that existing devices **will probably be reassigned
 different subnets and IP addresses** than the ones used previously.
+
+Deleting a Subnet Division Rule
+-------------------------------
+
+A subnet division rule that is currently used by device configurations
+cannot be deleted. This prevents configurations from referencing variables
+such as ``{{ OW_subnet1 }}`` after the rule and its generated subnets have
+been removed.
+
+If you try to delete a rule that is still in use, an error message will
+provide a link to the filtered device changelist showing the affected
+devices. Remove the rule's variables from those device configurations
+before retrying the deletion.

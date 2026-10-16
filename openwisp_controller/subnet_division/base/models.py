@@ -238,7 +238,7 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
             id__in=SubnetDivisionIndex.objects.filter(rule_id=None).values("subnet_id")
         ).delete()
 
-    def delete(self, *args, **kwargs):
+    def _check_in_use(self):
         if self.subnetdivisionindex_set.filter(config_id__isnull=False).exists():
             raise ValidationError(
                 _(
@@ -247,6 +247,9 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
                 ),
                 code="subnet_division_rule_in_use",
             )
+
+    def delete(self, *args, **kwargs):
+        self._check_in_use()
         return super().delete(*args, **kwargs)
 
     @classmethod

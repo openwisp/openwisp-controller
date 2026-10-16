@@ -1,4 +1,6 @@
-from django.contrib import admin
+import uuid
+
+from django.contrib import admin, messages
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 from swapper import load_model
@@ -67,13 +69,26 @@ class DeviceSubnetDivisionRuleFilter(admin.SimpleListFilter):
     parameter_name = "subnet_division_rule"
 
     def lookups(self, request, model_admin):
-        return SubnetDivisionRule.objects.values_list("id", "label").order_by("label")
+        device_qs = model_admin.get_queryset(request)
+        org_ids = set(device_qs.values_list("organization_id", flat=True).distinct())
+        return (
+            SubnetDivisionRule.objects.filter(
+                Q(organization_id__in=org_ids) | Q(organization_id__isnull=True)
+            )
+            .values_list("id", "label")
+            .order_by("label")
+        )
 
     def queryset(self, request, queryset):
-        if self.value() is not None:
-            return queryset.filter(
-                config__subnetdivisionindex__rule_id=self.value()
-            ).distinct()
+        value = self.value()
+        if value is None:
+            return queryset
+        try:
+            uuid.UUID(value)
+        except (AttributeError, ValueError):
+            messages.error(request, _("Invalid subnet division rule ID."))
+            return queryset
+        return queryset.filter(config__subnetdivisionindex__rule_id=value).distinct()
 
 
 class VpnFilter(AutocompleteFilter):

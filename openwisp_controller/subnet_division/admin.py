@@ -1,6 +1,6 @@
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.urls import reverse
-from django.utils.html import format_html
+from django.utils.html import format_html, mark_safe
 from django.utils.translation import gettext_lazy as _
 from openwisp_ipam.admin import IpAddressAdmin as BaseIpAddressAdmin
 from openwisp_ipam.admin import SubnetAdmin as BaseSubnetAdmin
@@ -45,6 +45,58 @@ class SubnetDivisionRuleInlineAdmin(
 
     class Media:
         js = ["admin/js/jquery.init.js", "subnet-division/js/subnet-division.js"]
+
+
+@admin.register(SubnetDivisionRule)
+class SubnetDivisionRuleAdmin(
+    MultitenantAdminMixin, TimeReadonlyAdminMixin, admin.ModelAdmin
+):
+    list_display = ["label", "organization", "type", "master_subnet"]
+    list_filter = ["type"]
+    search_fields = ["label"]
+
+    def _affected_devices_url(self, obj):
+        return reverse("admin:config_device_changelist") + (
+            f"?subnet_division_rule={obj.pk}"
+        )
+
+    def delete_model(self, request, obj):
+        try:
+            super().delete_model(request, obj)
+        except Exception as e:
+            if getattr(e, "code", None) == "subnet_division_rule_in_use":
+                messages.error(
+                    request,
+                    mark_safe(
+                        format_html(
+                            _(
+                                "This subnet division rule is used by device "
+                                "configurations and cannot be deleted. "
+                                '<a href="{}">View affected devices</a>'
+                            ),
+                            self._affected_devices_url(obj),
+                        )
+                    ),
+                )
+            else:
+                raise
+
+    def delete_queryset(self, request, queryset):
+        in_use_ids = (
+            SubnetDivisionRule.objects.filter(id__in=queryset.values("id"))
+            .filter(subnetdivisionindex__config_id__isnull=False)
+            .values_list("id", flat=True)
+        )
+        if in_use_ids:
+            messages.error(
+                request,
+                _(
+                    "One or more selected subnet division rules are in use and "
+                    "cannot be deleted."
+                ),
+            )
+            return
+        super().delete_queryset(request, queryset)
 
 
 # Monkey patching DeviceAdmin to allow filtering using subnet
