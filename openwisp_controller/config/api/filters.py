@@ -100,12 +100,19 @@ class DeviceListFilter(BaseConfigAPIFilter):
         field_name="created",
         lookup_expr="lt",
     )
+    subnet_division_rule = filters.UUIDFilter(
+        method="filter_subnet_division_rule",
+    )
+
+    def filter_subnet_division_rule(self, queryset, name, value):
+        return queryset.filter(config__subnetdivisionindex__rule=value).distinct()
 
     def _set_valid_filterform_lables(self):
         self.filters["group"].label = _("Device group")
         self.filters["config__templates"].label = _("Config template")
         self.filters["config__status"].label = _("Config status")
         self.filters["config__backend"].label = _("Config backend")
+        self.filters["subnet_division_rule"].label = _("Subnet division rule")
 
     def __init__(self, *args, **kwargs):
         super(DeviceListFilter, self).__init__(*args, **kwargs)
@@ -120,6 +127,7 @@ class DeviceListFilter(BaseConfigAPIFilter):
             "config__backend",
             "config__templates",
             "group",
+            "subnet_division_rule",
             "created",
         ]
 

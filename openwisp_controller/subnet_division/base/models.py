@@ -238,6 +238,20 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
             id__in=SubnetDivisionIndex.objects.filter(rule_id=None).values("subnet_id")
         ).delete()
 
+    def _check_in_use(self):
+        if self.subnetdivisionindex_set.filter(config_id__isnull=False).exists():
+            raise ValidationError(
+                _(
+                    "This subnet division rule is used by device configurations "
+                    "and cannot be deleted."
+                ),
+                code="subnet_division_rule_in_use",
+            )
+
+    def delete(self, *args, **kwargs):
+        self._check_in_use()
+        return super().delete(*args, **kwargs)
+
     @classmethod
     def pre_save(cls, instance, **kwargs):
         instance.check_and_queue_modified_fields()

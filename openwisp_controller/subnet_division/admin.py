@@ -1,4 +1,7 @@
-from django.contrib import admin
+from django.contrib import admin, messages
+from django.contrib.admin.actions import delete_selected as django_delete_selected
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
@@ -11,7 +14,13 @@ from openwisp_users.multitenancy import MultitenantAdminMixin
 from openwisp_utils.admin import HelpTextStackedInline, TimeReadonlyAdminMixin
 
 from . import settings as app_settings
-from .filters import DeviceFilter, SubnetDivisionRuleFilter, SubnetFilter, VpnFilter
+from .filters import (
+    DeviceFilter,
+    DeviceSubnetDivisionRuleFilter,
+    SubnetDivisionRuleFilter,
+    SubnetFilter,
+    VpnFilter,
+)
 
 SubnetDivisionRule = load_model("subnet_division", "SubnetDivisionRule")
 SubnetDivisionIndex = load_model("subnet_division", "SubnetDivisionIndex")
@@ -41,8 +50,82 @@ class SubnetDivisionRuleInlineAdmin(
         js = ["admin/js/jquery.init.js", "subnet-division/js/subnet-division.js"]
 
 
+@admin.register(SubnetDivisionRule)
+class SubnetDivisionRuleAdmin(
+    MultitenantAdminMixin, TimeReadonlyAdminMixin, admin.ModelAdmin
+):
+    list_display = ["label", "organization", "type", "master_subnet"]
+    list_filter = ["type"]
+    search_fields = ["label"]
+    actions = ["delete_selected"]
+
+    def _affected_devices_url(self, obj):
+        return reverse("admin:config_device_changelist") + (
+            f"?subnet_division_rule={obj.pk}"
+        )
+
+    def _in_use_error(self, request, obj=None):
+        if obj is not None:
+            messages.error(
+                request,
+                format_html(
+                    _(
+                        "This subnet division rule is used by device "
+                        "configurations and cannot be deleted. "
+                        '<a href="{}">View affected devices</a>'
+                    ),
+                    self._affected_devices_url(obj),
+                ),
+            )
+        else:
+            messages.error(
+                request,
+                _(
+                    "One or more selected subnet division rules are in use and "
+                    "cannot be deleted."
+                ),
+            )
+
+    def delete_view(self, request, object_id, extra_context=None):
+        obj = self.get_object(request, object_id)
+        if obj is not None:
+            try:
+                obj._check_in_use()
+            except ValidationError:
+                self._in_use_error(request, obj)
+                return HttpResponseRedirect(
+                    reverse("admin:subnet_division_subnetdivisionrule_changelist")
+                )
+        return super().delete_view(request, object_id, extra_context=extra_context)
+
+    @admin.action(description=django_delete_selected.short_description)
+    def delete_selected(self, request, queryset):
+        if not self.has_delete_permission(request):
+            raise PermissionDenied
+        if queryset.filter(subnetdivisionindex__config_id__isnull=False).exists():
+            self._in_use_error(request)
+            return
+        return django_delete_selected(self, request, queryset)
+
+    def delete_model(self, request, obj):
+        try:
+            super().delete_model(request, obj)
+        except Exception as e:
+            if getattr(e, "code", None) == "subnet_division_rule_in_use":
+                self._in_use_error(request, obj)
+            else:
+                raise
+
+    def delete_queryset(self, request, queryset):
+        if queryset.filter(subnetdivisionindex__config_id__isnull=False).exists():
+            self._in_use_error(request)
+            return
+        super().delete_queryset(request, queryset)
+
+
 # Monkey patching DeviceAdmin to allow filtering using subnet
 DeviceAdmin.list_filter.append(SubnetFilter)
+DeviceAdmin.list_filter.append(DeviceSubnetDivisionRuleFilter)
 
 # NOTE: Monkey patching SubnetAdmin didn't work for adding readonly_field
 # to change_view because of TimeReadonlyAdminMixin.

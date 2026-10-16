@@ -12,6 +12,7 @@ from django.utils import timezone
 from swapper import load_model
 
 from openwisp_controller.config.api.serializers import BaseConfigSerializer
+from openwisp_controller.subnet_division.tests.helpers import SubnetDivisionTestMixin
 from openwisp_controller.tests.utils import TestAdminMixin
 from openwisp_users.tests.test_api import AuthenticationMixin
 from openwisp_utils.tests import capture_any_output, catch_signal
@@ -1859,3 +1860,33 @@ class TestConfigApiTransaction(
                 template2.refresh_from_db()
                 self.assertEqual(template2.default_values["ifname"], "eth3")
                 mocked_signal.assert_called_once()
+
+
+class TestDeviceSubnetDivisionRuleApiFilter(
+    TestAdminMixin,
+    SubnetDivisionTestMixin,
+    TestWireguardVpnMixin,
+    TestCase,
+):
+    def setUp(self):
+        super().setUp()
+        self.org = self._get_org()
+        self.master_subnet = self._get_master_subnet()
+        self.config = self._create_config(organization=self.org)
+        self.rule = self._get_vpn_subdivision_rule(number_of_ips=1, number_of_subnets=1)
+        self._mock_subnet_division_rule(self.config, self.master_subnet, self.rule)
+        self._login()
+
+    def test_device_list_filter_by_subnet_division_rule(self):
+        config2 = self._create_config(
+            device=self._create_device(name="device-2", mac_address="00:11:22:33:44:56")
+        )
+        rule2 = self._get_vpn_subdivision_rule(
+            number_of_ips=1, number_of_subnets=1, label="VPN2"
+        )
+        self._mock_subnet_division_rule(config2, self.master_subnet, rule2)
+        path = reverse("config_api:device_list")
+        response = self.client.get(path, {"subnet_division_rule": self.rule.id})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["results"][0]["id"], str(self.config.device.pk))
