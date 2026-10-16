@@ -209,13 +209,13 @@ provide a link to the filtered device changelist showing the affected
 devices.
 
 To remove the dependency, you must stop using the rule in a way that also
-removes its provisioned ``SubnetDivisionIndex`` records. For example, remove
-the VPN-client template that triggers the rule from the affected devices, or
-delete the dependent device configurations entirely. Simply editing the
-rendered configuration text is not enough, because the indexes that link the
-device to the rule are created by the provisioning logic, not by the
-configuration content itself.
+removes its provisioned ``SubnetDivisionIndex`` records. For example,
+remove the VPN-client template that triggers the rule from the affected
+devices, or delete the dependent device configurations entirely. Simply
+editing the rendered configuration text is not enough, because the indexes
+that link the device to the rule are created by the provisioning logic,
+not by the configuration content itself.
 
-Once no device configuration depends on the rule, deletion will succeed and
-the rule's generated subnets and IP addresses will be cleaned up
+Once no device configuration depends on the rule, deletion will succeed
+and the rule's generated subnets and IP addresses will be cleaned up
 automatically.
