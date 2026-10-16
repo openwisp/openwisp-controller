@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+from django.contrib.auth.models import Permission
 from django.test import TestCase, TransactionTestCase
 from django.urls import reverse
 from swapper import load_model
@@ -446,6 +447,74 @@ class TestSubnetDivisionRuleAdmin(
         )
         self.assertContains(response, "in use and cannot be deleted")
         self.assertTrue(SubnetDivisionRule.objects.filter(pk=self.rule.pk).exists())
+
+    def test_delete_selected_action_deletes_unused_rule(self):
+        rule2 = self._get_vpn_subdivision_rule(
+            number_of_ips=1,
+            number_of_subnets=1,
+            label="VPN2",
+        )
+        changelist_url = reverse("admin:subnet_division_subnetdivisionrule_changelist")
+        response = self.client.post(
+            changelist_url,
+            {
+                "action": "delete_selected",
+                "_selected_action": [str(rule2.pk)],
+                "post": "yes",
+            },
+            follow=True,
+        )
+        self.assertRedirects(response, changelist_url)
+        self.assertFalse(SubnetDivisionRule.objects.filter(pk=rule2.pk).exists())
+
+    def test_delete_selected_action_mixed_selection_is_blocked(self):
+        rule2 = self._get_vpn_subdivision_rule(
+            number_of_ips=1,
+            number_of_subnets=1,
+            label="VPN2",
+        )
+        changelist_url = reverse("admin:subnet_division_subnetdivisionrule_changelist")
+        response = self.client.post(
+            changelist_url,
+            {
+                "action": "delete_selected",
+                "_selected_action": [str(self.rule.pk), str(rule2.pk)],
+            },
+            follow=True,
+        )
+        self.assertContains(response, "in use and cannot be deleted")
+        self.assertTrue(SubnetDivisionRule.objects.filter(pk=self.rule.pk).exists())
+        self.assertTrue(SubnetDivisionRule.objects.filter(pk=rule2.pk).exists())
+
+    def test_delete_selected_action_denied_without_delete_permission(self):
+        rule2 = self._get_vpn_subdivision_rule(
+            number_of_ips=1,
+            number_of_subnets=1,
+            label="VPN2",
+        )
+        change_only_user = self._get_admin()
+        change_only_user.is_superuser = False
+        change_only_user.user_permissions.set(
+            Permission.objects.filter(
+                codename__in=[
+                    "view_subnetdivisionrule",
+                    "change_subnetdivisionrule",
+                ]
+            )
+        )
+        change_only_user.save()
+        self.client.force_login(change_only_user)
+        changelist_url = reverse("admin:subnet_division_subnetdivisionrule_changelist")
+        response = self.client.post(
+            changelist_url,
+            {
+                "action": "delete_selected",
+                "_selected_action": [str(rule2.pk)],
+            },
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(SubnetDivisionRule.objects.filter(pk=rule2.pk).exists())
 
     def test_delete_unused_rule_succeeds(self):
         rule2 = self._get_vpn_subdivision_rule(

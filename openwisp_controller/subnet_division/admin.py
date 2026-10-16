@@ -1,8 +1,9 @@
 from django.contrib import admin, messages
-from django.core.exceptions import ValidationError
+from django.contrib.admin.actions import delete_selected as django_delete_selected
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.http import HttpResponseRedirect
 from django.urls import reverse
-from django.utils.html import format_html, mark_safe
+from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from openwisp_ipam.admin import IpAddressAdmin as BaseIpAddressAdmin
 from openwisp_ipam.admin import SubnetAdmin as BaseSubnetAdmin
@@ -67,15 +68,13 @@ class SubnetDivisionRuleAdmin(
         if obj is not None:
             messages.error(
                 request,
-                mark_safe(
-                    format_html(
-                        _(
-                            "This subnet division rule is used by device "
-                            "configurations and cannot be deleted. "
-                            '<a href="{}">View affected devices</a>'
-                        ),
-                        self._affected_devices_url(obj),
-                    )
+                format_html(
+                    _(
+                        "This subnet division rule is used by device "
+                        "configurations and cannot be deleted. "
+                        '<a href="{}">View affected devices</a>'
+                    ),
+                    self._affected_devices_url(obj),
                 ),
             )
         else:
@@ -99,12 +98,14 @@ class SubnetDivisionRuleAdmin(
                 )
         return super().delete_view(request, object_id, extra_context=extra_context)
 
-    @admin.action(description=_("Delete selected subnet division rules"))
+    @admin.action(description=django_delete_selected.short_description)
     def delete_selected(self, request, queryset):
+        if not self.has_delete_permission(request):
+            raise PermissionDenied
         if queryset.filter(subnetdivisionindex__config_id__isnull=False).exists():
             self._in_use_error(request)
             return
-        queryset.delete()
+        return django_delete_selected(self, request, queryset)
 
     def delete_model(self, request, obj):
         try:
