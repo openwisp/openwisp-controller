@@ -830,6 +830,9 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
         with self.subTest("single quote breakout"):
             _assert_quoted("x'; touch /tmp/PWNED", "'x'\"'\"'; touch /tmp/PWNED'")
 
+        with self.subTest("backslash kept literal"):
+            _assert_quoted("New\\pass123", "'New\\pass123'")
+
     @mock.patch(_connect_path)
     @mock.patch.dict(
         ORGANIZATION_ENABLED_COMMANDS, {"__all__": ("callable_ping", "path_ping")}
