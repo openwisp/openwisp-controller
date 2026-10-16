@@ -322,6 +322,15 @@ if os.environ.get("SAMPLE_APP", False) and TESTING:
     OPENWISP_ORGANIZATION_OWNER_ADMIN = True
     OPENWISP_USERS_AUTH_API = True
 
+# The routing regression needs current tables, not legacy data migrations
+# which assume the default alias. Default migration coverage is unchanged.
+if TESTING:
+    DATABASES["secondary"] = {
+        **DATABASES["default"],
+        "NAME": os.path.join(BASE_DIR, "openwisp-controller-secondary.db"),
+        "TEST": {"MIGRATE": False},
+    }
+
 # local settings must be imported before test runner otherwise they'll be ignored
 try:
     from .local_settings import *

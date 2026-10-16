@@ -17,6 +17,7 @@ DeviceLocation = load_model("geo", "DeviceLocation")
 
 
 class TestModels(TestGeoMixin, BaseTestModels, TestCase):
+    databases = {"default", "secondary"}
     object_model = Device
     location_model = Location
     floorplan_model = FloorPlan
@@ -120,6 +121,39 @@ class TestModels(TestGeoMixin, BaseTestModels, TestCase):
         self.assertEqual(
             Location.objects.get(pk=location.pk).organization_id, organization.pk
         )
+
+    def test_location_write_database(self):
+        """Route both writes to a second database while preserving the read database."""
+        location = self._create_location(type="indoor")
+        floorplan = self._create_floorplan(location=location)
+        original_org = location.organization_id
+        organization = self._create_organization(name="second")
+        organization_model = type(organization)
+        organization_model.objects.using("secondary").bulk_create(
+            [location.organization, organization]
+        )
+        Location.objects.using("secondary").bulk_create([location])
+        FloorPlan.objects.using("secondary").bulk_create([floorplan])
+        location = Location.objects.get(pk=location.pk)
+        location.organization_id = organization.pk
+        with patch("django.db.router.db_for_write", return_value="secondary") as db:
+            location.save()
+        db.assert_called_once_with(Location, instance=location)
+        for alias, expected in (
+            ("secondary", organization.pk),
+            ("default", original_org),
+        ):
+            with self.subTest(database=alias):
+                self.assertEqual(
+                    Location.objects.using(alias).get(pk=location.pk).organization_id,
+                    expected,
+                    "The location must be written only on the router-selected database",
+                )
+                self.assertEqual(
+                    FloorPlan.objects.using(alias).get(pk=floorplan.pk).organization_id,
+                    expected,
+                    "Floorplans must be written only on the router-selected database",
+                )
 
     def test_location_organization_partial_save(self):
         location = self._create_location(type="indoor")
