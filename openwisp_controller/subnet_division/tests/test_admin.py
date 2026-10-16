@@ -401,3 +401,29 @@ class TestTransactionDeviceAdmin(
         self.assertEqual(config.vpnclient_set.first().vpn, vpn2)
         self.assertNotEqual(config.checksum, initial_checksum)
         self.assertEqual(config.checksum, config.checksum_db)
+
+
+class TestDeviceSubnetDivisionRuleFilter(
+    SubnetDivisionAdminTestMixin,
+    TestWireguardVpnMixin,
+    TestMultitenantAdminMixin,
+    TestCase,
+):
+    config_label = "config"
+    ipam_label = "openwisp_ipam"
+
+    def test_filter_by_subnet_division_rule(self):
+        device_changelist = reverse(f"admin:{self.config_label}_device_changelist")
+        config2 = self._create_config(
+            device=self._create_device(name="device-2", mac_address="00:11:22:33:44:56")
+        )
+        rule2 = self._get_vpn_subdivision_rule(
+            number_of_ips=1,
+            number_of_subnets=1,
+            label="VPN2",
+        )
+        self._mock_subnet_division_rule(config2, self.master_subnet, rule2)
+        url = f"{device_changelist}?subnet_division_rule={self.rule.id}"
+        response = self.client.get(url)
+        self.assertContains(response, self.config.device.name)
+        self.assertNotContains(response, config2.device.name)

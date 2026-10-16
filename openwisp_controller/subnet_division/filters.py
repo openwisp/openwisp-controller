@@ -62,6 +62,20 @@ class DeviceFilter(SimpleInputFilter):
             )
 
 
+class DeviceSubnetDivisionRuleFilter(admin.SimpleListFilter):
+    title = _("subnet division rule")
+    parameter_name = "subnet_division_rule"
+
+    def lookups(self, request, model_admin):
+        return SubnetDivisionRule.objects.values_list("id", "label").order_by("label")
+
+    def queryset(self, request, queryset):
+        if self.value() is not None:
+            return queryset.filter(
+                config__subnetdivisionindex__rule_id=self.value()
+            ).distinct()
+
+
 class VpnFilter(AutocompleteFilter):
     """
     Filters Subnet by VPN

@@ -11,7 +11,13 @@ from openwisp_users.multitenancy import MultitenantAdminMixin
 from openwisp_utils.admin import HelpTextStackedInline, TimeReadonlyAdminMixin
 
 from . import settings as app_settings
-from .filters import DeviceFilter, SubnetDivisionRuleFilter, SubnetFilter, VpnFilter
+from .filters import (
+    DeviceFilter,
+    DeviceSubnetDivisionRuleFilter,
+    SubnetDivisionRuleFilter,
+    SubnetFilter,
+    VpnFilter,
+)
 
 SubnetDivisionRule = load_model("subnet_division", "SubnetDivisionRule")
 SubnetDivisionIndex = load_model("subnet_division", "SubnetDivisionIndex")
@@ -43,6 +49,7 @@ class SubnetDivisionRuleInlineAdmin(
 
 # Monkey patching DeviceAdmin to allow filtering using subnet
 DeviceAdmin.list_filter.append(SubnetFilter)
+DeviceAdmin.list_filter.append(DeviceSubnetDivisionRuleFilter)
 
 # NOTE: Monkey patching SubnetAdmin didn't work for adding readonly_field
 # to change_view because of TimeReadonlyAdminMixin.
