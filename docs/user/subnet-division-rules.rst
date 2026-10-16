@@ -206,5 +206,16 @@ been removed.
 
 If you try to delete a rule that is still in use, an error message will
 provide a link to the filtered device changelist showing the affected
-devices. Remove the rule's variables from those device configurations
-before retrying the deletion.
+devices.
+
+To remove the dependency, you must stop using the rule in a way that also
+removes its provisioned ``SubnetDivisionIndex`` records. For example, remove
+the VPN-client template that triggers the rule from the affected devices, or
+delete the dependent device configurations entirely. Simply editing the
+rendered configuration text is not enough, because the indexes that link the
+device to the rule are created by the provisioning logic, not by the
+configuration content itself.
+
+Once no device configuration depends on the rule, deletion will succeed and
+the rule's generated subnets and IP addresses will be cleaned up
+automatically.

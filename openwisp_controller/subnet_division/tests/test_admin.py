@@ -423,11 +423,28 @@ class TestSubnetDivisionRuleAdmin(
         delete_url = reverse(
             "admin:subnet_division_subnetdivisionrule_delete", args=[self.rule.pk]
         )
+        # GET on a rule that is in use redirects back with an error.
         response = self.client.get(delete_url)
-        self.assertEqual(response.status_code, 200)
+        self.assertRedirects(
+            response,
+            reverse("admin:subnet_division_subnetdivisionrule_changelist"),
+        )
         response = self.client.post(delete_url, {"post": "yes"}, follow=True)
         self.assertContains(response, "used by device configurations")
         self.assertContains(response, self._affected_devices_url())
+        self.assertTrue(SubnetDivisionRule.objects.filter(pk=self.rule.pk).exists())
+
+    def test_delete_selected_action_blocked_for_in_use_rules(self):
+        changelist_url = reverse("admin:subnet_division_subnetdivisionrule_changelist")
+        response = self.client.post(
+            changelist_url,
+            {
+                "action": "delete_selected",
+                "_selected_action": [str(self.rule.pk)],
+            },
+            follow=True,
+        )
+        self.assertContains(response, "in use and cannot be deleted")
         self.assertTrue(SubnetDivisionRule.objects.filter(pk=self.rule.pk).exists())
 
     def test_delete_unused_rule_succeeds(self):
