@@ -15,10 +15,19 @@ url_metadata = [
         "include": {"module": "openwisp_notifications.urls"},
     },
     # openwisp_ipam
+    # the subnet division app overrides some of the IPAM API views, so that
+    # deletions refused by its rules are reported instead of failing with a
+    # server error; the default views are used when it is not installed
     {
         "regexp": "",
         "app": "openwisp_ipam",
-        "include": {"module": "openwisp_ipam.urls"},
+        "include": {
+            "module": (
+                "openwisp_controller.subnet_division.ipam_urls"
+                if "openwisp_controller.subnet_division" in settings.INSTALLED_APPS
+                else "openwisp_ipam.urls"
+            )
+        },
     },
     # openwisp_controller.pki (CRL view)
     {
