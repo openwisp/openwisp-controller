@@ -1,6 +1,9 @@
+from unittest import mock
+
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from django.core.exceptions import ValidationError
+from django.db.models.query import QuerySet
 from django.test import TestCase
 from django.urls import reverse
 from swapper import load_model
@@ -55,6 +58,49 @@ class TestModels(TestAdminMixin, TestPkiMixin, TestOrganizationMixin, TestCase):
         crl = x509.load_pem_x509_crl(response.content, default_backend())
         revoked_list = [cert for cert in crl]
         self.assertEqual(revoked_list, [])
+
+    def test_renew_revoked_cert(self):
+        cert = self._create_cert(name="cert1")
+        old_serial_num = cert.serial_number
+
+        cert.revoke()
+
+        with self.assertRaises(ValidationError):
+            cert.renew()
+
+        cert.refresh_from_db()
+        self.assertEqual(int(cert.serial_number), int(old_serial_num))
+        self.assertTrue(cert.revoked)
+
+    def test_renew_uses_select_for_update(self):
+        cert = self._create_cert(name="cert1")
+
+        select_for_update = QuerySet.select_for_update
+        with mock.patch.object(
+            QuerySet,
+            "select_for_update",
+            autospec=True,
+            side_effect=select_for_update,
+        ) as mocked_select_for_update:
+            cert.renew()
+
+        mocked_select_for_update.assert_called_once_with(mock.ANY)
+        self.assertEqual(mocked_select_for_update.call_args.args[0].model, Cert)
+
+    def test_revoke_uses_select_for_update(self):
+        cert = self._create_cert(name="cert1")
+
+        select_for_update = QuerySet.select_for_update
+        with mock.patch.object(
+            QuerySet,
+            "select_for_update",
+            autospec=True,
+            side_effect=select_for_update,
+        ) as mocked_select_for_update:
+            cert.revoke()
+
+        mocked_select_for_update.assert_called_once_with(mock.ANY)
+        self.assertEqual(mocked_select_for_update.call_args.args[0].model, Cert)
 
     def test_unique_together_org_none(self):
         ca = self._create_ca(organization=None, common_name="common_name")
