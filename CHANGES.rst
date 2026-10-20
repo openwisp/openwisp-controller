@@ -27,7 +27,8 @@ Security
   and run in a database transaction, preventing rejected requests from
   leaving related database objects or files behind.
 
-  Advisory: **GHSA-39c4-xj33-j8j3**.
+  Advisory: `GHSA-39c4-xj33-j8j3
+  <https://github.com/openwisp/openwisp-controller/security/advisories/GHSA-39c4-xj33-j8j3>`_.
 
 - Fixed XSS vulnerabilities in device and command admin UI
 
@@ -41,7 +42,8 @@ Security
   These vulnerabilities could allow attackers to execute malicious
   JavaScript in an administrator's browser.
 
-  Advisory: **GHSA-4f2x-pxjx-h8m3**.
+  Advisory: `GHSA-4f2x-pxjx-h8m3
+  <https://github.com/openwisp/openwisp-controller/security/advisories/GHSA-4f2x-pxjx-h8m3>`_.
 
 Bugfixes
 ~~~~~~~~
