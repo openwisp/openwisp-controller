@@ -51,7 +51,7 @@
                     {% endblocktranslate %}
                 </p>
                 <span>
-                    <button class="danger-btn" id="warning-ack">"{% blocktranslate count counter=active_devices|length %}I understand the risks, delete the device{% plural %}I understand the risks, delete the devices{% endblocktranslate %}</button>
+                    <button class="danger-btn" id="warning-ack">{% blocktranslate count counter=active_devices|length %}I understand the risks, delete the device{% plural %}I understand the risks, delete the devices{% endblocktranslate %}</button>
                     <button class="button cancel-link">{% translate 'No, take me back' %}</button>
                 </span>
             </li>
