@@ -8,8 +8,7 @@ on:
   pull_request:
     branches:
       - master
-      - "1.1"
-      - "1.2"
+      - "[0-9]+.[0-9]+"
       - "gsoc26-x509-certificate-generator-templates"
       - "gsoc26-mass-commands"
 
