@@ -608,6 +608,13 @@ class TestConfigApi(
             )
             self.assertEqual(r.status_code, 404)
 
+        vpn2.get_cached_configuration()
+        with self.subTest("Cached VPN of other organization"):
+            r = self.client.get(
+                reverse("config_api:download_vpn_config", args=[vpn2.pk])
+            )
+            self.assertEqual(r.status_code, 404)
+
         with self.subTest("Shared VPN"):
             r = self.client.get(
                 reverse("config_api:download_vpn_config", args=[shared_vpn.pk])
