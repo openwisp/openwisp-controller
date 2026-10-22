@@ -319,6 +319,9 @@ class BaseConfigAdmin(BaseAdmin):
 
     def download_view(self, request, pk):
         instance = get_object_or_404(self.model, pk=pk)
+        return self.get_download_response(instance)
+
+    def get_download_response(self, instance):
         if hasattr(instance, "generate"):
             config = instance
         elif hasattr(instance, "config"):
