@@ -20,6 +20,7 @@ from ..commands import (
     register_command,
     unregister_command,
 )
+from ..connectors.exceptions import CommandTimeoutException
 from ..exceptions import NoWorkingDeviceConnectionError
 from ..signals import is_working_changed
 from ..tasks import _TASK_NAME, update_config
@@ -416,6 +417,21 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
                 dc.connector_instance.exec_command("trigger_timeout")
             dc.connector_instance.disconnect()
             mocked.assert_called_once()
+
+    @capture_any_output()
+    @mock.patch(_connect_path)
+    def test_ssh_exec_command_timeout_closes_channel(self, *args):
+        ckey = self._create_credentials_with_key(port=self.ssh_server.port)
+        dc = self._create_device_connection(credentials=ckey)
+        dc.connector_instance.connect()
+        stdout = mock.MagicMock()
+        stdout.channel.status_event.wait.return_value = False
+        with mock.patch(_exec_command_path) as mocked:
+            mocked.return_value = (mock.MagicMock(), stdout, mock.MagicMock())
+            with self.assertRaises(CommandTimeoutException):
+                dc.connector_instance.exec_command("sleep 60", timeout=1)
+        stdout.channel.close.assert_called_once()
+        dc.connector_instance.disconnect()
 
     @capture_any_output()
     @mock.patch(_connect_path)
