@@ -563,6 +563,12 @@ class TestAdmin(
                     )
                 )
                 self.assertEqual(response.status_code, 403)
+                response = self.client.get(
+                    reverse(
+                        f"admin:{self.app_label}_{model}_context", args=[managed.pk]
+                    )
+                )
+                self.assertEqual(response.status_code, 403)
 
     def test_vpn_organization_fk_autocomplete_view(self):
         data = self._create_multitenancy_test_env()
