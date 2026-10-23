@@ -507,6 +507,63 @@ class TestAdmin(
             ],
         )
 
+    def test_config_download_and_context_views_multitenancy(self):
+        data = self._create_multitenancy_test_env(vpn=True)
+        self.client.force_login(data["operator"])
+        instances = {
+            "device": (data["c1"].device, data["c2"].device),
+            "template": (data["t1"], data["t2"]),
+            "vpn": (data["vpn1"], data["vpn2"]),
+        }
+
+        for model, (managed, unmanaged) in instances.items():
+            with self.subTest(model=model, view="download", organization="managed"):
+                response = self.client.get(
+                    reverse(
+                        f"admin:{self.app_label}_{model}_download", args=[managed.pk]
+                    )
+                )
+                self.assertEqual(response.status_code, 200)
+
+            with self.subTest(model=model, view="download", organization="unmanaged"):
+                response = self.client.get(
+                    reverse(
+                        f"admin:{self.app_label}_{model}_download", args=[unmanaged.pk]
+                    )
+                )
+                self.assertEqual(response.status_code, 404)
+
+            with self.subTest(model=model, view="context", organization="managed"):
+                response = self.client.get(
+                    reverse(
+                        f"admin:{self.app_label}_{model}_context", args=[managed.pk]
+                    )
+                )
+                self.assertEqual(response.status_code, 200)
+
+            with self.subTest(model=model, view="context", organization="unmanaged"):
+                response = self.client.get(
+                    reverse(
+                        f"admin:{self.app_label}_{model}_context", args=[unmanaged.pk]
+                    )
+                )
+                self.assertEqual(response.status_code, 404)
+
+            with (
+                self.subTest(model=model, permission="denied"),
+                patch.object(
+                    admin.site._registry[managed.__class__],
+                    "has_view_permission",
+                    return_value=False,
+                ),
+            ):
+                response = self.client.get(
+                    reverse(
+                        f"admin:{self.app_label}_{model}_download", args=[managed.pk]
+                    )
+                )
+                self.assertEqual(response.status_code, 403)
+
     def test_vpn_organization_fk_autocomplete_view(self):
         data = self._create_multitenancy_test_env()
         self._test_multitenant_admin(
