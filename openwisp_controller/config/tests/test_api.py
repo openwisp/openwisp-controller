@@ -560,6 +560,68 @@ class TestConfigApi(
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
 
+    def test_download_api_multitenancy(self):
+        org1 = self._create_org(name="org1")
+        org2 = self._create_org(name="org2")
+        device1 = self._create_config(organization=org1).device
+        device2 = self._create_config(organization=org2).device
+        template1 = self._create_template(name="template1", organization=org1)
+        template2 = self._create_template(name="template2", organization=org2)
+        vpn1 = self._create_vpn(name="vpn1", organization=org1)
+        vpn2 = self._create_vpn(name="vpn2", organization=org2)
+        shared_vpn = self._create_vpn(name="shared-vpn", organization=None)
+        operator = self._create_operator(organizations=[org1])
+        self.client.force_login(operator)
+
+        with self.subTest("Device of managed organization"):
+            r = self.client.get(
+                reverse("config_api:download_device_config", args=[device1.pk])
+            )
+            self.assertEqual(r.status_code, 200)
+
+        with self.subTest("Device of other organization"):
+            r = self.client.get(
+                reverse("config_api:download_device_config", args=[device2.pk])
+            )
+            self.assertEqual(r.status_code, 404)
+
+        with self.subTest("Template of managed organization"):
+            r = self.client.get(
+                reverse("config_api:download_template_config", args=[template1.pk])
+            )
+            self.assertEqual(r.status_code, 200)
+
+        with self.subTest("Template of other organization"):
+            r = self.client.get(
+                reverse("config_api:download_template_config", args=[template2.pk])
+            )
+            self.assertEqual(r.status_code, 404)
+
+        with self.subTest("VPN of managed organization"):
+            r = self.client.get(
+                reverse("config_api:download_vpn_config", args=[vpn1.pk])
+            )
+            self.assertEqual(r.status_code, 200)
+
+        with self.subTest("VPN of other organization"):
+            r = self.client.get(
+                reverse("config_api:download_vpn_config", args=[vpn2.pk])
+            )
+            self.assertEqual(r.status_code, 404)
+
+        vpn2.get_cached_configuration()
+        with self.subTest("Cached VPN of other organization"):
+            r = self.client.get(
+                reverse("config_api:download_vpn_config", args=[vpn2.pk])
+            )
+            self.assertEqual(r.status_code, 404)
+
+        with self.subTest("Shared VPN"):
+            r = self.client.get(
+                reverse("config_api:download_vpn_config", args=[shared_vpn.pk])
+            )
+            self.assertEqual(r.status_code, 200)
+
     def test_update_deactivated_device(self):
         device = self._create_device(_is_deactivated=True)
         path = reverse("config_api:device_detail", args=[device.pk])
