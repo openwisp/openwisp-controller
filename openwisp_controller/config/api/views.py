@@ -175,7 +175,7 @@ class OrganizationConfigSettingsView(ProtectedAPIMixin, RetrieveUpdateAPIView):
     def get_object(self):
         queryset = self.filter_queryset(self.get_queryset())
         try:
-            return queryset.get(organization_id=self.kwargs["pk"])
+            obj = queryset.get(organization_id=self.kwargs["pk"])
         except OrganizationConfigSettings.DoesNotExist:
             if self.request.method in ("GET", "HEAD"):
                 raise Http404
@@ -191,7 +191,9 @@ class OrganizationConfigSettingsView(ProtectedAPIMixin, RetrieveUpdateAPIView):
             )
             if not self.request.user.has_perm(add_permission):
                 self.permission_denied(self.request)
-            return OrganizationConfigSettings(organization=organization)
+            obj = OrganizationConfigSettings(organization=organization)
+        self.check_object_permissions(self.request, obj)
+        return obj
 
 
 def get_cached_devicegroup_args_rewrite(cls, org_slugs, common_name):
