@@ -1,5 +1,10 @@
+from unittest.mock import patch
+
 from django.core.exceptions import ValidationError
+from django.db import connection
 from django.test import TestCase
+from django.test.utils import CaptureQueriesContext
+from django.utils.deprecation import RemovedInDjango60Warning
 from django_loci.tests.base.test_models import BaseTestModels
 from swapper import load_model
 
@@ -12,6 +17,7 @@ DeviceLocation = load_model("geo", "DeviceLocation")
 
 
 class TestModels(TestGeoMixin, BaseTestModels, TestCase):
+    databases = {"default", "secondary"}
     object_model = Device
     location_model = Location
     floorplan_model = FloorPlan
@@ -27,3 +33,207 @@ class TestModels(TestGeoMixin, BaseTestModels, TestCase):
             self.assertIn("location", e.message_dict)
         else:
             self.fail("ValidationError not raised")
+
+    def test_location_organization_updates_floorplans(self):
+        location = self._create_location(type="indoor")
+        floorplans = [
+            self._create_floorplan(location=location, floor=floor) for floor in (1, 2)
+        ]
+        unrelated = self._create_floorplan()
+        original_org = unrelated.organization_id
+        organization = self._create_organization(name="second")
+        location.organization = organization
+        location.full_clean()
+        with CaptureQueriesContext(connection) as queries:
+            location.save()
+        self.assertEqual(
+            sum(
+                query["sql"].startswith("UPDATE")
+                and FloorPlan._meta.db_table in query["sql"]
+                for query in queries
+            ),
+            1,
+        )
+        for floorplan in floorplans:
+            floorplan.refresh_from_db()
+            self.assertEqual(floorplan.organization_id, organization.pk)
+        unrelated.refresh_from_db()
+        self.assertEqual(unrelated.organization_id, original_org)
+
+    def test_location_stale_organization(self):
+        location = self._create_location(type="indoor")
+        floorplan = self._create_floorplan(location=location)
+        original_org = location.organization_id
+        first = Location.objects.get(pk=location.pk)
+        stale = Location.objects.get(pk=location.pk)
+        self.assertEqual(first.organization_id, original_org)
+        self.assertEqual(stale.organization_id, original_org)
+        organization = self._create_organization(name="second")
+        first.organization = organization
+        first.save()
+        location.refresh_from_db()
+        floorplan.refresh_from_db()
+        self.assertEqual(location.organization_id, organization.pk)
+        self.assertEqual(floorplan.organization_id, organization.pk)
+        for update_fields in (["name"], []):
+            stale.save(update_fields=update_fields)
+            location.refresh_from_db()
+            floorplan.refresh_from_db()
+            self.assertEqual(location.organization_id, organization.pk)
+            self.assertEqual(floorplan.organization_id, organization.pk)
+        stale.save()
+        location.refresh_from_db()
+        floorplan.refresh_from_db()
+        self.assertEqual(location.organization_id, original_org)
+        self.assertEqual(
+            floorplan.organization_id,
+            original_org,
+            "A stale location save must synchronize persisted floorplan ownership",
+        )
+
+    def test_location_organization_update_rollback(self):
+        location = self._create_location(type="indoor")
+        floorplan = self._create_floorplan(location=location)
+        original_org = location.organization_id
+        organization = self._create_organization(name="second")
+        location.organization = organization
+        with patch.object(
+            type(FloorPlan.objects.all()),
+            "update",
+            side_effect=RuntimeError("floorplan update failed"),
+        ):
+            with self.assertRaisesMessage(RuntimeError, "floorplan update failed"):
+                location.save(using=connection.alias)
+        self.assertEqual(
+            Location.objects.get(pk=location.pk).organization_id,
+            original_org,
+            "A failed floorplan update must roll back the location organization",
+        )
+        floorplan.refresh_from_db()
+        self.assertEqual(floorplan.organization_id, original_org)
+        with patch(
+            "django.db.router.db_for_write", return_value=connection.alias
+        ) as db:
+            location.save()
+        db.assert_called_once_with(Location, instance=location)
+        floorplan.refresh_from_db()
+        self.assertEqual(floorplan.organization_id, organization.pk)
+        self.assertEqual(
+            Location.objects.get(pk=location.pk).organization_id, organization.pk
+        )
+
+    def test_location_write_database(self):
+        """Route both writes to a second database while preserving the read database."""
+        location = self._create_location(type="indoor")
+        floorplan = self._create_floorplan(location=location)
+        original_org = location.organization_id
+        organization = self._create_organization(name="second")
+        organization_model = type(organization)
+        organization_model.objects.using("secondary").bulk_create(
+            [location.organization, organization]
+        )
+        Location.objects.using("secondary").bulk_create([location])
+        FloorPlan.objects.using("secondary").bulk_create([floorplan])
+        location = Location.objects.get(pk=location.pk)
+        location.organization_id = organization.pk
+        with patch("django.db.router.db_for_write", return_value="secondary") as db:
+            location.save()
+        db.assert_called_once_with(Location, instance=location)
+        for alias, expected in (
+            ("secondary", organization.pk),
+            ("default", original_org),
+        ):
+            with self.subTest(database=alias):
+                self.assertEqual(
+                    Location.objects.using(alias).get(pk=location.pk).organization_id,
+                    expected,
+                    "The location must be written only on the router-selected database",
+                )
+                self.assertEqual(
+                    FloorPlan.objects.using(alias).get(pk=floorplan.pk).organization_id,
+                    expected,
+                    "Floorplans must be written only on the router-selected database",
+                )
+
+    def test_location_organization_partial_save(self):
+        location = self._create_location(type="indoor")
+        floorplan = self._create_floorplan(location=location)
+        original_org = location.organization_id
+        organization = self._create_organization(name="second")
+        location.organization = organization
+        location.name = "renamed"
+        location.save(update_fields=["name"])
+        floorplan.refresh_from_db()
+        self.assertEqual(floorplan.organization_id, original_org)
+        self.assertEqual(
+            Location.objects.get(pk=location.pk).organization_id, original_org
+        )
+        location.save(update_fields=["organization"])
+        floorplan.refresh_from_db()
+        self.assertEqual(floorplan.organization_id, organization.pk)
+
+    def test_location_organization_deferred(self):
+        location = self._create_location(type="indoor")
+        floorplan = self._create_floorplan(location=location)
+        location = Location.objects.defer("organization").get(pk=location.pk)
+        organization = self._create_organization(name="second")
+        location.organization = organization
+        location.save(update_fields=["organization_id"])
+        floorplan.refresh_from_db()
+        self.assertEqual(floorplan.organization_id, organization.pk)
+
+    def test_location_unchanged_organization(self):
+        location = self._create_location(type="indoor")
+        floorplan = self._create_floorplan(location=location)
+        for update_fields in (None, [], ["name"]):
+            with self.subTest(update_fields=update_fields):
+                location.name = "renamed"
+                with CaptureQueriesContext(connection) as queries:
+                    location.save(update_fields=update_fields)
+                self.assertEqual(
+                    any(
+                        query["sql"].startswith("UPDATE")
+                        and FloorPlan._meta.db_table in query["sql"]
+                        for query in queries
+                    ),
+                    update_fields is None,
+                    "Only saves which persist organization may synchronize floorplans",
+                )
+                floorplan.refresh_from_db()
+                self.assertEqual(floorplan.organization_id, location.organization_id)
+
+    def test_location_organization_positional_save(self):
+        location = self._create_location(type="indoor")
+        floorplan = self._create_floorplan(location=location)
+        original_org = location.organization_id
+        organization = self._create_organization(name="second")
+        location.organization = organization
+        with self.assertWarns(RemovedInDjango60Warning):
+            location.save(False, False, None, ["name"])
+        floorplan.refresh_from_db()
+        self.assertEqual(floorplan.organization_id, original_org)
+        with self.assertWarns(RemovedInDjango60Warning):
+            location.save(False, False, connection.alias, ["organization"])
+        floorplan.refresh_from_db()
+        self.assertEqual(floorplan.organization_id, organization.pk)
+
+    def test_location_organization_positional_iterator(self):
+        location = self._create_location(type="indoor")
+        floorplan = self._create_floorplan(location=location)
+        original_org = location.organization_id
+        organization = self._create_organization(name="second")
+        location.organization = organization
+        location.name = "renamed"
+        with self.assertWarns(RemovedInDjango60Warning):
+            location.save(False, False, connection.alias, iter(["name"]))
+        stored = Location.objects.get(pk=location.pk)
+        self.assertEqual(stored.name, "renamed")
+        self.assertEqual(stored.organization_id, original_org)
+        floorplan.refresh_from_db()
+        self.assertEqual(floorplan.organization_id, original_org)
+        with self.assertWarns(RemovedInDjango60Warning):
+            location.save(False, False, connection.alias, iter(["organization"]))
+        stored.refresh_from_db()
+        floorplan.refresh_from_db()
+        self.assertEqual(stored.organization_id, organization.pk)
+        self.assertEqual(floorplan.organization_id, organization.pk)

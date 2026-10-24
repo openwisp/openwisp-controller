@@ -809,18 +809,46 @@ class TestGeoApi(
             "address": "Via del Corso, Roma, Italia",
             "geometry": coords,
         }
-        with self.assertNumQueries(5):
+        with self.assertNumQueries(8):
             response = self.client.put(path, data, content_type="application/json")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["organization"], org1.pk)
         self.assertEqual(response.data["name"], "change-test-location")
+
+    def test_patch_location_organization_updates_floorplans(self):
+        location = self._create_location(type="indoor")
+        original_org = location.organization
+        floorplans = [
+            self._create_floorplan(location=location, floor=floor) for floor in (1, 2)
+        ]
+        organization = self._create_org(name="second")
+        path = reverse("geo_api:detail_location", args=[location.pk])
+        with self.assertNumQueries(8):
+            response = self.client.patch(
+                path, {"organization": organization.pk}, content_type="application/json"
+            )
+        self.assertEqual(response.status_code, 200)
+        location.refresh_from_db()
+        self.assertEqual(location.organization_id, organization.pk)
+        for floorplan in floorplans:
+            floorplan.refresh_from_db()
+            self.assertEqual(floorplan.organization_id, organization.pk)
+        administrator = self._create_administrator(organizations=[original_org])
+        self.client.force_login(administrator)
+        response = self.client.patch(
+            path, {"organization": original_org.pk}, content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 404)
+        for floorplan in floorplans:
+            floorplan.refresh_from_db()
+            self.assertEqual(floorplan.organization_id, organization.pk)
 
     def test_patch_location_detail(self):
         l1 = self._create_location()
         self.assertEqual(l1.name, "test-location")
         path = reverse("geo_api:detail_location", args=[l1.pk])
         data = {"name": "change-test-location"}
-        with self.assertNumQueries(4):
+        with self.assertNumQueries(7):
             response = self.client.patch(path, data, content_type="application/json")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["name"], "change-test-location")
@@ -850,7 +878,7 @@ class TestGeoApi(
         fl = self._create_floorplan(location=l1)
         path = reverse("geo_api:detail_location", args=[l1.pk])
         data = {"floorplan": {"floor": 13}}
-        with self.assertNumQueries(12):
+        with self.assertNumQueries(15):
             response = self.client.patch(path, data, content_type="application/json")
         self.assertEqual(response.status_code, 200)
         fl.refresh_from_db()
@@ -861,7 +889,7 @@ class TestGeoApi(
         self._create_floorplan(location=l1)
         path = reverse("geo_api:detail_location", args=[l1.pk])
         data = {"type": "outdoor"}
-        with self.assertNumQueries(8):
+        with self.assertNumQueries(11):
             response = self.client.patch(path, data, content_type="application/json")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["floorplan"], [])
@@ -912,7 +940,7 @@ class TestGeoApi(
             "floorplan.floor": "23",
             "floorplan.image": fl_image,
         }
-        with self.assertNumQueries(15):
+        with self.assertNumQueries(21):
             response = self.client.put(
                 path, encode_multipart(BOUNDARY, data), content_type=MULTIPART_CONTENT
             )
@@ -1277,7 +1305,7 @@ class TestGeoApi(
         }
         self.assertEqual(device_location.location.type, "outdoor")
         self.assertEqual(device_location.floorplan, None)
-        with self.assertNumQueries(19):
+        with self.assertNumQueries(22):
             response = self.client.put(
                 path, encode_multipart(BOUNDARY, data), content_type=MULTIPART_CONTENT
             )
