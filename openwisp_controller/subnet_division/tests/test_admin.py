@@ -10,10 +10,12 @@ from openwisp_controller.config.tests.utils import (
     TestWireguardVpnMixin,
 )
 from openwisp_users.tests.utils import TestMultitenantAdminMixin
+from openwisp_utils.tests import AdminActionPermTestMixin
 
 from .helpers import SubnetDivisionAdminTestMixin, SubnetDivisionTestMixin
 
 Subnet = load_model("openwisp_ipam", "Subnet")
+SubnetDivisionRule = load_model("subnet_division", "SubnetDivisionRule")
 Device = load_model("config", "Device")
 Config = load_model("config", "Config")
 
@@ -401,3 +403,164 @@ class TestTransactionDeviceAdmin(
         self.assertEqual(config.vpnclient_set.first().vpn, vpn2)
         self.assertNotEqual(config.checksum, initial_checksum)
         self.assertEqual(config.checksum, config.checksum_db)
+
+
+class TestSubnetDivisionRuleAdmin(
+    AdminActionPermTestMixin,
+    SubnetDivisionAdminTestMixin,
+    TestWireguardVpnMixin,
+    TestMultitenantAdminMixin,
+    TestCase,
+):
+    config_label = "config"
+    ipam_label = "openwisp_ipam"
+
+    def _affected_devices_url(self):
+        return (
+            reverse(f"admin:{self.config_label}_device_changelist")
+            + f"?subnet_division_rule={self.rule.pk}"
+        )
+
+    def test_delete_in_use_rule_shows_error_with_link(self):
+        delete_url = reverse(
+            "admin:subnet_division_subnetdivisionrule_delete", args=[self.rule.pk]
+        )
+        # The confirmation page is rendered normally; the refusal is raised
+        # by the model guard when the deletion is actually attempted.
+        response = self.client.get(delete_url)
+        self.assertEqual(response.status_code, 200)
+        response = self.client.post(delete_url, {"post": "yes"}, follow=True)
+        self.assertContains(response, "used by device configurations")
+        self.assertContains(response, self._affected_devices_url())
+        self.assertTrue(SubnetDivisionRule.objects.filter(pk=self.rule.pk).exists())
+
+    def test_delete_selected_action_blocked_for_in_use_rules(self):
+        changelist_url = reverse("admin:subnet_division_subnetdivisionrule_changelist")
+        response = self.client.post(
+            changelist_url,
+            {
+                "action": "delete_selected",
+                "_selected_action": [str(self.rule.pk)],
+                "post": "yes",
+            },
+            follow=True,
+        )
+        self.assertContains(response, "cannot be deleted")
+        # the error links to the devices affected by the in-use rule
+        self.assertContains(response, self._affected_devices_url())
+        self.assertTrue(SubnetDivisionRule.objects.filter(pk=self.rule.pk).exists())
+
+    def test_delete_selected_action_deletes_unused_rule(self):
+        rule2 = self._get_vpn_subdivision_rule(
+            number_of_ips=1,
+            number_of_subnets=1,
+            label="VPN2",
+        )
+        changelist_url = reverse("admin:subnet_division_subnetdivisionrule_changelist")
+        response = self.client.post(
+            changelist_url,
+            {
+                "action": "delete_selected",
+                "_selected_action": [str(rule2.pk)],
+                "post": "yes",
+            },
+            follow=True,
+        )
+        self.assertRedirects(response, changelist_url)
+        self.assertFalse(SubnetDivisionRule.objects.filter(pk=rule2.pk).exists())
+
+    def test_delete_selected_action_mixed_selection_is_blocked(self):
+        rule2 = self._get_vpn_subdivision_rule(
+            number_of_ips=1,
+            number_of_subnets=1,
+            label="VPN2",
+        )
+        changelist_url = reverse("admin:subnet_division_subnetdivisionrule_changelist")
+        response = self.client.post(
+            changelist_url,
+            {
+                "action": "delete_selected",
+                "_selected_action": [str(self.rule.pk), str(rule2.pk)],
+                "post": "yes",
+            },
+            follow=True,
+        )
+        self.assertContains(response, "cannot be deleted")
+        # only the in-use rule is linked, the unused one is not listed
+        self.assertContains(response, self._affected_devices_url())
+        self.assertNotContains(
+            response,
+            reverse(f"admin:{self.config_label}_device_changelist")
+            + f"?subnet_division_rule={rule2.pk}",
+        )
+        self.assertTrue(SubnetDivisionRule.objects.filter(pk=self.rule.pk).exists())
+        self.assertTrue(SubnetDivisionRule.objects.filter(pk=rule2.pk).exists())
+
+    def test_delete_selected_action_denied_without_delete_permission(self):
+        rule2 = self._get_vpn_subdivision_rule(
+            number_of_ips=1,
+            number_of_subnets=1,
+            label="VPN2",
+        )
+        org_admin = self._create_operator(
+            username="rule-org-admin", email="rule-org-admin@example.com"
+        )
+        self._create_org_user(
+            user=org_admin, organization=rule2.organization, is_admin=True
+        )
+        self._test_action_permission(
+            path=reverse("admin:subnet_division_subnetdivisionrule_changelist"),
+            action="delete_selected",
+            user=org_admin,
+            obj=rule2,
+            required_perms=["delete"],
+            message="Successfully deleted 1 subnet division rule.",
+        )
+        self.assertFalse(SubnetDivisionRule.objects.filter(pk=rule2.pk).exists())
+
+    def test_delete_unused_rule_succeeds(self):
+        rule2 = self._get_vpn_subdivision_rule(
+            number_of_ips=1,
+            number_of_subnets=1,
+            label="VPN2",
+        )
+        delete_url = reverse(
+            "admin:subnet_division_subnetdivisionrule_delete", args=[rule2.pk]
+        )
+        response = self.client.post(delete_url, {"post": "yes"})
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(SubnetDivisionRule.objects.filter(pk=rule2.pk).exists())
+
+
+class TestDeviceSubnetDivisionRuleFilter(
+    SubnetDivisionAdminTestMixin,
+    TestWireguardVpnMixin,
+    TestMultitenantAdminMixin,
+    TestCase,
+):
+    config_label = "config"
+    ipam_label = "openwisp_ipam"
+
+    def test_filter_by_subnet_division_rule(self):
+        device_changelist = reverse(f"admin:{self.config_label}_device_changelist")
+        config2 = self._create_config(
+            device=self._create_device(name="device-2", mac_address="00:11:22:33:44:56")
+        )
+        rule2 = self._get_vpn_subdivision_rule(
+            number_of_ips=1,
+            number_of_subnets=1,
+            label="VPN2",
+        )
+        self._mock_subnet_division_rule(config2, self.master_subnet, rule2)
+        url = f"{device_changelist}?subnet_division_rule={self.rule.id}"
+        response = self.client.get(url)
+        self.assertContains(response, self.config.device.name)
+        self.assertNotContains(response, config2.device.name)
+
+    def test_filter_invalid_uuid_shows_error(self):
+        device_changelist = reverse(f"admin:{self.config_label}_device_changelist")
+        response = self.client.get(
+            f"{device_changelist}?subnet_division_rule=not-a-uuid"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Invalid subnet division rule ID")

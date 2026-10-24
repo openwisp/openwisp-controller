@@ -1,6 +1,10 @@
-from django.contrib import admin
+from django.contrib import admin, messages
+from django.contrib.admin.actions import delete_selected as django_delete_selected
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.db import transaction
+from django.http import HttpResponseRedirect
 from django.urls import reverse
-from django.utils.html import format_html
+from django.utils.html import format_html, format_html_join
 from django.utils.translation import gettext_lazy as _
 from openwisp_ipam.admin import IpAddressAdmin as BaseIpAddressAdmin
 from openwisp_ipam.admin import SubnetAdmin as BaseSubnetAdmin
@@ -11,7 +15,13 @@ from openwisp_users.multitenancy import MultitenantAdminMixin
 from openwisp_utils.admin import HelpTextStackedInline, TimeReadonlyAdminMixin
 
 from . import settings as app_settings
-from .filters import DeviceFilter, SubnetDivisionRuleFilter, SubnetFilter, VpnFilter
+from .filters import (
+    DeviceFilter,
+    DeviceSubnetDivisionRuleFilter,
+    SubnetDivisionRuleFilter,
+    SubnetFilter,
+    VpnFilter,
+)
 
 SubnetDivisionRule = load_model("subnet_division", "SubnetDivisionRule")
 SubnetDivisionIndex = load_model("subnet_division", "SubnetDivisionIndex")
@@ -41,8 +51,104 @@ class SubnetDivisionRuleInlineAdmin(
         js = ["admin/js/jquery.init.js", "subnet-division/js/subnet-division.js"]
 
 
+@admin.register(SubnetDivisionRule)
+class SubnetDivisionRuleAdmin(
+    MultitenantAdminMixin, TimeReadonlyAdminMixin, admin.ModelAdmin
+):
+    list_display = ["label", "organization", "type", "master_subnet"]
+    list_filter = ["type"]
+    search_fields = ["label"]
+    actions = ["delete_selected"]
+    # caps how many affected-device links are listed in the bulk error message
+    in_use_links_limit = 10
+
+    def _affected_devices_url(self, obj):
+        return reverse("admin:config_device_changelist") + (
+            f"?subnet_division_rule={obj.pk}"
+        )
+
+    def _in_use_error(self, request, obj):
+        messages.error(
+            request,
+            format_html(
+                _(
+                    "This subnet division rule is used by device "
+                    "configurations and cannot be deleted. "
+                    '<a href="{}">View affected devices</a>'
+                ),
+                self._affected_devices_url(obj),
+            ),
+        )
+
+    def _bulk_in_use_error(self, request, queryset):
+        """Reports in-use rules with a link to their affected devices.
+
+        The list of rules is bounded by the user's selection and further
+        capped, so the message never embeds an unbounded device list.
+        """
+        rules = list(
+            queryset.filter(subnetdivisionindex__config_id__isnull=False)
+            .distinct()
+            .order_by("label")[: self.in_use_links_limit + 1]
+        )
+        truncated = len(rules) > self.in_use_links_limit
+        rules = rules[: self.in_use_links_limit]
+        links = format_html_join(
+            ", ",
+            '<a href="{}">{}</a>',
+            ((self._affected_devices_url(rule), rule.label) for rule in rules),
+        )
+        message = format_html(
+            _(
+                "The following subnet division rules are used by device "
+                "configurations and cannot be deleted: {}"
+            ),
+            links,
+        )
+        if truncated:
+            message = format_html(
+                "{} {}",
+                message,
+                _("Only the first %(limit)s rules are listed.")
+                % {"limit": self.in_use_links_limit},
+            )
+        messages.error(request, message)
+
+    def delete_view(self, request, object_id, extra_context=None):
+        try:
+            # The deletion and its log entry are wrapped in a transaction so
+            # that a refusal rolls back both before the error is reported.
+            with transaction.atomic():
+                return super().delete_view(
+                    request, object_id, extra_context=extra_context
+                )
+        except ValidationError as e:
+            if getattr(e, "code", None) != "subnet_division_rule_in_use":
+                raise
+            obj = self.get_object(request, object_id)
+            self._in_use_error(request, obj)
+            return HttpResponseRedirect(
+                reverse("admin:subnet_division_subnetdivisionrule_changelist")
+            )
+
+    @admin.action(
+        description=django_delete_selected.short_description, permissions=["delete"]
+    )
+    def delete_selected(self, request, queryset):
+        if not self.has_delete_permission(request):
+            raise PermissionDenied
+        try:
+            with transaction.atomic():
+                return django_delete_selected(self, request, queryset)
+        except ValidationError as e:
+            if getattr(e, "code", None) != "subnet_division_rule_in_use":
+                raise
+            self._bulk_in_use_error(request, queryset)
+
+
 # Monkey patching DeviceAdmin to allow filtering using subnet
 DeviceAdmin.list_filter.append(SubnetFilter)
+DeviceAdmin.list_filter.append(DeviceSubnetDivisionRuleFilter)
 
 # NOTE: Monkey patching SubnetAdmin didn't work for adding readonly_field
 # to change_view because of TimeReadonlyAdminMixin.
