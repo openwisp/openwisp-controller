@@ -194,7 +194,7 @@ class Ssh(object):
         # re-raise socket.timeout to avoid being caught
         # by the subsequent `except Exception as e` block
         except socket.timeout:
-            raise socket.timeout()
+            raise
         # any other exception will abort the operation
         except Exception as e:
             logger.exception(e)
@@ -207,6 +207,8 @@ class Ssh(object):
         ):
             log_message = f"Command timed out after {timeout} seconds."
             logger.info(log_message)
+            # release the server-side session of the timed-out command
+            stdout.channel.close()
             raise CommandTimeoutException(log_message)
         exit_status = stdout.channel.exit_status
         # log standard output
