@@ -13,6 +13,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import (
     FieldDoesNotExist,
     ObjectDoesNotExist,
+    PermissionDenied,
     ValidationError,
 )
 from django.db import models
@@ -318,7 +319,7 @@ class BaseConfigAdmin(BaseAdmin):
         )
 
     def download_view(self, request, pk):
-        instance = get_object_or_404(self.model, pk=pk)
+        instance = self._get_instance(request, pk)
         return self.get_download_response(instance)
 
     def get_download_response(self, instance):
@@ -336,9 +337,15 @@ class BaseConfigAdmin(BaseAdmin):
         )
 
     def context_view(self, request, pk):
-        instance = get_object_or_404(self.model, pk=pk)
+        instance = self._get_instance(request, pk)
         context = json.dumps(instance.get_context())
         return HttpResponse(context, content_type="application/json")
+
+    def _get_instance(self, request, pk):
+        instance = get_object_or_404(self.get_queryset(request), pk=pk)
+        if not self.has_view_permission(request, instance):
+            raise PermissionDenied
+        return instance
 
 
 class BaseForm(forms.ModelForm):

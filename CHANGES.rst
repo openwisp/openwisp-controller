@@ -6,6 +6,53 @@ Version 1.4.0 [unreleased]
 
 Work in progress.
 
+Version 1.3.2 [2026-10-23]
+--------------------------
+
+Bugfixes
+~~~~~~~~
+
+- Prevented cross-organization configuration access in admin
+
+  Updated admin configuration download and context views to resolve
+  devices, VPNs, and templates through organization-scoped querysets and
+  object permissions.
+
+  This ensures users cannot access configuration data for resources
+  belonging to unauthorized organizations.
+
+  Advisory: **GHSA-2x7f-qxwh-m483**.
+
+- Prevented cross-organization access to configuration downloads
+
+  Updated API configuration download views to resolve devices, VPNs, and
+  templates through organization-scoped querysets and object permissions.
+
+  This ensures users cannot access configuration downloads for resources
+  belonging to unauthorized organizations.
+
+  Advisory: **GHSA-5c5w-h9xc-3mq5**.
+
+- Escaped OpenWrt change_password SSH command
+
+  The password and confirm_password values were interpolated into the
+  remote shell command without escaping, allowing shell command injection
+  on the device. They are now quoted with shlex.quote() and passed to
+  printf instead of echo -e, so backslashes are no longer interpreted.
+
+  Advisory: **GHSA-rcf7-q946-fvpg**.
+
+- Prevented cross-organization access to CA CRLs
+
+  Organization managers with permission to view CAs could guess CA IDs and
+  download certificate revocation lists belonging to other organizations.
+
+  The issue did not expose CA private keys or allow changes. It primarily
+  affected deployments configured to protect CRLs, because CRLs are
+  publicly accessible by default.
+
+  Advisory: **GHSA-9gh4-xw24-9xh5**.
+
 Version 1.3.1 [2026-10-15]
 --------------------------
 
