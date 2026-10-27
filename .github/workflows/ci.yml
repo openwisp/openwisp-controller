@@ -12,6 +12,13 @@ on:
       - "gsoc26-x509-certificate-generator-templates"
       - "gsoc26-mass-commands"
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.repository }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     name: Python==${{ matrix.python-version }} | ${{ matrix.django-version }}
@@ -30,12 +37,13 @@ jobs:
           - django~=5.2.0
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
 
       - name: Cache APT packages
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: /var/cache/apt/archives
           key: apt-${{ runner.os }}-${{ hashFiles('.github/workflows/ci.yml') }}
@@ -48,7 +56,7 @@ jobs:
           sudo dpkg-reconfigure man-db
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
           python-version: ${{ matrix.python-version }}
           cache: "pip"
@@ -57,6 +65,8 @@ jobs:
 
       - name: Install Dependencies
         id: deps
+        env:
+          DJANGO_VERSION: ${{ matrix.django-version }}
         run: |
           sudo apt update
           sudo apt -qq -y install sqlite3 gdal-bin libproj-dev \
@@ -66,7 +76,7 @@ jobs:
           pip install -U pip wheel setuptools
           pip install -U -r requirements-test.txt
           pip install -U -e .
-          pip install ${{ matrix.django-version }}
+          pip install "$DJANGO_VERSION"
 
       - name: Start redis
         if: ${{ !cancelled() && steps.deps.conclusion == 'success' }}
@@ -90,20 +100,21 @@ jobs:
 
       - name: Upload Coverage
         if: ${{ success() }}
-        uses: coverallsapp/github-action@v2
+        uses: coverallsapp/github-action@8d6379e14d29928660c4ba802d8e85393440b329 # v2
         with:
           parallel: true
           format: cobertura
-          flag-name: python-${{ matrix.env.env }}
+          flag-name: python-${{ matrix.python-version }}-${{ matrix.django-version }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           fail-on-error: false
 
   coveralls:
+    name: Finalize Coveralls report
     needs: build
     runs-on: ubuntu-latest
     steps:
       - name: Coveralls Finished
-        uses: coverallsapp/github-action@v2
+        uses: coverallsapp/github-action@8d6379e14d29928660c4ba802d8e85393440b329 # v2
         with:
           parallel-finished: true
           fail-on-error: false
