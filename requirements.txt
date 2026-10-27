@@ -10,7 +10,7 @@ openwisp-utils[celery,channels] @ https://github.com/openwisp/openwisp-utils/arc
 openwisp-notifications @ https://github.com/openwisp/openwisp-notifications/archive/refs/heads/1.4.tar.gz
 openwisp-ipam @ https://github.com/openwisp/openwisp-ipam/archive/refs/heads/1.4.tar.gz
 djangorestframework-gis @ https://github.com/openwisp/django-rest-framework-gis/archive/refs/heads/1.4.tar.gz
-paramiko~=5.0.0
+paramiko~=5.1.0
 scp~=0.16.1
 django-cache-memoize~=0.2.1
 shortuuid~=1.0.13
