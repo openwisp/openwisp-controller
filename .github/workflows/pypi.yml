@@ -2,10 +2,14 @@ name: Publish Python Package to Pypi.org
 
 on:
   release:
-    types: [published, edited]
+    types: [published]
 
-permissions:
-  id-token: write
+permissions: {}
+
+concurrency:
+  group: pypi-publish-${{ github.repository }}
+  queue: max
+  cancel-in-progress: false
 
 jobs:
   pypi-publish:
@@ -16,13 +20,16 @@ jobs:
       name: pypi
       url: https://pypi.org/p/openwisp-controller
     permissions:
-      id-token: write
+      contents: read
+      id-token: write # Required for trusted publishing to PyPI.
     steps:
-      - uses: actions/checkout@v7
-      - name: Set up Python
-        uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          python-version: "3.10"
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
       - name: Install dependencies
         run: |
           pip install -U pip
@@ -30,4 +37,4 @@ jobs:
       - name: Build package
         run: python -m build
       - name: Publish package distributions to PyPI
-        uses: pypa/gh-action-pypi-publish@v1.14.2
+        uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
