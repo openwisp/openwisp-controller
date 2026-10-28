@@ -1366,7 +1366,7 @@ class TestConfigApi(
             self.client.force_login(operator)
             path4 = reverse("config_api:organization_config_settings", args=[org4.pk])
             response = self.client.get(path4)
-            self.assertEqual(response.status_code, 404)
+            self.assertEqual(response.status_code, 403)
 
     def test_organization_config_settings_manager_access(self):
         org = self._get_org()

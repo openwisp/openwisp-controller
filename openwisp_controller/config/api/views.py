@@ -11,7 +11,6 @@ from rest_framework.generics import (
     RetrieveAPIView,
     RetrieveUpdateAPIView,
     RetrieveUpdateDestroyAPIView,
-    get_object_or_404,
 )
 from rest_framework.response import Response
 from swapper import load_model
@@ -173,6 +172,7 @@ class DeviceGroupDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
 class OrganizationConfigSettingsView(
     FilterByParentManaged, BaseProtectedAPIMixin, RetrieveUpdateAPIView
 ):
+    permission_classes = BaseProtectedAPIMixin.permission_classes
     serializer_class = OrganizationConfigSettingsSerializer
     queryset = OrganizationConfigSettings.objects.select_related("organization")
 
