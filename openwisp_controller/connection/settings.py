@@ -35,6 +35,11 @@ CONFIG_UPDATE_MAPPING = getattr(
     },
 )
 
+SSH_MISSING_HOST_KEY_POLICY = getattr(
+    settings,
+    "OPENWISP_SSH_MISSING_HOST_KEY_POLICY",
+    "paramiko.AutoAddPolicy",
+)
 SSH_AUTH_TIMEOUT = getattr(settings, "OPENWISP_SSH_AUTH_TIMEOUT", 2)
 SSH_BANNER_TIMEOUT = getattr(settings, "OPENWISP_SSH_BANNER_TIMEOUT", 60)
 SSH_COMMAND_TIMEOUT = getattr(settings, "OPENWISP_SSH_COMMAND_TIMEOUT", 30)

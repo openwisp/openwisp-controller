@@ -1,11 +1,14 @@
 import os
 from unittest import mock
 
+import paramiko
 from django.conf import settings
 from django.test import TestCase
 from paramiko.ssh_exception import AuthenticationException
 from swapper import load_model
 
+from .. import settings as app_settings
+from ..connectors.ssh import Ssh
 from ..connectors.ssh import logger as ssh_logger
 from .utils import CreateConnectionsMixin, SshServer
 
@@ -28,6 +31,25 @@ class TestSsh(CreateConnectionsMixin, TestCase):
     def tearDownClass(cls):
         super().tearDownClass()
         cls.mock_ssh_server.__exit__()
+
+    def test_default_missing_host_key_policy(self):
+        connector = Ssh(
+            params={"username": "root", "password": "password"},
+            addresses=["127.0.0.1"],
+        )
+        self.assertIsInstance(connector.shell._policy, paramiko.AutoAddPolicy)
+
+    @mock.patch.object(
+        app_settings, "SSH_MISSING_HOST_KEY_POLICY", "paramiko.RejectPolicy"
+    )
+    @mock.patch("paramiko.SSHClient.load_system_host_keys")
+    def test_configurable_missing_host_key_policy(self, load_system_host_keys):
+        connector = Ssh(
+            params={"username": "root", "password": "password"},
+            addresses=["127.0.0.1"],
+        )
+        self.assertIsInstance(connector.shell._policy, paramiko.RejectPolicy)
+        load_system_host_keys.assert_called_once()
 
     @mock.patch.object(ssh_logger, "debug")
     def test_connection_connect(self, mocked_debug):
