@@ -1356,6 +1356,18 @@ class TestConfigApi(
                 OrganizationConfigSettings.objects.filter(organization=org3).exists()
             )
 
+        with self.subTest("Test GET as non-manager in same org"):
+            org4 = self._create_org(name="org4", slug="org4")
+            OrganizationConfigSettings.objects.create(organization=org4)
+            operator = self._create_operator(
+                username="operator2", email="operator2@test.com"
+            )
+            self._create_org_user(user=operator, organization=org4, is_admin=False)
+            self.client.force_login(operator)
+            path4 = reverse("config_api:organization_config_settings", args=[org4.pk])
+            response = self.client.get(path4)
+            self.assertEqual(response.status_code, 403)
+
     def test_organization_config_settings_manager_access(self):
         org = self._get_org()
         config_settings = OrganizationConfigSettings.objects.create(organization=org)
