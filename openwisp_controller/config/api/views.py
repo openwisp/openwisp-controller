@@ -16,6 +16,8 @@ from rest_framework.generics import (
 from rest_framework.response import Response
 from swapper import load_model
 
+from openwisp_users.api.mixins import FilterByParentManaged
+from openwisp_users.api.mixins import ProtectedAPIMixin as BaseProtectedAPIMixin
 from openwisp_users.api.permissions import DjangoModelPermissions
 from openwisp_utils.api.pagination import OpenWispPagination
 
@@ -168,9 +170,17 @@ class DeviceGroupDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
     queryset = DeviceGroup.objects.select_related("organization").order_by("-created")
 
 
-class OrganizationConfigSettingsView(ProtectedAPIMixin, RetrieveUpdateAPIView):
+class OrganizationConfigSettingsView(
+    FilterByParentManaged, BaseProtectedAPIMixin, RetrieveUpdateAPIView
+):
     serializer_class = OrganizationConfigSettingsSerializer
     queryset = OrganizationConfigSettings.objects.select_related("organization")
+
+    def get_parent_queryset(self):
+        return Organization.objects.filter(pk=self.kwargs["pk"])
+
+    def get_organization_queryset(self, qs):
+        return qs.filter(pk__in=self.request.user.organizations_managed)
 
     def get_object(self):
         queryset = self.filter_queryset(self.get_queryset())
@@ -179,12 +189,7 @@ class OrganizationConfigSettingsView(ProtectedAPIMixin, RetrieveUpdateAPIView):
         except OrganizationConfigSettings.DoesNotExist:
             if self.request.method in ("GET", "HEAD"):
                 raise Http404
-            org_queryset = Organization.objects.all()
-            if not self.request.user.is_superuser:
-                org_queryset = org_queryset.filter(
-                    pk__in=self.request.user.organizations_managed
-                )
-            organization = get_object_or_404(org_queryset, pk=self.kwargs["pk"])
+            organization = self.get_parent_queryset().get()
             add_permission = (
                 f"{OrganizationConfigSettings._meta.app_label}."
                 f"add_{OrganizationConfigSettings._meta.model_name}"
