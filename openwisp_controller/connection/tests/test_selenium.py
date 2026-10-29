@@ -1,3 +1,4 @@
+import time
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -17,10 +18,22 @@ from .utils import CreateCommandMixin
 Command = load_model("connection", "Command")
 
 
+class CommandSeleniumMixin(SeleniumTestMixin):
+    def wait_for_command_socket(self):
+        try:
+            self.wait_for_script(
+                "const socket = django.jQuery('#device_form').data('commandWebSocket');"
+                "return socket && socket.readyState === WebSocket.OPEN;",
+                timeout=10,
+            )
+        except TimeoutException:
+            self.fail("The page's command WebSocket did not become ready")
+
+
 @tag("selenium_tests")
 class TestDeviceAdmin(
     CreateCommandMixin,
-    SeleniumTestMixin,
+    CommandSeleniumMixin,
     ControllerLiveServerTestCase,
 ):
     config_app_label = "config"
@@ -51,6 +64,7 @@ class TestDeviceAdmin(
         self.assertEqual(device.deviceconnection_set.count(), 1)
         self.open(path)
         self.hide_loading_overlay()
+        self.wait_for_command_socket()
         # Send reboot command to the device
         self.find_element(
             by=By.CSS_SELECTOR, value="ul.object-tools a#send-command"
@@ -60,10 +74,12 @@ class TestDeviceAdmin(
         ).click()
         self.find_element(by=By.CSS_SELECTOR, value="#ow-command-confirm-yes").click()
 
-        self.assertEqual(Command.objects.count(), 1)
+        self.wait_until(lambda _: Command.objects.count() == 1, timeout=5)
         self.wait_for_visibility(
             By.CSS_SELECTOR,
             "#tabs-container li.recent.commands",
+            # The first command may use the application's four-second reload fallback.
+            timeout=10,
         )
 
     def test_device_form_shows_command_input_as_text(self):
@@ -127,8 +143,24 @@ class TestDeviceAdmin(
         )
 
 
+class CommandSchemaDelayMiddleware:
+    """Exercise socket startup after a delayed, asynchronous schema response."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if request.path == reverse("admin:connection_command_schema"):
+            time.sleep(3)
+        return self.get_response(request)
+
+
 @tag("selenium_tests")
 @override_settings(
+    MIDDLEWARE=[
+        *settings.MIDDLEWARE,
+        f"{__name__}.CommandSchemaDelayMiddleware",
+    ],
     # Daphne runs in another process, so parent-process updates need Redis.
     CHANNEL_LAYERS={
         "default": {
@@ -138,10 +170,10 @@ class TestDeviceAdmin(
                 "prefix": f"controller-selenium-{uuid4().hex}",
             },
         }
-    }
+    },
 )
 class TestCommandUpdates(
-    CreateCommandMixin, SeleniumTestMixin, ControllerLiveServerTestCase
+    CreateCommandMixin, CommandSeleniumMixin, ControllerLiveServerTestCase
 ):
     @patch("openwisp_controller.connection.base.models.launch_command.delay")
     def test_command_update(self, launch_command):
@@ -158,23 +190,10 @@ class TestCommandUpdates(
         )
         output = row.find_element(By.CSS_SELECTOR, ".field-output_data .readonly")
         self.assertEqual(output.text, "")
-        self.addCleanup(
-            self.web_driver.execute_script,
-            "if (window.testCommandSocket) window.testCommandSocket.close();",
+        self.wait_for_command_socket()
+        self.web_driver.execute_script(
+            "window.commandUpdateMarker = arguments[0];", str(command.pk)
         )
-        connected = self.web_driver.execute_async_script(
-            """
-            const done = arguments[arguments.length - 1];
-            window.commandUpdateMarker = arguments[1];
-            window.testCommandSocket = new WebSocket(arguments[0]);
-            testCommandSocket.onopen = () => done(true);
-            testCommandSocket.onerror = () => done(false);
-            """,
-            self.live_server_url.replace("http", "ws", 1)
-            + f"/ws/controller/device/{command.device_id}/command",
-            str(command.pk),
-        )
-        self.assertTrue(connected, "Authenticated command WebSocket failed to open")
         command.status = "success"
         command.output = "Live command output"
         command.save()
