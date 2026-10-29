@@ -1,3 +1,4 @@
+import django
 from channels.testing import ChannelsLiveServerTestCase
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -36,11 +37,13 @@ class ControllerLiveServerTestCase(ChannelsLiveServerTestCase):
         cls.addClassCleanup(cls._restore_database)
         # Ordinary transaction tests may have recreated content types with new IDs.
         cls._flush_databases(inhibit_post_migrate=True)
-        for alias in cls._serialized_databases:
-            connection = connections[alias]
-            connection.creation.deserialize_db_from_string(
-                connection._test_serialized_contents
-            )
+        # Django 5.2+ restores the snapshot in the parent's class setup.
+        if django.VERSION < (5, 2):
+            for alias in cls._serialized_databases:
+                connection = connections[alias]
+                connection.creation.deserialize_db_from_string(
+                    connection._test_serialized_contents
+                )
         cls._clear_model_caches()
         try:
             super().setUpClass()

@@ -68,6 +68,16 @@ class TestLiveServerLifecycle(TransactionTestCase):
         class BrowserTest(ControllerLiveServerTestCase):
             ProtocolServerProcess = FakeDaphneProcess
 
+            @classmethod
+            def setUpClass(cls):
+                with patch.object(
+                    connection.creation,
+                    "deserialize_db_from_string",
+                    wraps=connection.creation.deserialize_db_from_string,
+                ) as restore:
+                    super().setUpClass()
+                cls.restorations = restore.call_count
+
             @staticmethod
             def _is_in_memory_db(connection):
                 # The fixture test uses a fake process, not a live server.
@@ -114,6 +124,11 @@ class TestLiveServerLifecycle(TransactionTestCase):
         self.assertTrue(result.wasSuccessful(), result.errors + result.failures)
         self.assertEqual(result.testsRun, 7)
         for cls in (BrowserTest, SecondBrowserTest):
+            self.assertEqual(
+                cls.restorations,
+                1,
+                "Browser class setup must restore the migration snapshot exactly once",
+            )
             self.assertFalse(cls._server_process.is_alive())
             self.assertTrue(cls._server_process.joined)
 
