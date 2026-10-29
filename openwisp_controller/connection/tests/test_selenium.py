@@ -1,12 +1,17 @@
-from django.contrib.staticfiles.testing import StaticLiveServerTestCase
-from django.test import tag
+from unittest.mock import patch
+from uuid import uuid4
+
+from django.conf import settings
+from django.test import override_settings, tag
 from django.urls import reverse
+from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from swapper import load_model
 
 from openwisp_utils.tests import SeleniumTestMixin
 
+from ...tests.utils import ControllerLiveServerTestCase
 from .utils import CreateCommandMixin
 
 Command = load_model("connection", "Command")
@@ -16,7 +21,7 @@ Command = load_model("connection", "Command")
 class TestDeviceAdmin(
     CreateCommandMixin,
     SeleniumTestMixin,
-    StaticLiveServerTestCase,
+    ControllerLiveServerTestCase,
 ):
     config_app_label = "config"
 
@@ -56,10 +61,6 @@ class TestDeviceAdmin(
         self.find_element(by=By.CSS_SELECTOR, value="#ow-command-confirm-yes").click()
 
         self.assertEqual(Command.objects.count(), 1)
-        # TODO: Selenium tests do not support websocket connections.
-        # Thus, we need to refresh the page. Remove this when support for
-        # websockets is added.
-        self.open(path)
         self.wait_for_visibility(
             By.CSS_SELECTOR,
             "#tabs-container li.recent.commands",
@@ -124,3 +125,66 @@ class TestDeviceAdmin(
             ),
             "the command input was rendered as HTML",
         )
+
+
+@tag("selenium_tests")
+@override_settings(
+    # Daphne runs in another process, so parent-process updates need Redis.
+    CHANNEL_LAYERS={
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {
+                "hosts": [settings.REDIS_URL],
+                "prefix": f"controller-selenium-{uuid4().hex}",
+            },
+        }
+    }
+)
+class TestCommandUpdates(
+    CreateCommandMixin, SeleniumTestMixin, ControllerLiveServerTestCase
+):
+    @patch("openwisp_controller.connection.base.models.launch_command.delay")
+    def test_command_update(self, launch_command):
+        """Deliver a worker-side update to an existing row without a page reload."""
+        command = self._create_command()
+        launch_command.assert_called_once_with(command.pk)
+        self.login()
+        self.open(reverse("admin:config_device_change", args=[command.device_id]))
+        self.hide_loading_overlay()
+        self.find_element(By.CSS_SELECTOR, 'a[href="#command_set-2-group"]').click()
+        row = self.find_element(
+            By.XPATH,
+            f'//input[@value="{command.pk}"]/parent::div/fieldset',
+        )
+        output = row.find_element(By.CSS_SELECTOR, ".field-output_data .readonly")
+        self.assertEqual(output.text, "")
+        self.addCleanup(
+            self.web_driver.execute_script,
+            "if (window.testCommandSocket) window.testCommandSocket.close();",
+        )
+        connected = self.web_driver.execute_async_script(
+            """
+            const done = arguments[arguments.length - 1];
+            window.commandUpdateMarker = arguments[1];
+            window.testCommandSocket = new WebSocket(arguments[0]);
+            testCommandSocket.onopen = () => done(true);
+            testCommandSocket.onerror = () => done(false);
+            """,
+            self.live_server_url.replace("http", "ws", 1)
+            + f"/ws/controller/device/{command.device_id}/command",
+            str(command.pk),
+        )
+        self.assertTrue(connected, "Authenticated command WebSocket failed to open")
+        command.status = "success"
+        command.output = "Live command output"
+        command.save()
+        try:
+            self.wait_until(lambda _: output.text == command.output, timeout=5)
+        except TimeoutException:
+            self.fail("The command output was not updated through the WebSocket")
+        self.assertEqual(
+            self.web_driver.execute_script("return window.commandUpdateMarker;"),
+            str(command.pk),
+            "The command update reloaded the page instead of updating its row",
+        )
+        self.assert_no_browser_errors()

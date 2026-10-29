@@ -1,3 +1,4 @@
+from channels.testing import ChannelsLiveServerTestCase
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.urls import reverse
@@ -14,6 +15,11 @@ LOCAL_MEMORY_CACHE = {
         "LOCATION": "controller-isolated-tests",
     },
 }
+
+
+class ControllerLiveServerTestCase(ChannelsLiveServerTestCase):
+    # Preserve migration-created rows and IDs across the Daphne process lifetime.
+    serialized_rollback = True
 
 
 class TestAdminMixin(TestMultitenantAdminMixin):

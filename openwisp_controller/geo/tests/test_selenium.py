@@ -1,6 +1,5 @@
 from unittest import mock
 
-from channels.testing import ChannelsLiveServerTestCase
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
 from django.test import tag
@@ -14,6 +13,7 @@ from openwisp_users.tests.utils import TestOrganizationMixin
 from openwisp_utils.tests import SeleniumTestMixin
 
 from ...config import settings as config_app_settings
+from ...tests.utils import ControllerLiveServerTestCase
 from .utils import TestGeoMixin
 
 Device = load_model("config", "Device")
@@ -28,7 +28,7 @@ class TestDeviceAdminGeoSelenium(
     TestGeoMixin,
     BaseTestDeviceAdminSelenium,
     TestOrganizationMixin,
-    ChannelsLiveServerTestCase,
+    ControllerLiveServerTestCase,
 ):
     app_label = "geo"
     object_model = Device
@@ -108,7 +108,7 @@ class TestDeviceAdminReadonly(
     TestGeoMixin,
     TestAdminMixin,
     SeleniumTestMixin,
-    ChannelsLiveServerTestCase,
+    ControllerLiveServerTestCase,
 ):
     browser = "chrome"
     app_label = "geo"
