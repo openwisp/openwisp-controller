@@ -5,7 +5,6 @@ from unittest import mock
 from uuid import uuid4
 
 from django.contrib.gis.geos import Point
-from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.core.cache import cache
 from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.core.management import CommandError, call_command
@@ -22,7 +21,11 @@ from swapper import load_model
 from openwisp_controller.config.signals import whois_fetched, whois_lookup_skipped
 from openwisp_utils.tests import SeleniumTestMixin, catch_signal
 
-from ....tests.utils import LOCAL_MEMORY_CACHE, TestAdminMixin
+from ....tests.utils import (
+    LOCAL_MEMORY_CACHE,
+    ControllerLiveServerTestCase,
+    TestAdminMixin,
+)
 from ... import settings as app_settings
 from ..handlers import connect_whois_handlers
 from ..service import WHOISService
@@ -1246,9 +1249,22 @@ class TestWHOISTransaction(
         mock_task.assert_not_called()
 
 
+class WHOISSeleniumMixin(CreateWHOISMixin, SeleniumTestMixin):
+    whois_configured = True
+
+    @classmethod
+    def setUpClass(cls):
+        # Daphne inherits configuration at startup, not method-level patches.
+        configured = mock.patch.object(
+            app_settings, "WHOIS_CONFIGURED", cls.whois_configured
+        )
+        configured.start()
+        cls.addClassCleanup(configured.stop)
+        super().setUpClass()
+
+
 @tag("selenium_tests")
-class TestWHOISSelenium(CreateWHOISMixin, SeleniumTestMixin, StaticLiveServerTestCase):
-    @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
+class TestWHOISSelenium(WHOISSeleniumMixin, ControllerLiveServerTestCase):
     def test_device_admin(self):
         def _assert_no_js_errors():
             self.assert_no_browser_errors()
@@ -1277,16 +1293,6 @@ class TestWHOISSelenium(CreateWHOISMixin, SeleniumTestMixin, StaticLiveServerTes
             self.assertIn(whois_obj.formatted_address, additional_text[2].text)
             self.assertIn(whois_obj.cidr, additional_text[3].text)
             _assert_no_js_errors()
-
-        with mock.patch.object(app_settings, "WHOIS_CONFIGURED", False):
-            with self.subTest(
-                "WHOIS details not visible in device admin "
-                + "when WHOIS_CONFIGURED is False"
-            ):
-                self.open(reverse("admin:config_device_change", args=[device.pk]))
-                self.wait_for_invisibility(By.CSS_SELECTOR, "table.whois-table")
-                self.wait_for_invisibility(By.CSS_SELECTOR, "details.whois")
-                _assert_no_js_errors()
 
         with self.subTest(
             "WHOIS details not visible in device admin when WHOIS is disabled"
@@ -1347,3 +1353,17 @@ class TestWHOISSelenium(CreateWHOISMixin, SeleniumTestMixin, StaticLiveServerTes
                 _assert_no_js_errors()
             except UnexpectedAlertPresentException:
                 self.fail("XSS vulnerability detected in WHOIS details admin view.")
+
+
+@tag("selenium_tests")
+class TestWHOISUnconfiguredSelenium(WHOISSeleniumMixin, ControllerLiveServerTestCase):
+    whois_configured = False
+
+    def test_device_admin(self):
+        whois = self._create_whois_info()
+        device = self._create_device(last_ip=whois.ip_address)
+        self.login()
+        self.open(reverse("admin:config_device_change", args=[device.pk]))
+        self.wait_for_invisibility(By.CSS_SELECTOR, "table.whois-table")
+        self.wait_for_invisibility(By.CSS_SELECTOR, "details.whois")
+        self.assert_no_browser_errors()
