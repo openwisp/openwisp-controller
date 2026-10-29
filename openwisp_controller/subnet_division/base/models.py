@@ -234,9 +234,33 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
             "subnet_division", "SubnetDivisionIndex"
         )
 
+        # A subnet can be referenced by indexes of more than one rule, so
+        # only the ones which are not referenced by any surviving rule are
+        # removed, otherwise subnets still in use would be deleted too.
         Subnet.objects.filter(
             id__in=SubnetDivisionIndex.objects.filter(rule_id=None).values("subnet_id")
+        ).exclude(
+            # "subnet_id__isnull=False" is required because a NULL in the
+            # subquery would make the SQL "NOT IN" match no rows at all,
+            # leaving the provisioned subnets behind.
+            id__in=SubnetDivisionIndex.objects.filter(
+                rule_id__isnull=False, subnet_id__isnull=False
+            ).values("subnet_id")
         ).delete()
+
+    def _check_in_use(self):
+        if self.subnetdivisionindex_set.filter(config_id__isnull=False).exists():
+            raise ValidationError(
+                _(
+                    "This subnet division rule is used by device configurations "
+                    "and cannot be deleted."
+                ),
+                code="subnet_division_rule_in_use",
+            )
+
+    def delete(self, *args, **kwargs):
+        self._check_in_use()
+        return super().delete(*args, **kwargs)
 
     @classmethod
     def pre_save(cls, instance, **kwargs):
