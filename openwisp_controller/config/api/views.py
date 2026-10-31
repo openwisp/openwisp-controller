@@ -31,6 +31,7 @@ from .serializers import (
     DeviceGroupSerializer,
     DeviceListSerializer,
     TemplateSerializer,
+    VpnListSerializer,
     VpnSerializer,
 )
 
@@ -58,10 +59,15 @@ class TemplateDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
 
 class VpnListCreateView(ProtectedAPIMixin, ListCreateAPIView):
     serializer_class = VpnSerializer
-    queryset = Vpn.objects.select_related("subnet").order_by("-created")
+    queryset = Vpn.objects.order_by("-created")
     pagination_class = OpenWispPagination
     filter_backends = [DjangoFilterBackend]
     filterset_class = VPNListFilter
+
+    def get_serializer_class(self):
+        if self.request.method == "GET":
+            return VpnListSerializer
+        return super().get_serializer_class()
 
 
 class VpnDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):

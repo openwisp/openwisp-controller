@@ -149,11 +149,31 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
             )
 
     def _validate_ip_address_consistency(self):
+        if not self.number_of_ips:
+            # The field validator rejects missing or zero counts.
+            return
+        Subnet = swapper.load_model("openwisp_ipam", "Subnet")
+        # Validate capacity independently of occupied ranges and parent endpoints.
+        # Use the last child network to avoid IPv6's special :: and ::1 addresses
+        # when the master starts at zero; actual candidates are checked later.
+        subnet = Subnet(
+            subnet=ip_network(
+                (self.master_subnet.subnet.broadcast_address, self.size), strict=False
+            )
+        )
+        # Match provisioning: start at zero only when consuming the whole subnet
+        # (valid for point-to-point and host-route networks).
+        first_ip = 0 if self.number_of_ips == subnet.subnet.num_addresses else 1
         try:
-            next(
-                ip_network(str(self.master_subnet.subnet)).subnets(new_prefix=self.size)
-            )[self.number_of_ips - 1]
+            # The planned range is contiguous, so IPAM's endpoint restrictions
+            # can be checked at its boundaries without enumerating every IP.
+            usable = all(
+                subnet.is_ip_usable(subnet.subnet[index])
+                for index in (first_ip, first_ip + self.number_of_ips - 1)
+            )
         except IndexError:
+            usable = False
+        if not usable:
             raise ValidationError(
                 {
                     "number_of_ips": _(

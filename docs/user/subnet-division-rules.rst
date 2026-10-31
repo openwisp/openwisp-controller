@@ -134,11 +134,18 @@ Important notes for using Subnet Division
   for one device and ``10.0.0.55`` for another. Every device receives its
   own set of subnets and IPs. Ensure to provide default fallback values in
   the *default values* template field (mainly used for validation).
-- The Subnet Division Rule automatically creates a reserved subnet, which
-  can be utilized to provision any IP addresses that need to be created
-  manually. The remaining address space of the master subnet must not be
-  interfered with, or the automation implemented in this module will not
-  function.
+- The Subnet Division Rule automatically creates a reserved subnet for
+  division rules that produce subnets with multiple addresses, which can
+  be utilized to provision any IP addresses that need to be created
+  manually. For host-route rules (IPv4 ``/32`` or IPv6 ``/128``), no
+  reserved subnet database object is created because each subnet contains
+  only a single host address. It allocates child subnets from the lowest
+  compatible free range in the master subnet. If an IP address is already
+  allocated in the master subnet hierarchy, the rule skips child subnet
+  candidates that would provision the same address.
+- Provisioned IPs must follow the :ref:`IPAM address usability rules
+  <ipam_address_usability>`; rules requesting more usable IPs than a child
+  subnet can hold are rejected.
 - The example provided used the :ref:`VPN subnet division rule
   <vpn_rule>`. Similarly, the :ref:`device subnet division rule
   <device_rule>` can be employed, requiring only :ref:`the creation of a

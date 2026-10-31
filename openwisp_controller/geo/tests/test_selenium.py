@@ -55,10 +55,6 @@ class TestDeviceAdminGeoSelenium(
         cls.whois_configured.stop()
         super().tearDownClass()
 
-    # set timeout to 5 seconds to allow enough time for presence of elements
-    def wait_for_presence(self, by, value, timeout=5, driver=None):
-        return super().wait_for_presence(by, value, timeout, driver)
-
     def _fill_device_form(self):
         org = self._get_org()
         self.find_element(by=By.NAME, value="mac_address").send_keys(

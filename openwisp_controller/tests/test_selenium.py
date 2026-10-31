@@ -8,7 +8,6 @@ from reversion.models import Version
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import WebDriverWait
 from swapper import load_model
 
 from openwisp_controller.connection.tests.utils import CreateConnectionsMixin
@@ -98,11 +97,11 @@ class TestDevice(
             by=By.XPATH, value='//*[@id="device_form"]/div/div[1]/input[1]'
         ).click()
         try:
-            WebDriverWait(self.web_driver, 5).until(
+            self.wait_until(
                 EC.url_to_be(
                     self.live_server_url
                     + reverse(f"admin:{self.config_app_label}_device_changelist")
-                )
+                ),
             )
         except TimeoutException:
             self.fail("Deleted device was not restored")

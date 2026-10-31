@@ -1,9 +1,19 @@
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 
 from openwisp_users.tests.utils import TestMultitenantAdminMixin
 
 user_model = get_user_model()
+
+# Keep cache-clearing tests isolated from Redis used by parallel workers.
+LOCAL_MEMORY_CACHE = {
+    **settings.CACHES,
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "controller-isolated-tests",
+    },
+}
 
 
 class TestAdminMixin(TestMultitenantAdminMixin):

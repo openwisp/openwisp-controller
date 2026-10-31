@@ -579,6 +579,69 @@ class TestAdmin(
             ],
         )
 
+    def test_config_download_and_context_views_multitenancy(self):
+        data = self._create_multitenancy_test_env(vpn=True)
+        self.client.force_login(data["operator"])
+        instances = {
+            "device": (data["c1"].device, data["c2"].device),
+            "template": (data["t1"], data["t2"]),
+            "vpn": (data["vpn1"], data["vpn2"]),
+        }
+
+        for model, (managed, unmanaged) in instances.items():
+            with self.subTest(model=model, view="download", organization="managed"):
+                response = self.client.get(
+                    reverse(
+                        f"admin:{self.app_label}_{model}_download", args=[managed.pk]
+                    )
+                )
+                self.assertEqual(response.status_code, 200)
+
+            with self.subTest(model=model, view="download", organization="unmanaged"):
+                response = self.client.get(
+                    reverse(
+                        f"admin:{self.app_label}_{model}_download", args=[unmanaged.pk]
+                    )
+                )
+                self.assertEqual(response.status_code, 404)
+
+            with self.subTest(model=model, view="context", organization="managed"):
+                response = self.client.get(
+                    reverse(
+                        f"admin:{self.app_label}_{model}_context", args=[managed.pk]
+                    )
+                )
+                self.assertEqual(response.status_code, 200)
+
+            with self.subTest(model=model, view="context", organization="unmanaged"):
+                response = self.client.get(
+                    reverse(
+                        f"admin:{self.app_label}_{model}_context", args=[unmanaged.pk]
+                    )
+                )
+                self.assertEqual(response.status_code, 404)
+
+            with (
+                self.subTest(model=model, permission="denied"),
+                patch.object(
+                    django_admin.site._registry[managed.__class__],
+                    "has_view_permission",
+                    return_value=False,
+                ),
+            ):
+                response = self.client.get(
+                    reverse(
+                        f"admin:{self.app_label}_{model}_download", args=[managed.pk]
+                    )
+                )
+                self.assertEqual(response.status_code, 403)
+                response = self.client.get(
+                    reverse(
+                        f"admin:{self.app_label}_{model}_context", args=[managed.pk]
+                    )
+                )
+                self.assertEqual(response.status_code, 403)
+
     def test_vpn_organization_fk_autocomplete_view(self):
         data = self._create_multitenancy_test_env()
         self._test_multitenant_admin(
@@ -1743,12 +1806,24 @@ class TestAdmin(
         self.assertContains(response, '<option value="netjsonconfig.OpenWisp" selected')
 
     def test_device_search(self):
-        d = self._create_device(name="admin-search-test")
+        d = self._create_device(
+            name="admin-search-test",
+            last_ip="192.0.2.1",
+            management_ip="198.51.100.1",
+        )
         path = reverse(f"admin:{self.app_label}_device_changelist")
         response = self.client.get(path, {"q": str(d.pk.hex)})
         self.assertContains(response, "admin-search-test")
         response = self.client.get(path, {"q": "ZERO-RESULTS-PLEASE"})
         self.assertNotContains(response, "admin-search-test")
+
+        for field, ip_address in {
+            "last_ip": d.last_ip,
+            "management_ip": d.management_ip,
+        }.items():
+            with self.subTest(field=field):
+                response = self.client.get(path, {"q": ip_address})
+                self.assertContains(response, "admin-search-test")
 
         with self.subTest("test device location search"):
             response = self.client.get(path, {"q": "Estonia"})
@@ -3185,11 +3260,12 @@ class TestTransactionAdmin(
         )
         request.resolver_match = resolve(url)
         request.user = user
-        # TODO: replace _registry with get_model_admin once Django 4.2 is dropped
-        device_admin = django_admin.site._registry[Device]
+        device_admin = django_admin.site.get_model_admin(Device)
         admin_site = SimpleNamespace(
             _registry={
-                first_org.__class__: django_admin.site._registry[first_org.__class__]
+                first_org.__class__: django_admin.site.get_model_admin(
+                    first_org.__class__
+                )
             }
         )
         with (
@@ -3217,8 +3293,7 @@ class TestTransactionAdmin(
         )
         request = RequestFactory().get(url)
         request.resolver_match = resolve(url)
-        # TODO: replace _registry with get_model_admin once Django 4.2 is dropped
-        device_admin = django_admin.site._registry[Device]
+        device_admin = django_admin.site.get_model_admin(Device)
         with patch.object(
             Device.objects, "filter", wraps=Device.objects.filter
         ) as filter_:

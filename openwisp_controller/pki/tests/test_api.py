@@ -149,6 +149,27 @@ class TestPkiApi(
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
 
+    def test_crl_download_api_multitenancy(self):
+        org1 = self._create_org(name="org1")
+        org2 = self._create_org(name="org2")
+        ca1 = self._create_ca(name="ca1", organization=org1)
+        ca2 = self._create_ca(name="ca2", organization=org2)
+        shared_ca = self._create_ca(name="shared", organization=None)
+        operator = self._create_operator(organizations=[org1])
+        self.client.force_login(operator)
+
+        with self.subTest("CA of managed organization"):
+            r = self.client.get(reverse("pki_api:crl_download", args=[ca1.pk]))
+            self.assertEqual(r.status_code, 200)
+
+        with self.subTest("CA of other organization"):
+            r = self.client.get(reverse("pki_api:crl_download", args=[ca2.pk]))
+            self.assertEqual(r.status_code, 404)
+
+        with self.subTest("shared CA"):
+            r = self.client.get(reverse("pki_api:crl_download", args=[shared_ca.pk]))
+            self.assertEqual(r.status_code, 200)
+
     def test_ca_delete_api(self):
         ca1 = self._create_ca(name="ca1", organization=self._get_org())
         path = reverse("pki_api:ca_detail", args=[ca1.pk])
