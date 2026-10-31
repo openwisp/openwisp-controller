@@ -485,9 +485,10 @@ class AbstractDevice(OrgMixin, BaseModel):
         creates a new config instance to apply group templates
         if group has templates.
         """
-        if self.is_deactivated():
-            # All modification operations are blocked on deactivated devices.
-            # Hence, default config should not be created for deactivated devices.
+        if self.is_deactivated() or not self.organization.is_active:
+            # All modification operations are blocked on deactivated devices
+            # and on devices belonging to a disabled organization. Hence,
+            # default config should not be created in either case.
             return
         if not (self.group and self.group.templates.exists()):
             return
@@ -508,11 +509,12 @@ class AbstractDevice(OrgMixin, BaseModel):
             device_ids = [device_ids]
             old_group_ids = [old_group_ids]
         for device_id, old_group_id in zip(device_ids, old_group_ids):
-            device = Device.objects.get(pk=device_id)
-            if device.is_deactivated():
+            device = Device.objects.select_related("organization").get(pk=device_id)
+            if device.is_deactivated() or not device.organization.is_active:
                 # Skip deactivated devices: their configuration is intentionally
                 # emptied during deactivation, so re-applying group templates
                 # would break that state and trigger a push to the device.
+                # Also skip devices of a disabled organization.
                 continue
             if not hasattr(device, "config"):
                 device.create_default_config()

@@ -130,7 +130,10 @@ def trigger_vpn_server_endpoint(endpoint, auth_token, vpn_id):
     except Vpn.DoesNotExist:
         logger.error(f"VPN Server UUID: {vpn_id} does not exist.")
         return
-
+    # Do not skip disabled organizations: the update is still needed to push
+    # peer removals caused by cascading device deactivation. Peer additions are
+    # already blocked upstream because disabled organizations cannot create new
+    # devices or VPN clients.
     # Cache the configuration here makes downloading the configuration faster.
     vpn.get_cached_configuration()
     task_key = f"vpn_update_task:{vpn_id}"
@@ -218,3 +221,30 @@ def invalidate_controller_views_cache(organization_id):
         Vpn.objects.filter(organization_id=organization_id).only("id").iterator()
     ):
         GetVpnView.invalidate_get_vpn_cache(vpn)
+
+
+@shared_task(base=OpenwispCeleryTask)
+def deactivate_organization_devices(organization_id):
+    """
+    Deactivate all active devices of an organization.
+
+    Re-enabling an organization does not reactivate its devices.
+    """
+    Device = load_model("config", "Device")
+    devices = (
+        Device.objects.filter(
+            organization_id=organization_id,
+            _is_deactivated=False,
+        )
+        .select_related("config")
+        .order_by("created")
+    )
+    for device in devices.iterator():
+        try:
+            device.deactivate()
+        except Exception:
+            logger.exception(
+                "Failed to deactivate device %s while disabling organization %s",
+                device.pk,
+                organization_id,
+            )

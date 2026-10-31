@@ -1,3 +1,4 @@
+from celery import chain
 from django.db import transaction
 from django.dispatch import receiver
 from django.utils.translation import gettext_lazy as _
@@ -10,7 +11,6 @@ from .signals import config_status_changed, device_registered
 Config = load_model("config", "Config")
 Device = load_model("config", "Device")
 DeviceGroup = load_model("config", "DeviceGroup")
-Organization = load_model("openwisp_users", "Organization")
 Cert = load_model("django_x509", "Cert")
 
 
@@ -189,15 +189,11 @@ def devicegroup_templates_change_handler(instance, **kwargs):
 
 def organization_disabled_handler(instance, **kwargs):
     """
-    Asynchronously invalidates device and VPN controller views cache
+    Deactivates devices and invalidates controller view caches when
+    openwisp-users signals that an organization has been disabled.
     """
-    if instance.is_active:
-        return
-    try:
-        db_instance = Organization.objects.only("is_active").get(id=instance.id)
-    except Organization.DoesNotExist:
-        return
-    if instance.is_active == db_instance.is_active:
-        # No change in is_active
-        return
-    tasks.invalidate_controller_views_cache.delay(str(instance.id))
+    organization_id = str(instance.pk)
+    chain(
+        tasks.deactivate_organization_devices.s(organization_id),
+        tasks.invalidate_controller_views_cache.si(organization_id),
+    ).delay()

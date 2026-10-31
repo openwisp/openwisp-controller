@@ -34,6 +34,7 @@ class BaseCommandView(RelatedDeviceProtectedAPIMixin):
     model = Command
     queryset = Command.objects.prefetch_related("device")
     serializer_class = CommandSerializer
+    select_related_organization = False
 
     def get_permissions(self):
         return super().get_permissions() + [RelatedDeviceModelPermission()]
@@ -41,7 +42,7 @@ class BaseCommandView(RelatedDeviceProtectedAPIMixin):
     def get_parent_queryset(self):
         return Device.objects.filter(
             pk=self.kwargs["device_id"],
-        )
+        ).select_related("organization")
 
     def get_queryset(self):
         return (
@@ -112,6 +113,7 @@ class BaseDeviceConnection(
     model = DeviceConnection
     serializer_class = DeviceConnectionSerializer
     queryset = DeviceConnection.objects.prefetch_related("device")
+    select_related_organization = False
 
     def get_queryset(self):
         return (
@@ -127,7 +129,9 @@ class BaseDeviceConnection(
         return context
 
     def get_parent_queryset(self):
-        return Device.objects.filter(pk=self.kwargs["device_id"])
+        return Device.objects.filter(pk=self.kwargs["device_id"]).select_related(
+            "organization"
+        )
 
 
 class DeviceConnectionListCreateView(BaseDeviceConnection, ListCreateAPIView):

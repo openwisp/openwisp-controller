@@ -109,7 +109,7 @@ class DeviceCoordinatesView(ProtectedAPIMixin, generics.RetrieveUpdateAPIView):
     serializer_class = DeviceCoordinatesSerializer
     permission_classes = (DevicePermission,)
     queryset = Device.objects.select_related(
-        "devicelocation", "devicelocation__location"
+        "organization", "devicelocation", "devicelocation__location"
     )
 
     def get_queryset(self):
@@ -125,7 +125,9 @@ class DeviceCoordinatesView(ProtectedAPIMixin, generics.RetrieveUpdateAPIView):
 
     def get_object(self, *args, **kwargs):
         device = super().get_object()
-        if self.request.method not in ("GET", "HEAD") and device.is_deactivated():
+        if self.request.method not in ("GET", "HEAD") and (
+            device.is_deactivated() or not device.organization.is_active
+        ):
             raise PermissionDenied
         location = self.get_location(device)
         if location:
@@ -165,6 +167,7 @@ class DeviceLocationView(
     organization_field = "content_object__organization"
     organization_lookup = "organization__in"
     _device_field = "content_object"
+    select_related_organization = False
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -181,7 +184,9 @@ class DeviceLocationView(
         )
 
     def get_parent_queryset(self):
-        return Device.objects.filter(pk=self.kwargs["pk"])
+        return Device.objects.filter(pk=self.kwargs["pk"]).select_related(
+            "organization"
+        )
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
@@ -214,8 +219,9 @@ class DeviceLocationView(
             if self.request.method == "PUT":
                 # For PUT-as-create operation, we need to ensure that we have
                 # relevant permissions, as if this was a POST request. This
-                # will either raise a PermissionDenied exception, or simply
-                # return None.
+                # will either raise a PermissionDenied exception (covers a
+                # disabled organization too, since RelatedDeviceModelPermission
+                # checks device.organization.is_active) or simply return None.
                 self.check_permissions(clone_request(self.request, "POST"))
             else:
                 # PATCH requests where the object does not exist should still
@@ -297,6 +303,7 @@ class LocationDeviceList(
     def get_queryset(self):
         qs = super().get_queryset()
         qs = qs.filter(devicelocation__location_id=self.kwargs["pk"])
+        qs = qs.select_related("organization")
         return qs
 
     def get_has_floorplan(self, qs):
@@ -317,6 +324,7 @@ class FloorPlanListCreateView(ProtectedAPIMixin, generics.ListCreateAPIView):
     pagination_class = OpenWispPagination
     filter_backends = [filters.DjangoFilterBackend]
     filterset_class = FloorPlanOrganizationFilter
+    select_related_organization = False
 
 
 class FloorPlanDetailView(
@@ -325,6 +333,7 @@ class FloorPlanDetailView(
 ):
     serializer_class = FloorPlanSerializer
     queryset = FloorPlan.objects.select_related()
+    select_related_organization = False
 
 
 class LocationListCreateView(ProtectedAPIMixin, generics.ListCreateAPIView):

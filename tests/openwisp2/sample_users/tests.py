@@ -1,13 +1,15 @@
 from unittest.mock import patch
 
 from openwisp_controller.tests.mixins import GetEditFormInlineMixin
+from openwisp_controller.tests.test_users_integration import (
+    TestUsersIntegration as BaseTestUsersAdmin,
+)
 from openwisp_users.tests.test_admin import (
     TestBasicUsersIntegration as BaseTestBasicUsersIntegration,
 )
 from openwisp_users.tests.test_admin import (
     TestMultitenantAdmin as BaseTestMultitenantAdmin,
 )
-from openwisp_users.tests.test_admin import TestUsersAdmin as BaseTestUsersAdmin
 from openwisp_users.tests.test_models import TestUsers as BaseTestUsers
 
 additional_fields = [
@@ -15,9 +17,8 @@ additional_fields = [
 ]
 
 
-class TestUsersAdmin(GetEditFormInlineMixin, BaseTestUsersAdmin):
+class TestUsersAdmin(BaseTestUsersAdmin):
     app_label = "sample_users"
-    is_integration_test = True
     _additional_user_fields = additional_fields
 
 

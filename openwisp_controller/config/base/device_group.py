@@ -94,6 +94,12 @@ class AbstractDeviceGroup(OrgMixin, TimeStampedEditableModel):
         DeviceGroup = load_model("config", "DeviceGroup")
         Template = load_model("config", "Template")
         device_group = DeviceGroup.objects.get(id=group_id)
+        if not device_group.organization.is_active:
+            # Do not push template changes to a disabled organization's
+            # devices; closes the race window between an organization
+            # being disabled and the async deactivate_organization_devices
+            # task deactivating each of its devices.
+            return
         templates = Template.objects.filter(pk__in=template_ids)
         old_templates = Template.objects.filter(pk__in=old_template_ids)
         for device in device_group.device_set.exclude(_is_deactivated=True).iterator():
