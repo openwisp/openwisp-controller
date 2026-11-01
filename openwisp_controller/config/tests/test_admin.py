@@ -3261,12 +3261,10 @@ class TestTransactionAdmin(
         request.resolver_match = resolve(url)
         request.user = user
         device_admin = django_admin.site.get_model_admin(Device)
+        organization_admin = django_admin.site.get_model_admin(first_org.__class__)
         admin_site = SimpleNamespace(
-            _registry={
-                first_org.__class__: django_admin.site.get_model_admin(
-                    first_org.__class__
-                )
-            }
+            _registry={first_org.__class__: organization_admin},
+            get_model_admin=lambda model: organization_admin,
         )
         with (
             patch.object(device_admin, "admin_site", admin_site),
