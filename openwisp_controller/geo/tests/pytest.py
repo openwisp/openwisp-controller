@@ -167,7 +167,7 @@ class TestChannels(TestGeoMixin, TestChannelsMixin, TestOrganizationMixin):
         assert org1_response["id"] == str(org1_location.pk)
         admin_response = await admin_communicator.receive_json_from(timeout=1)
         assert admin_response["id"] == str(org1_location.pk)
-        with pytest.raises(asyncio.TimeoutError):
+        with pytest.raises(TimeoutError):
             await org2_communicator.receive_json_from(timeout=1)
 
         with suppress(asyncio.CancelledError):
@@ -188,7 +188,7 @@ class TestChannels(TestGeoMixin, TestChannelsMixin, TestOrganizationMixin):
         assert org2_response["id"] == str(org2_location.pk)
         admin_response = await admin_communicator.receive_json_from(timeout=1)
         assert admin_response["id"] == str(org2_location.pk)
-        with pytest.raises(asyncio.TimeoutError):
+        with pytest.raises(TimeoutError):
             await org1_communicator.receive_json_from(timeout=1)
 
         # The task is cancelled if not completed within the given timeout.
