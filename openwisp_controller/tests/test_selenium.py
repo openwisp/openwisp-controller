@@ -1,6 +1,5 @@
 from unittest.mock import patch
 
-from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.core.management import call_command
 from django.test import tag
 from django.urls.base import reverse
@@ -14,6 +13,8 @@ from openwisp_controller.connection.tests.utils import CreateConnectionsMixin
 from openwisp_controller.geo.tests.utils import TestGeoMixin
 from openwisp_utils.tests import SeleniumTestMixin
 
+from .utils import ControllerLiveServerTestCase
+
 Device = load_model("config", "Device")
 DeviceConnection = load_model("connection", "DeviceConnection")
 Location = load_model("geo", "Location")
@@ -23,7 +24,10 @@ DeviceLocation = load_model("geo", "DeviceLocation")
 
 @tag("selenium_tests")
 class TestDevice(
-    CreateConnectionsMixin, TestGeoMixin, SeleniumTestMixin, StaticLiveServerTestCase
+    CreateConnectionsMixin,
+    TestGeoMixin,
+    SeleniumTestMixin,
+    ControllerLiveServerTestCase,
 ):
     config_app_label = "config"
     location_model = Location
@@ -80,15 +84,13 @@ class TestDevice(
                 f"admin:{self.config_app_label}_device_recover", args=[version_obj.id]
             )
         )
-        # The StaticLiveServerTestCase class only starts a server for Django and
-        # does not support websockets (channels). This causes multiple errors to
-        # be logged when trying to establish a WebSocket connection at SEVERE level,
-        # which is problematic because the error for the issue described in
-        # https://github.com/openwisp/openwisp-controller/issues/681
-        # is logged at WARNING level.
-        # By checking that there are no WARNING level errors logged in the
-        # browser console, we ensure that this issue is not happening.
+        # Chrome drains logs on read; check errors and #681 warnings together.
         for error in self.get_browser_logs():
+            if error["level"] == "SEVERE" and not any(
+                message in error["message"]
+                for message in self.ignored_browser_log_messages
+            ):
+                self.fail(f'Browser console error: {error["message"]}')
             if error["level"] == "WARNING" and error["message"] not in [
                 "wrong event specified: touchleave"
             ]:
