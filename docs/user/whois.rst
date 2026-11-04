@@ -124,6 +124,14 @@ the **new IP**. WHOIS records which are no longer used by an active device
 are retained for the configured threshold to avoid repeated lookups when a
 device returns to a recently used IP address.
 
+.. note::
+
+    MaxMind limits GeoLite City lookups to 1,000 per day. If the quota is
+    exhausted, OpenWISP pauses requests for 6 hours before allowing
+    another attempt. MaxMind does not document an exact reset time, so the
+    pause may need to be repeated. The cache must be shared by all Celery
+    workers for the pause to apply across workers.
+
 A periodic Celery Beat task removes expired unreferenced records. It is
 automatically configured by :doc:`ansible-openwisp2 </ansible/index>` and
 :doc:`docker-openwisp </docker/index>`. If you need to replicate this

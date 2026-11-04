@@ -13,6 +13,7 @@ from .. import settings as app_settings
 from .utils import send_whois_task_notification
 
 logger = logging.getLogger(__name__)
+QUOTA_COOLDOWN = "quota_cooldown"
 
 
 class WHOISCeleryRetryTask(OpenwispCeleryTask):
@@ -26,6 +27,10 @@ class WHOISCeleryRetryTask(OpenwispCeleryTask):
 
     def on_success(self, retval, task_id, args, kwargs):
         """Mark the task as successfully completed."""
+        # When the quota is exhausted, an early return is not a successful lookup.
+        # Preserve the failure state to avoid repeating the notification.
+        if retval == QUOTA_COOLDOWN:
+            return super().on_success(retval, task_id, args, kwargs)
         task_key = f"{self.name}_last_operation"
         cache.set(task_key, "success", None)
         return super().on_success(retval, task_id, args, kwargs)
@@ -84,6 +89,9 @@ def fetch_whois_details(self, device_pk, initial_ip_address):
     whois_obj = WHOISInfo.objects.filter(ip_address=ip_address).first()
     if whois_obj and not whois_service.is_older(whois_obj.modified):
         return
+    # Avoid repeated requests to MaxMind while the exhausted quota is cooling down.
+    if cache.get(whois_service.get_quota_cache_key()):
+        return QUOTA_COOLDOWN
     # WARNING: execute HTTP requests before transaction lock is acquired
     fetched_details = whois_service.process_whois_details(ip_address)
 

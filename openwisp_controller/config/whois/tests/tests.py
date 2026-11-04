@@ -440,6 +440,39 @@ class TestWHOISTransaction(
         super().setUp()
         self.admin = self._get_admin()
 
+    @override_settings(CELERY_TASK_EAGER_PROPAGATES=False)
+    @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
+    @mock.patch(_WHOIS_TASKS_ERR_LOGGER)
+    @mock.patch(_WHOIS_GEOIP_CLIENT)
+    def test_quota_cooldown(self, mock_client, mock_error):
+        with mock.patch(f"{self._WHOIS_TASK_NAME}.delay"):
+            first = self._create_device(last_ip="172.217.22.14")
+            second = self._create_device(
+                name="second", mac_address="00:11:22:33:44:66", last_ip="172.217.22.15"
+            )
+        mock_client.return_value.city.side_effect = errors.OutOfQueriesError("test")
+        with mock.patch.object(cache, "set", wraps=cache.set) as cache_set:
+            result = fetch_whois_details.apply(args=(first.pk, first.last_ip))
+        cache_set.assert_any_call(
+            WHOISService.get_quota_cache_key(), True, timeout=21600
+        )
+        self.assertTrue(result.failed())
+        self.assertEqual(mock_client.return_value.city.call_count, 1)
+        self.assertEqual(_notification_qs().count(), 1)
+        mock_error.assert_called_once()
+        task_key = f"{self._WHOIS_TASK_NAME}_last_operation"
+        fetch_whois_details.apply(args=(second.pk, second.last_ip))
+        self.assertEqual(mock_client.return_value.city.call_count, 1)
+        self.assertEqual(cache.get(task_key), "errored")
+        self.assertEqual(_notification_qs().count(), 1)
+        cache.delete(WHOISService.get_quota_cache_key())
+        mock_client.return_value.city.side_effect = None
+        mock_client.return_value.city.return_value = self._mocked_client_response()
+        fetch_whois_details.apply(args=(second.pk, second.last_ip))
+        self.assertEqual(mock_client.return_value.city.call_count, 2)
+        self.assertTrue(WHOISInfo.objects.filter(ip_address=second.last_ip).exists())
+        self.assertEqual(cache.get(task_key), "success")
+
     @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
     def test_cleanup_unreferenced_records(self):
         stale_time = timezone.now() - timedelta(
@@ -913,6 +946,7 @@ class TestWHOISTransaction(
                 ),
                 mock.patch(self._WHOIS_GEOIP_CLIENT) as mock_client,
             ):
+                cache.delete(WHOISService.get_quota_cache_key())
                 mock_client.return_value.city.side_effect = exception("test")
                 Device.objects.all().delete()  # Clear existing devices
                 device = self._create_device(last_ip="172.217.22.14")
@@ -961,6 +995,7 @@ class TestWHOISTransaction(
 
         def trigger_error_and_assert_cached(exc, notification_count=0):
             with mock.patch(self._WHOIS_GEOIP_CLIENT) as mock_client:
+                cache.delete(WHOISService.get_quota_cache_key())
                 mock_client.return_value.city.side_effect = exc("test")
                 Device.objects.all().delete()
                 device = self._create_device(last_ip="172.217.22.14")
@@ -989,6 +1024,7 @@ class TestWHOISTransaction(
             self.subTest("Test cache updated on success"),
             mock.patch(self._WHOIS_GEOIP_CLIENT) as mock_client,
         ):
+            cache.delete(WHOISService.get_quota_cache_key())
             Device.objects.all().delete()
             mocked_response = self._mocked_client_response()
             mocked_response.location = None
@@ -1010,6 +1046,7 @@ class TestWHOISTransaction(
                 ),
                 mock.patch(self._WHOIS_GEOIP_CLIENT) as mock_client,
             ):
+                cache.delete(WHOISService.get_quota_cache_key())
                 mock_client.return_value.city.side_effect = exception("test")
                 Device.objects.all().delete()
                 mock_retry.reset_mock()

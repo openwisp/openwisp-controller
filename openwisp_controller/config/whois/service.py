@@ -47,6 +47,10 @@ class WHOISService:
         return f"organization_config_{org_id}"
 
     @staticmethod
+    def get_quota_cache_key():
+        return f"whois_geolite_city_quota_{app_settings.WHOIS_GEOIP_ACCOUNT}"
+
+    @staticmethod
     def is_valid_public_ip_address(ip):
         """
         Check if given IP address is a valid public IP address.
@@ -145,6 +149,8 @@ class WHOISService:
             errors.OutOfQueriesError,
             errors.PermissionRequiredError,
         ) as e:
+            if isinstance(e, errors.OutOfQueriesError):
+                cache.set(self.get_quota_cache_key(), True, timeout=6 * 60 * 60)
             exc_type = type(e)
             message = EXCEPTION_MESSAGES.get(exc_type)
             if exc_type is errors.AddressNotFoundError:
