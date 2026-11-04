@@ -3,6 +3,7 @@ from unittest import mock
 from unittest.mock import PropertyMock
 from uuid import uuid4
 
+import django
 import paramiko
 from django.contrib.auth.models import ContentType
 from django.core.exceptions import ValidationError
@@ -1311,12 +1312,14 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
                 organization=org, name="device3", mac_address="33:33:33:33:33:33"
             )
         )
-        with self.assertNumQueries(32):
+        # for Django <= 5.2, which runs each batch in an extra transaction
+        is_django_5 = django.VERSION < (6, 0)
+        with self.assertNumQueries(32 if is_django_5 else 30):
             credential = self._create_credentials(auto_add=True, organization=org)
         self.assertEqual(credential.deviceconnection_set.count(), 3)
 
         with mock.patch.object(Credentials, "chunk_size", 2):
-            with self.assertNumQueries(35):
+            with self.assertNumQueries(35 if is_django_5 else 31):
                 credential = self._create_credentials(
                     name="Mocked Credential", auto_add=True, organization=org
                 )

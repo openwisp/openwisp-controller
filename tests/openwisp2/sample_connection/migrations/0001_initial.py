@@ -2,7 +2,6 @@
 
 import uuid
 
-import django
 import django.db.models.deletion
 import django.utils.timezone
 import model_utils.fields
@@ -13,7 +12,7 @@ from django.db import migrations, models
 import openwisp_controller.connection.base.models
 import openwisp_users.mixins
 from openwisp_controller.connection import settings as connection_settings
-from openwisp_controller.connection.commands import COMMAND_CHOICES, get_command_choices
+from openwisp_controller.connection.commands import get_command_choices
 
 
 class Migration(migrations.Migration):
@@ -240,11 +239,7 @@ class Migration(migrations.Migration):
                 (
                     "type",
                     models.CharField(
-                        choices=(
-                            COMMAND_CHOICES
-                            if django.VERSION < (5, 0)
-                            else get_command_choices
-                        ),
+                        choices=get_command_choices,
                         max_length=16,
                     ),
                 ),
