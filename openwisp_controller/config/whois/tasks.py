@@ -16,6 +16,7 @@ from .utils import send_whois_task_notification
 
 logger = logging.getLogger(__name__)
 QUOTA_COOLDOWN = "quota_cooldown"
+LOOKUP_SUCCESS = "lookup_success"
 
 
 class WHOISCeleryRetryTask(OpenwispCeleryTask):
@@ -36,20 +37,23 @@ class WHOISCeleryRetryTask(OpenwispCeleryTask):
         visibility = options.get("visibility_timeout", 3600)
         limit = visibility * 0.9
         remaining = max(0, expires - timezone.now().timestamp())
-        delay = min(limit, remaining)
-        if remaining < limit:
+        jitter_window = min(300, limit / 2)
+        if remaining > limit:
+            delay = limit
+        elif remaining > limit - jitter_window:
+            # Check again early so the full jitter window fits before the limit.
+            delay = remaining - jitter_window
+        else:
             # Spread requests after the cooldown to avoid a burst at expiry.
-            delay += random.uniform(0, min(300, limit - remaining))
+            delay = remaining + random.uniform(0, jitter_window)
         self.apply_async(args=(device_pk, ip_address), countdown=delay)
 
     def on_success(self, retval, task_id, args, kwargs):
         """Mark the task as successfully completed."""
-        # When the quota is exhausted, an early return is not a successful lookup.
-        # Preserve the failure state to avoid repeating the notification.
-        if retval == QUOTA_COOLDOWN:
-            return super().on_success(retval, task_id, args, kwargs)
-        task_key = f"{self.name}_last_operation"
-        cache.set(task_key, "success", None)
+        # Skipped lookups must not reset the failure notification state.
+        if retval == LOOKUP_SUCCESS:
+            task_key = f"{self.name}_last_operation"
+            cache.set(task_key, "success", None)
         return super().on_success(retval, task_id, args, kwargs)
 
     def on_failure(self, exc, task_id, args, kwargs, einfo):
@@ -147,6 +151,7 @@ def fetch_whois_details(self, device_pk, initial_ip_address):
                 device=device,
             )
         )
+    return LOOKUP_SUCCESS
 
 
 @shared_task
