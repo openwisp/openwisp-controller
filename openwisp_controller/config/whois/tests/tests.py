@@ -442,6 +442,26 @@ class TestWHOISTransaction(
 
     @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
     @mock.patch(_WHOIS_GEOIP_CLIENT)
+    def test_quota_cooldown_does_not_reschedule_eagerly(self, mock_client):
+        with mock.patch(f"{self._WHOIS_TASK_NAME}.delay"):
+            device = self._create_device(last_ip="172.217.22.14")
+        cache.set(
+            WHOISService.get_quota_cache_key(),
+            timezone.now().timestamp() + 21600,
+            21600,
+        )
+        with (
+            mock.patch.dict(
+                fetch_whois_details.app.conf.changes, {"CELERY_TASK_ALWAYS_EAGER": True}
+            ),
+            mock.patch.object(fetch_whois_details, "apply_async") as schedule,
+        ):
+            fetch_whois_details.apply(args=(device.pk, device.last_ip))
+        schedule.assert_not_called()
+        mock_client.assert_not_called()
+
+    @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
+    @mock.patch(_WHOIS_GEOIP_CLIENT)
     def test_quota_retry_timing_and_changed_ip(self, mock_client):
         with mock.patch(f"{self._WHOIS_TASK_NAME}.delay"):
             device = self._create_device(last_ip="172.217.22.14")
@@ -451,7 +471,10 @@ class TestWHOISTransaction(
             mock.patch.object(fetch_whois_details, "apply_async") as schedule,
             mock.patch.dict(
                 fetch_whois_details.app.conf.changes,
-                {"broker_transport_options": {"visibility_timeout": 1000}},
+                {
+                    "broker_transport_options": {"visibility_timeout": 1000},
+                    "CELERY_TASK_ALWAYS_EAGER": False,
+                },
             ),
         ):
             fetch_whois_details(device.pk, device.last_ip)
@@ -481,6 +504,10 @@ class TestWHOISTransaction(
         with (
             mock.patch.object(cache, "set", wraps=cache.set) as cache_set,
             mock.patch.object(fetch_whois_details, "apply_async") as schedule,
+            mock.patch.dict(
+                fetch_whois_details.app.conf.changes,
+                {"CELERY_TASK_ALWAYS_EAGER": False},
+            ),
         ):
             result = fetch_whois_details.apply(args=(first.pk, first.last_ip))
         quota_call = next(
@@ -498,7 +525,13 @@ class TestWHOISTransaction(
         self.assertEqual(_notification_qs().count(), 1)
         mock_error.assert_called_once()
         task_key = f"{self._WHOIS_TASK_NAME}_last_operation"
-        with mock.patch.object(fetch_whois_details, "apply_async") as schedule:
+        with (
+            mock.patch.object(fetch_whois_details, "apply_async") as schedule,
+            mock.patch.dict(
+                fetch_whois_details.app.conf.changes,
+                {"CELERY_TASK_ALWAYS_EAGER": False},
+            ),
+        ):
             fetch_whois_details.apply(args=(second.pk, second.last_ip))
             schedule.assert_called_once()
         self.assertEqual(mock_client.return_value.city.call_count, 1)
