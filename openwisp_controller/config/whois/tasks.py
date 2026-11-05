@@ -28,6 +28,9 @@ class WHOISCeleryRetryTask(OpenwispCeleryTask):
 
     def schedule_quota_retry(self, device_pk, ip_address, expires):
         """Retry before the broker visibility timeout or when the cooldown ends."""
+        # Eager tasks ignore countdowns and would immediately call themselves again.
+        if self.app.conf.task_always_eager:
+            return
         options = self.app.conf.broker_transport_options or {}
         visibility = options.get("visibility_timeout", 3600)
         delay = min(visibility * 0.9, max(0, expires - timezone.now().timestamp()))
