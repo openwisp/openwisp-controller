@@ -10,6 +10,7 @@ import django
 from django.contrib import admin as django_admin
 from django.contrib.admin.models import LogEntry
 from django.contrib.auth import get_user_model
+from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from django.core.management import call_command
@@ -352,11 +353,13 @@ class TestAdmin(
             }
         )
         response = self.client.post(path, params)
-        self.assertContains(response, "errors field-templates")
+        self.assertContains(response, 'id="id_config-0-templates_error"')
         # remove conflicting template and ensure doesn't error
         params.update({"config-0-templates": ""})
         response = self.client.post(path, params)
-        self.assertNotContains(response, "errors field-templates", status_code=302)
+        self.assertNotContains(
+            response, 'id="id_config-0-templates_error"', status_code=302
+        )
 
     def test_add_device(self):
         org1 = self._get_org()
@@ -1372,11 +1375,13 @@ class TestAdmin(
             Config, "clean_templates", side_effect=ValidationError("test")
         ):
             response = self.client.post(path, params)
-        self.assertContains(response, "errors field-templates")
+        self.assertContains(response, 'id="id_config-0-templates_error"')
         # remove conflicting template and ensure doesn't error
         params["config-0-templates"] = ""
         response = self.client.post(path, params)
-        self.assertNotContains(response, "errors field-templates", status_code=302)
+        self.assertNotContains(
+            response, 'id="id_config-0-templates_error"', status_code=302
+        )
 
     def test_change_device_required_template(self):
         o = self._get_org()
@@ -1592,7 +1597,9 @@ class TestAdmin(
         params = self._get_device_params(org=self._get_org())
         params.update({"name": "test-device", "config-0-templates": str(t.pk)})
         response = self.client.post(path, params)
-        self.assertNotContains(response, "errors field-templates", status_code=302)
+        self.assertNotContains(
+            response, 'id="id_config-0-templates_error"', status_code=302
+        )
         self.assertEqual(Device.objects.filter(name="test-device").count(), 1)
 
     def test_preview_device_config_empty_id(self):
@@ -1791,7 +1798,7 @@ class TestAdmin(
             }
         )
         response = self.client.post(path, params)
-        self.assertContains(response, "errors field-backend")
+        self.assertContains(response, 'id="id_config-0-backend_error"')
 
     def test_default_device_backend(self):
         path = reverse(f"admin:{self.app_label}_device_add")
@@ -1917,33 +1924,9 @@ class TestAdmin(
         }
         response = self.client.post(path, data)
         response_html = response.content.decode("utf8")
-        self.assertTrue(
-            any(
-                [
-                    "cid &#39;{0}&#39;".format(str(d.id)) in response_html,
-                    # django >= 3.0
-                    "cid &#x27;{0}&#x27;".format(str(d.id)) in response_html,
-                ]
-            )
-        )
-        self.assertTrue(
-            any(
-                [
-                    "ckey &#39;{0}&#39;".format(str(d.key)) in response_html,
-                    # django >= 3.0
-                    "ckey &#x27;{0}&#x27;".format(str(d.key)) in response_html,
-                ]
-            )
-        )
-        self.assertTrue(
-            any(
-                [
-                    "cname &#39;{0}&#39;".format(str(d.name)) in response_html,
-                    # django >= 3.0
-                    "cname &#x27;{0}&#x27;".format(str(d.name)) in response_html,
-                ]
-            )
-        )
+        self.assertIn("cid &#x27;{0}&#x27;".format(str(d.id)), response_html)
+        self.assertIn("ckey &#x27;{0}&#x27;".format(str(d.key)), response_html)
+        self.assertIn("cname &#x27;{0}&#x27;".format(str(d.name)), response_html)
 
     def test_download_vpn_config(self):
         v = self._create_vpn()
@@ -2151,15 +2134,7 @@ class TestAdmin(
         }
         response = self.client.post(path, data)
         response_html = response.content.decode("utf8")
-        self.assertTrue(
-            any(
-                [
-                    "option interval &#39;60&#39;" in response_html,
-                    # django >= 3.0
-                    "option interval &#x27;60&#x27;" in response_html,
-                ]
-            )
-        )
+        self.assertIn("option interval &#x27;60&#x27;", response_html)
 
     def test_context_device(self):
         device = self._create_device()
@@ -2630,16 +2605,14 @@ class TestAdmin(
         path = reverse(f"admin:{self.app_label}_device_change", args=[config.device.pk])
         for i in range(count):
             self._create_template(name=f"template-{i}")
+        ContentType.objects.get_for_model(Device)
         expected_count = 23
         if django.VERSION < (5, 2):
             # In django version < 5.2, there is an extra SAVEPOINT query
             # leading to extra RELEASE SAVEPOINT query, thus 2 extra queries
             expected_count += 2
         with self.assertNumQueries(expected_count):
-            # contains 20 queries for fetching normal device data
             response = self.client.get(path)
-            # contains 2 queries, 1 for fetching organization
-            # and 1 for fetching templates
             response = self.client.get(
                 reverse(
                     "admin:get_relevant_templates", args=[config.device.organization.pk]

@@ -320,7 +320,9 @@ class LocationDeviceList(
 
 class FloorPlanListCreateView(ProtectedAPIMixin, generics.ListCreateAPIView):
     serializer_class = FloorPlanSerializer
-    queryset = FloorPlan.objects.select_related().order_by("-created")
+    queryset = FloorPlan.objects.select_related(
+        "location__organization", "organization"
+    ).order_by("-created")
     pagination_class = OpenWispPagination
     filter_backends = [filters.DjangoFilterBackend]
     filterset_class = FloorPlanOrganizationFilter
@@ -332,7 +334,9 @@ class FloorPlanDetailView(
     generics.RetrieveUpdateDestroyAPIView,
 ):
     serializer_class = FloorPlanSerializer
-    queryset = FloorPlan.objects.select_related()
+    queryset = FloorPlan.objects.select_related(
+        "location__organization", "organization"
+    )
     select_related_organization = False
 
 

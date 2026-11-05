@@ -1008,7 +1008,7 @@ class TestGeoApi(
             "type": "indoor",
             "is_mobile": False,
             "address": "Via del Corso, Roma, Italia",
-            "geometry": [coords],
+            "geometry": json.dumps(coords),
             "floorplan.floor": ["23"],
             "floorplan.image": [fl_image],
         }
@@ -1032,7 +1032,7 @@ class TestGeoApi(
             "type": "indoor",
             "is_mobile": False,
             "address": "Via del Corso, Roma, Italia",
-            "geometry": [coords],
+            "geometry": json.dumps(coords),
             "floorplan.floor": "23",
             "floorplan.image": fl_image,
         }

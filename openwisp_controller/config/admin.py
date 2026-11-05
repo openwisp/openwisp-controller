@@ -9,7 +9,6 @@ from django.contrib import admin, messages
 from django.contrib.admin import helpers
 from django.contrib.admin.actions import delete_selected
 from django.contrib.admin.models import ADDITION, LogEntry
-from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import (
     FieldDoesNotExist,
     ObjectDoesNotExist,
@@ -1205,12 +1204,9 @@ class TemplateAdmin(MultitenantAdminMixin, BaseConfigAdmin, SystemDefinedVariabl
         user = request.user
 
         def create_log_entry(user, clone):
-            ct = ContentType.objects.get(model="template")
-            LogEntry.objects.log_action(
+            LogEntry.objects.log_actions(
                 user_id=user.id,
-                content_type_id=ct.pk,
-                object_id=clone.pk,
-                object_repr=clone.name,
+                queryset=[clone],
                 action_flag=ADDITION,
             )
 
