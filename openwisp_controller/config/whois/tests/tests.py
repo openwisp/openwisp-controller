@@ -440,6 +440,33 @@ class TestWHOISTransaction(
         super().setUp()
         self.admin = self._get_admin()
 
+    @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
+    @mock.patch(_WHOIS_GEOIP_CLIENT)
+    def test_quota_retry_timing_and_changed_ip(self, mock_client):
+        with mock.patch(f"{self._WHOIS_TASK_NAME}.delay"):
+            device = self._create_device(last_ip="172.217.22.14")
+        key = WHOISService.get_quota_cache_key()
+        cache.set(key, timezone.now().timestamp() + 21600, 21600)
+        with (
+            mock.patch.object(fetch_whois_details, "apply_async") as schedule,
+            mock.patch.dict(
+                fetch_whois_details.app.conf.changes,
+                {"broker_transport_options": {"visibility_timeout": 1000}},
+            ),
+        ):
+            fetch_whois_details(device.pk, device.last_ip)
+            self.assertEqual(schedule.call_args.kwargs["countdown"], 900)
+            mock_client.assert_not_called()
+            cache.set(key, timezone.now().timestamp() + 100, 100)
+            fetch_whois_details(device.pk, device.last_ip)
+            self.assertGreater(schedule.call_args.kwargs["countdown"], 90)
+            self.assertLessEqual(schedule.call_args.kwargs["countdown"], 100)
+            schedule.reset_mock()
+            Device.objects.filter(pk=device.pk).update(last_ip="172.217.22.15")
+            fetch_whois_details(device.pk, device.last_ip)
+            schedule.assert_not_called()
+            mock_client.assert_not_called()
+
     @override_settings(CELERY_TASK_EAGER_PROPAGATES=False)
     @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
     @mock.patch(_WHOIS_TASKS_ERR_LOGGER)
@@ -451,17 +478,29 @@ class TestWHOISTransaction(
                 name="second", mac_address="00:11:22:33:44:66", last_ip="172.217.22.15"
             )
         mock_client.return_value.city.side_effect = errors.OutOfQueriesError("test")
-        with mock.patch.object(cache, "set", wraps=cache.set) as cache_set:
+        with (
+            mock.patch.object(cache, "set", wraps=cache.set) as cache_set,
+            mock.patch.object(fetch_whois_details, "apply_async") as schedule,
+        ):
             result = fetch_whois_details.apply(args=(first.pk, first.last_ip))
-        cache_set.assert_any_call(
-            WHOISService.get_quota_cache_key(), True, timeout=21600
+        quota_call = next(
+            call
+            for call in cache_set.call_args_list
+            if call.args[0] == WHOISService.get_quota_cache_key()
         )
+        self.assertEqual(quota_call.kwargs["timeout"], 21600)
+        self.assertAlmostEqual(
+            quota_call.args[1], timezone.now().timestamp() + 21600, delta=5
+        )
+        schedule.assert_called_once()
         self.assertTrue(result.failed())
         self.assertEqual(mock_client.return_value.city.call_count, 1)
         self.assertEqual(_notification_qs().count(), 1)
         mock_error.assert_called_once()
         task_key = f"{self._WHOIS_TASK_NAME}_last_operation"
-        fetch_whois_details.apply(args=(second.pk, second.last_ip))
+        with mock.patch.object(fetch_whois_details, "apply_async") as schedule:
+            fetch_whois_details.apply(args=(second.pk, second.last_ip))
+            schedule.assert_called_once()
         self.assertEqual(mock_client.return_value.city.call_count, 1)
         self.assertEqual(cache.get(task_key), "errored")
         self.assertEqual(_notification_qs().count(), 1)
@@ -936,7 +975,10 @@ class TestWHOISTransaction(
     @mock.patch(_WHOIS_TASKS_ERR_LOGGER)
     @mock.patch(_WHOIS_TASKS_WARN_LOGGER)
     @mock.patch(_WHOIS_TASKS_INFO_LOGGER)
-    def test_task_failure_notification(self, mock_info, mock_warn, mock_error):
+    @mock.patch.object(fetch_whois_details, "schedule_quota_retry")
+    def test_task_failure_notification(
+        self, mock_defer, mock_info, mock_warn, mock_error
+    ):
         def assert_logging_on_exception(
             exception, info_calls=0, warn_calls=0, error_calls=1, notification_count=1
         ):
@@ -985,7 +1027,8 @@ class TestWHOISTransaction(
 
     @override_settings(CELERY_TASK_EAGER_PROPAGATES=False)
     @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
-    def test_task_failure_cache(self):
+    @mock.patch.object(fetch_whois_details, "schedule_quota_retry")
+    def test_task_failure_cache(self, mock_defer):
         permanent_errors = [
             errors.AddressNotFoundError,
             errors.OutOfQueriesError,
@@ -1038,7 +1081,8 @@ class TestWHOISTransaction(
     @override_settings(CELERY_TASK_EAGER_PROPAGATES=True)
     @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
     @mock.patch("openwisp_controller.config.whois.tasks.fetch_whois_details.retry")
-    def test_task_retry_mechanism(self, mock_retry):
+    @mock.patch.object(fetch_whois_details, "schedule_quota_retry")
+    def test_task_retry_mechanism(self, mock_defer, mock_retry):
         def assert_retry_on_exception(exception, should_retry):
             with (
                 self.subTest(
