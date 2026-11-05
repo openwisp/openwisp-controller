@@ -441,6 +441,24 @@ class TestWHOISTransaction(
         self.admin = self._get_admin()
 
     @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
+    @mock.patch(_WHOIS_TASKS_WARN_LOGGER)
+    def test_skipped_lookup_preserves_failure_state(self, mock_warning):
+        with mock.patch(f"{self._WHOIS_TASK_NAME}.delay"):
+            device = self._create_device(last_ip="172.217.22.14")
+        task_key = f"{self._WHOIS_TASK_NAME}_last_operation"
+        cases = ("missing_device", "changed_ip", "existing_record")
+        for case in cases:
+            with self.subTest(case=case):
+                cache.set(task_key, "errored", None)
+                if case == "existing_record":
+                    self._create_whois_info(ip_address=device.last_ip)
+                device_pk = uuid4() if case == "missing_device" else device.pk
+                ip = "172.217.22.15" if case == "changed_ip" else device.last_ip
+                fetch_whois_details.apply(args=(device_pk, ip))
+                self.assertEqual(cache.get(task_key), "errored")
+        mock_warning.assert_called_once()
+
+    @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
     @mock.patch(_WHOIS_GEOIP_CLIENT)
     def test_quota_cooldown_does_not_reschedule_eagerly(self, mock_client):
         with mock.patch(f"{self._WHOIS_TASK_NAME}.delay"):
@@ -466,9 +484,13 @@ class TestWHOISTransaction(
         with mock.patch(f"{self._WHOIS_TASK_NAME}.delay"):
             device = self._create_device(last_ip="172.217.22.14")
         key = WHOISService.get_quota_cache_key()
-        cache.set(key, timezone.now().timestamp() + 21600, 21600)
+        now = timezone.now()
+        cache.set(key, now.timestamp() + 21600, 21600)
         with (
             mock.patch.object(fetch_whois_details, "apply_async") as schedule,
+            mock.patch(
+                "openwisp_controller.config.whois.tasks.timezone.now", return_value=now
+            ),
             mock.patch(
                 "openwisp_controller.config.whois.tasks.random.uniform", return_value=20
             ) as jitter,
@@ -483,16 +505,15 @@ class TestWHOISTransaction(
             fetch_whois_details(device.pk, device.last_ip)
             self.assertEqual(schedule.call_args.kwargs["countdown"], 900)
             mock_client.assert_not_called()
-            cache.set(key, timezone.now().timestamp() + 100, 100)
+            cache.set(key, now.timestamp() + 100, 100)
             fetch_whois_details(device.pk, device.last_ip)
-            self.assertGreater(schedule.call_args.kwargs["countdown"], 110)
-            self.assertLessEqual(schedule.call_args.kwargs["countdown"], 120)
+            self.assertEqual(schedule.call_args.kwargs["countdown"], 120)
             jitter.assert_called_with(0, 300)
-            cache.set(key, timezone.now().timestamp() + 880, 880)
-            jitter.side_effect = lambda start, end: end
+            cache.set(key, now.timestamp() + 880, 880)
+            jitter.reset_mock()
             fetch_whois_details(device.pk, device.last_ip)
-            self.assertEqual(schedule.call_args.kwargs["countdown"], 900)
-            self.assertLess(jitter.call_args.args[1], 25)
+            self.assertEqual(schedule.call_args.kwargs["countdown"], 580)
+            jitter.assert_not_called()
             schedule.reset_mock()
             Device.objects.filter(pk=device.pk).update(last_ip="172.217.22.15")
             fetch_whois_details(device.pk, device.last_ip)
