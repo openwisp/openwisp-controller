@@ -135,7 +135,8 @@ device returns to a recently used IP address.
     Lookups skipped during the pause are scheduled again. They stop if the
     device no longer uses the same IP address, is deactivated, or has
     WHOIS disabled. Retry delays stay below the configured Celery broker
-    visibility timeout.
+    visibility timeout. A small random delay spreads requests after the
+    cooldown ends.
 
 A periodic Celery Beat task removes expired unreferenced records. It is
 automatically configured by :doc:`ansible-openwisp2 </ansible/index>` and
