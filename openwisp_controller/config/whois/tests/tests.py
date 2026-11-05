@@ -469,6 +469,9 @@ class TestWHOISTransaction(
         cache.set(key, timezone.now().timestamp() + 21600, 21600)
         with (
             mock.patch.object(fetch_whois_details, "apply_async") as schedule,
+            mock.patch(
+                "openwisp_controller.config.whois.tasks.random.uniform", return_value=20
+            ) as jitter,
             mock.patch.dict(
                 fetch_whois_details.app.conf.changes,
                 {
@@ -482,8 +485,14 @@ class TestWHOISTransaction(
             mock_client.assert_not_called()
             cache.set(key, timezone.now().timestamp() + 100, 100)
             fetch_whois_details(device.pk, device.last_ip)
-            self.assertGreater(schedule.call_args.kwargs["countdown"], 90)
-            self.assertLessEqual(schedule.call_args.kwargs["countdown"], 100)
+            self.assertGreater(schedule.call_args.kwargs["countdown"], 110)
+            self.assertLessEqual(schedule.call_args.kwargs["countdown"], 120)
+            jitter.assert_called_with(0, 300)
+            cache.set(key, timezone.now().timestamp() + 880, 880)
+            jitter.side_effect = lambda start, end: end
+            fetch_whois_details(device.pk, device.last_ip)
+            self.assertEqual(schedule.call_args.kwargs["countdown"], 900)
+            self.assertLess(jitter.call_args.args[1], 25)
             schedule.reset_mock()
             Device.objects.filter(pk=device.pk).update(last_ip="172.217.22.15")
             fetch_whois_details(device.pk, device.last_ip)

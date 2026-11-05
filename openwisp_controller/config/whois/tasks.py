@@ -1,4 +1,5 @@
 import logging
+import random
 
 from celery import shared_task
 from django.core.cache import cache
@@ -27,13 +28,18 @@ class WHOISCeleryRetryTask(OpenwispCeleryTask):
     autoretry_for = (errors.HTTPError,)
 
     def schedule_quota_retry(self, device_pk, ip_address, expires):
-        """Retry before the broker visibility timeout or when the cooldown ends."""
+        """Schedule a retry within the broker visibility timeout."""
         # Eager tasks ignore countdowns and would immediately call themselves again.
         if self.app.conf.task_always_eager:
             return
         options = self.app.conf.broker_transport_options or {}
         visibility = options.get("visibility_timeout", 3600)
-        delay = min(visibility * 0.9, max(0, expires - timezone.now().timestamp()))
+        limit = visibility * 0.9
+        remaining = max(0, expires - timezone.now().timestamp())
+        delay = min(limit, remaining)
+        if remaining < limit:
+            # Spread requests after the cooldown to avoid a burst at expiry.
+            delay += random.uniform(0, min(300, limit - remaining))
         self.apply_async(args=(device_pk, ip_address), countdown=delay)
 
     def on_success(self, retval, task_id, args, kwargs):
