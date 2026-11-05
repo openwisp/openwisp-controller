@@ -150,7 +150,12 @@ class WHOISService:
             errors.PermissionRequiredError,
         ) as e:
             if isinstance(e, errors.OutOfQueriesError):
-                cache.set(self.get_quota_cache_key(), True, timeout=6 * 60 * 60)
+                timeout = 6 * 60 * 60
+                cache.set(
+                    self.get_quota_cache_key(),
+                    timezone.now().timestamp() + timeout,
+                    timeout=timeout,
+                )
             exc_type = type(e)
             message = EXCEPTION_MESSAGES.get(exc_type)
             if exc_type is errors.AddressNotFoundError:

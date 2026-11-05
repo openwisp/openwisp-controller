@@ -3,6 +3,7 @@ import logging
 from celery import shared_task
 from django.core.cache import cache
 from django.db import transaction
+from django.utils import timezone
 from geoip2 import errors
 from swapper import load_model
 
@@ -24,6 +25,13 @@ class WHOISCeleryRetryTask(OpenwispCeleryTask):
     # this is the exception related to networking errors
     # that should trigger a retry of the task.
     autoretry_for = (errors.HTTPError,)
+
+    def schedule_quota_retry(self, device_pk, ip_address, expires):
+        """Retry before the broker visibility timeout or when the cooldown ends."""
+        options = self.app.conf.broker_transport_options or {}
+        visibility = options.get("visibility_timeout", 3600)
+        delay = min(visibility * 0.9, max(0, expires - timezone.now().timestamp()))
+        self.apply_async(args=(device_pk, ip_address), countdown=delay)
 
     def on_success(self, retval, task_id, args, kwargs):
         """Mark the task as successfully completed."""
@@ -90,10 +98,20 @@ def fetch_whois_details(self, device_pk, initial_ip_address):
     if whois_obj and not whois_service.is_older(whois_obj.modified):
         return
     # Avoid repeated requests to MaxMind while the exhausted quota is cooling down.
-    if cache.get(whois_service.get_quota_cache_key()):
+    if expires := cache.get(whois_service.get_quota_cache_key()):
+        # Older workers may have stored a boolean rather than an expiry timestamp.
+        if expires is True:
+            expires = timezone.now().timestamp() + 6 * 60 * 60
+        self.schedule_quota_retry(device_pk, initial_ip_address, expires)
         return QUOTA_COOLDOWN
     # WARNING: execute HTTP requests before transaction lock is acquired
-    fetched_details = whois_service.process_whois_details(ip_address)
+    try:
+        fetched_details = whois_service.process_whois_details(ip_address)
+    except errors.OutOfQueriesError:
+        expires = cache.get(whois_service.get_quota_cache_key())
+        if expires:
+            self.schedule_quota_retry(device_pk, initial_ip_address, expires)
+        raise
 
     with transaction.atomic():
         device = Device.objects.select_for_update().filter(pk=device_pk).first()

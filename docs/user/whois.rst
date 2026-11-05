@@ -132,6 +132,11 @@ device returns to a recently used IP address.
     pause may need to be repeated. The cache must be shared by all Celery
     workers for the pause to apply across workers.
 
+    Lookups skipped during the pause are scheduled again. They stop if the
+    device no longer uses the same IP address, is deactivated, or has
+    WHOIS disabled. Retry delays stay below the configured Celery broker
+    visibility timeout.
+
 A periodic Celery Beat task removes expired unreferenced records. It is
 automatically configured by :doc:`ansible-openwisp2 </ansible/index>` and
 :doc:`docker-openwisp </docker/index>`. If you need to replicate this
