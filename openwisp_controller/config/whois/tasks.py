@@ -84,7 +84,7 @@ class WHOISCeleryRetryTask(OpenwispCeleryTask):
     base=WHOISCeleryRetryTask,
     **app_settings.API_TASK_RETRY_OPTIONS,
 )
-def fetch_whois_details(self, device_pk, initial_ip_address):
+def fetch_whois_details(self, device_pk, initial_ip_address, previous_ip=None):
     """
     Fetches the WHOIS details of the given IP address
     and creates/updates the WHOIS record.
@@ -112,6 +112,8 @@ def fetch_whois_details(self, device_pk, initial_ip_address):
         return
     # Avoid repeated requests to MaxMind while the exhausted quota is cooling down.
     if expires := cache.get(whois_service.get_quota_cache_key()):
+        if whois_service.reuse_previous(ip_address, previous_ip):
+            return LOOKUP_SUCCESS
         # Older workers may have stored a boolean rather than an expiry timestamp.
         if expires is True:
             expires = timezone.now().timestamp() + 6 * 60 * 60
@@ -121,6 +123,8 @@ def fetch_whois_details(self, device_pk, initial_ip_address):
     try:
         fetched_details = whois_service.process_whois_details(ip_address)
     except errors.OutOfQueriesError:
+        if whois_service.reuse_previous(ip_address, previous_ip):
+            return LOOKUP_SUCCESS
         expires = cache.get(whois_service.get_quota_cache_key())
         if expires:
             self.schedule_quota_retry(device_pk, initial_ip_address, expires)

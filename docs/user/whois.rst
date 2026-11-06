@@ -138,6 +138,10 @@ device returns to a recently used IP address.
     visibility timeout. A small random delay spreads requests after the
     cooldown ends.
 
+    During cooldown, IP changes within the previous subnet reuse its WHOIS
+    data without resetting its age. Other matching subnets may provide
+    approximate WHOIS data while retrying, but not estimated locations.
+
 A periodic Celery Beat task removes expired unreferenced records. It is
 automatically configured by :doc:`ansible-openwisp2 </ansible/index>` and
 :doc:`docker-openwisp </docker/index>`. If you need to replicate this

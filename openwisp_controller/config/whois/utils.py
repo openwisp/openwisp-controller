@@ -66,9 +66,15 @@ def get_whois_info(pk):
     )
     if not device or not device._get_organization__config_settings().whois_enabled:
         return None
-    whois_obj = WHOISService(device).get_device_whois_info()
+    service = WHOISService(device)
+    whois_obj = service.get_device_whois_info()
+    approximate = False
+    if not whois_obj and service.is_valid_public_ip_address(device.last_ip):
+        whois_obj = service.get_display_fallback()
+        approximate = bool(whois_obj)
     if not whois_obj:
         return None
     data = WHOISSerializer(whois_obj).data
     data["formatted_address"] = getattr(whois_obj, "formatted_address", None)
+    data["approximate"] = approximate
     return data
