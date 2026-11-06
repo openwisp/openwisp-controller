@@ -193,6 +193,7 @@ def organization_disabled_handler(instance, **kwargs):
     openwisp-users signals that an organization has been disabled.
     """
     organization_id = str(instance.pk)
+    # Invalidate cached views after deactivation has cleared the configurations.
     chain(
         tasks.deactivate_organization_devices.s(organization_id),
         tasks.invalidate_controller_views_cache.si(organization_id),

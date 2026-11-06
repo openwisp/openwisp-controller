@@ -216,7 +216,7 @@ class TestPkiApi(
             update_payload={"name": "renamed-ca"},
         )
 
-    def test_crl_download_disabled_org(self):
+    def test_crl_download_disabled_org_allowed(self):
         org = self._create_org(name="disabled-org", slug="disabled-org")
         ca = self._create_ca(name="disabled-ca", organization=org)
         org.is_active = False

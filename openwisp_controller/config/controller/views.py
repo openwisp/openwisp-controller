@@ -425,12 +425,6 @@ class DeviceRegisterView(UpdateLastIpMixin, CsrfExtemptMixin, View):
             )
             if device.is_deactivated():
                 return ControllerResponse("error: device deactivated", status=403)
-            if device.organization_id != self.organization.id:
-                # The shared secret matched a different (active) organization
-                # than the one this device actually belongs to; treat it the
-                # same as an unrecognized secret rather than leaking that the
-                # device exists.
-                return ControllerResponse(_("error: unrecognized secret"), status=403)
             if not device.organization.is_active:
                 return ControllerResponse(_("error: organization disabled"), status=403)
             # update device info

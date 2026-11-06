@@ -887,11 +887,12 @@ class DeviceAdmin(MultitenantAdminMixin, BaseConfigAdmin, CopyableFieldsAdmin):
 
     @admin.action(description=_("Activate selected devices"), permissions=["change"])
     def activate_device(self, request, queryset):
-        disabled_org_devices = list(queryset.filter(organization__is_active=False))
+        disabled_org_devices = [
+            self._get_device_path(device)
+            for device in queryset.filter(organization__is_active=False).iterator()
+        ]
         if disabled_org_devices:
-            devices_html = ", ".join(
-                self._get_device_path(device) for device in disabled_org_devices
-            )
+            devices_html = ", ".join(disabled_org_devices)
             self.message_user(
                 request,
                 mark_safe(

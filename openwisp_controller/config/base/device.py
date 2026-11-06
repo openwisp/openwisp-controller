@@ -186,6 +186,10 @@ class AbstractDevice(OrgMixin, BaseModel):
         """Return whether deactivation has been initiated."""
         return self._is_deactivated
 
+    def is_operational(self):
+        """Return whether the device and its organization are active."""
+        return not self.is_deactivated() and self.organization.is_active
+
     def is_fully_deactivated(self):
         """Return whether the device and its configuration are fully deactivated."""
         return self.is_deactivated() and (
@@ -485,7 +489,7 @@ class AbstractDevice(OrgMixin, BaseModel):
         creates a new config instance to apply group templates
         if group has templates.
         """
-        if self.is_deactivated() or not self.organization.is_active:
+        if not self.is_operational():
             # All modification operations are blocked on deactivated devices
             # and on devices belonging to a disabled organization. Hence,
             # default config should not be created in either case.
@@ -510,7 +514,7 @@ class AbstractDevice(OrgMixin, BaseModel):
             old_group_ids = [old_group_ids]
         for device_id, old_group_id in zip(device_ids, old_group_ids):
             device = Device.objects.select_related("organization").get(pk=device_id)
-            if device.is_deactivated() or not device.organization.is_active:
+            if not device.is_operational():
                 # Skip deactivated devices: their configuration is intentionally
                 # emptied during deactivation, so re-applying group templates
                 # would break that state and trigger a push to the device.

@@ -22,10 +22,8 @@ class ValidatedDeviceFieldSerializer(ValidatedModelSerializer):
 
 
 class CommandSerializer(FilterSerializerByOrgManaged, ValidatedDeviceFieldSerializer):
-    # ``Command`` has no direct ``organization`` field (only ``device``),
-    # and ``connection``'s queryset (``DeviceConnection``) doesn't either;
-    # this tells ``FilterSerializerByOrganization.filter_fields`` how to
-    # reach it, mirroring ``DeviceConnectionSerializer`` below.
+    # Filter related device connections by their device's organization so
+    # commands cannot reference connections outside the user's managed orgs.
     organization_field = "device__organization"
 
     input = serializers.JSONField(

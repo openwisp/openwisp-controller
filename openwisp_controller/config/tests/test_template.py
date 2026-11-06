@@ -939,6 +939,11 @@ class TestTemplateTransaction(
             )
             self.assertIn(new_template, org1_config.templates.all())
             self.assertEqual(list(org2_config.templates.all()), previous_templates)
+            org2_config.device.deactivate()
+            org.is_active = True
+            org.save(update_fields=["is_active"])
+            org2_config.device.activate()
+            self.assertIn(new_template, org2_config.templates.all())
 
     def test_update_existing_template_to_be_required(self):
         template = self._create_template(

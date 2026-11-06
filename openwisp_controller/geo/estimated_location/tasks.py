@@ -30,8 +30,7 @@ def manage_estimated_locations(device_pk, ip_address):
                 .get(pk=device_pk)
             )
             if (
-                device.is_deactivated()
-                or not device.organization.is_active
+                not device.is_operational()
                 or normalize_ip(device.last_ip) != ip_address
             ):
                 logger.info(

@@ -48,6 +48,11 @@ class FloorPlanAdmin(MultitenantAdminMixin, AbstractFloorPlanAdmin):
     list_filter = [MultitenantOrgFilter, "created"]
 
     def get_form(self, request, obj=None, **kwargs):
+        """Build a read-only form when disabled orgs hide the location field.
+
+        django-loci assumes the field is present for users with model permissions,
+        even when object-level permissions make the floor plan read-only.
+        """
         try:
             return super().get_form(request, obj, **kwargs)
         except KeyError as error:

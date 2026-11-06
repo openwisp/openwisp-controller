@@ -39,6 +39,30 @@ class TestDevice(
     tests for Device model
     """
 
+    def test_is_operational(self):
+        organization = self._get_org()
+        device = Device(organization=organization)
+
+        with self.subTest("active device in active organization"):
+            device._is_deactivated = False
+            organization.is_active = True
+            self.assertEqual(device.is_operational(), True)
+
+        with self.subTest("deactivated device in active organization"):
+            device._is_deactivated = True
+            organization.is_active = True
+            self.assertEqual(device.is_operational(), False)
+
+        with self.subTest("active device in disabled organization"):
+            device._is_deactivated = False
+            organization.is_active = False
+            self.assertEqual(device.is_operational(), False)
+
+        with self.subTest("deactivated device in disabled organization"):
+            device._is_deactivated = True
+            organization.is_active = False
+            self.assertEqual(device.is_operational(), False)
+
     @mock.patch("openwisp_controller.config.settings.HARDWARE_ID_AS_NAME", False)
     def test_str_name(self):
         d = Device(name="test")
@@ -500,6 +524,23 @@ class TestDevice(
         # must not be updated while the organization is disabled.
         self.assertEqual(device.config.templates.count(), 1)
         self.assertNotIn(new_template, device.config.templates.all())
+
+    def test_activate_device_applies_current_group_templates(self):
+        organization = self._get_org()
+        original_template = self._create_template(
+            name="original-group-template", organization=organization
+        )
+        updated_template = self._create_template(
+            name="updated-group-template", organization=organization
+        )
+        group = self._create_device_group(organization=organization)
+        group.templates.add(original_template)
+        device = self._create_device(organization=organization, group=group)
+        device.deactivate()
+        group.templates.set([updated_template])
+        device.activate()
+        self.assertIn(updated_template, device.config.templates.all())
+        self.assertNotIn(original_template, device.config.templates.all())
 
     @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
     def test_changed_checked_fields_no_duplicates(self):

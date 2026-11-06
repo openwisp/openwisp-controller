@@ -23,7 +23,7 @@ class RelatedDeviceModelPermission(DjangoModelPermissions):
             perm
             and device
             and (
-                (device.organization.is_active and not device.is_deactivated())
+                device.is_operational()
                 or (not device.organization.is_active and request.method == "DELETE")
             )
         )

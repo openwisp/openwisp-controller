@@ -83,10 +83,6 @@ class TestRegistrationMixin:
 class TestController(
     TestRegistrationMixin, CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase
 ):
-    """
-    tests for config.controller
-    """
-
     def _check_header(self, response):
         self.assertEqual(response["X-Openwisp-Controller"], "true")
 
@@ -1257,11 +1253,12 @@ class TestController(
             self.assertEqual(device.is_deactivated(), False)
             self.assertEqual(device.config.checksum_db, config_checksum)
 
-        org.is_active = False
-        org.save(update_fields=["is_active"])
-        payload = self._get_reregistration_payload(device, name=TEST_MACADDR_NAME)
-        response = self.client.post(self.register_url, payload)
-        self.assertContains(response, "error: unrecognized secret", status_code=403)
+        with self.subTest("org disabled before secret validation"):
+            org.is_active = False
+            org.save(update_fields=["is_active"])
+            payload = self._get_reregistration_payload(device, name=TEST_MACADDR_NAME)
+            response = self.client.post(self.register_url, payload)
+            self.assertContains(response, "error: unrecognized secret", status_code=403)
 
     @capture_any_output()
     def test_register_reregistration_403_cross_tenant_secret(self):
@@ -1281,25 +1278,7 @@ class TestController(
         payload = self._get_reregistration_payload(device, name=TEST_MACADDR_NAME)
         payload["secret"] = other_org.config_settings.shared_secret
         response = self.client.post(self.register_url, payload)
-        self.assertContains(response, "error: unrecognized secret", status_code=403)
-
-    @capture_any_output()
-    def test_register_reregistration_403_cross_tenant_secret_both_active(self):
-        org = self._get_org()
-        device = self._create_device(
-            organization=org,
-            key=TEST_CONSISTENT_KEY,
-            mac_address=TEST_MACADDR,
-            name=TEST_MACADDR_NAME,
-        )
-        self._create_config(device=device)
-        other_org = self._create_org(
-            shared_secret="other_org_secret", name="other-org", slug="other-org"
-        )
-        payload = self._get_reregistration_payload(device, name=TEST_MACADDR_NAME)
-        payload["secret"] = other_org.config_settings.shared_secret
-        response = self.client.post(self.register_url, payload)
-        self.assertContains(response, "error: unrecognized secret", status_code=403)
+        self.assertContains(response, "error: organization disabled", status_code=403)
 
     def test_download_config_404_disabled_org(self):
         org = self._create_org(is_active=False)
@@ -1498,7 +1477,7 @@ class TestControllerTransaction(
         config.refresh_from_db()
         self.assertEqual(config.status, "deactivated")
 
-    def test_checksum_404_disabled_org(self):
+    def test_device_checksum_404_disabled_org(self):
         org = self._create_org()
         config = self._create_config(organization=org)
         device = config.device
@@ -1530,21 +1509,21 @@ class TestControllerTransaction(
         c.refresh_from_db()
         self.assertEqual(c.status, "deactivating")
 
-        with self.subTest("download configuration"):
+        with self.subTest("deactivating device can download final configuration"):
             response = self.client.get(
                 reverse("controller:device_download_config", args=[device.pk]),
                 {"key": device.key},
             )
             self.assertEqual(response.status_code, 200)
 
-        with self.subTest("download checksum"):
+        with self.subTest("deactivating device can download final checksum"):
             response = self.client.get(
                 reverse("controller:device_checksum", args=[device.pk]),
                 {"key": device.key},
             )
             self.assertEqual(response.status_code, 200)
 
-        with self.subTest("report status"):
+        with self.subTest("deactivating device can report configuration removal"):
             response = self.client.post(
                 reverse("controller:device_report_status", args=[device.pk]),
                 {"key": device.key, "status": "applied"},

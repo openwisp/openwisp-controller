@@ -125,9 +125,7 @@ class DeviceCoordinatesView(ProtectedAPIMixin, generics.RetrieveUpdateAPIView):
 
     def get_object(self, *args, **kwargs):
         device = super().get_object()
-        if self.request.method not in ("GET", "HEAD") and (
-            device.is_deactivated() or not device.organization.is_active
-        ):
+        if self.request.method not in ("GET", "HEAD") and not device.is_operational():
             raise PermissionDenied
         location = self.get_location(device)
         if location:
@@ -219,9 +217,8 @@ class DeviceLocationView(
             if self.request.method == "PUT":
                 # For PUT-as-create operation, we need to ensure that we have
                 # relevant permissions, as if this was a POST request. This
-                # will either raise a PermissionDenied exception (covers a
-                # disabled organization too, since RelatedDeviceModelPermission
-                # checks device.organization.is_active) or simply return None.
+                # will either raise a PermissionDenied exception, or simply
+                # return None.
                 self.check_permissions(clone_request(self.request, "POST"))
             else:
                 # PATCH requests where the object does not exist should still

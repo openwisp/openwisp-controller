@@ -1035,7 +1035,7 @@ class TestEstimatedLocationTransaction(
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
     @mock.patch(_ESTIMATED_LOCATION_INFO_LOGGER)
-    def test_manage_locations_skips_when_org_disabled(self, mock_info):
+    def test_manage_estimated_locations_skips_disabled_org(self, mock_info):
         whois_obj = self._create_whois_info(ip_address="172.217.22.14")
         device = self._create_device(last_ip=whois_obj.ip_address)
         device.organization.is_active = False

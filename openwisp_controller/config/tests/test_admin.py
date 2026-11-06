@@ -308,15 +308,8 @@ class TestAdmin(
         devnull.close()
 
     def test_disabled_organization_inlines_write_protected(self):
-        # When an organization is disabled, the inlines that openwisp-controller
-        # attaches to the organization admin (configuration settings, shared
-        # object limits, and geographic settings) must become read-only. The
-        # guard is inherited from openwisp-users' OrganizationAdmin, so this
-        # verifies the downstream inlines are covered without re-implementing
-        # it. The guard only denies add and change; it leaves each inline's own
-        # delete decision alone, so inlines that normally allow deletion keep
-        # allowing it (deletion of a disabled organization's data stays
-        # possible).
+        # The users admin guards controller inlines without changing their
+        # individual delete permissions.
         request = RequestFactory().get("/")
         request.user = self._get_admin()
         org_admin = django_admin.site._registry[Organization]
