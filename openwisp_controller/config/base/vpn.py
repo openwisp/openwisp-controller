@@ -1021,11 +1021,20 @@ class AbstractVpnClient(models.Model):
         transaction.on_commit(_post_save)
         # ZT network member should be authorized and assigned
         # an IP after the creation of the VPN client object
-        if instance.vpn._is_backend_type("zerotier"):
-            if instance.zerotier_member_id and instance.ip:
-                instance.vpn._add_zt_network_member(
-                    instance.zerotier_member_id, instance.ip.ip_address
-                )
+        # Recheck persisted state because related objects may be stale.
+        if (
+            instance.vpn._is_backend_type("zerotier")
+            and instance.zerotier_member_id
+            and instance.ip
+            and cls.objects.filter(
+                pk=instance.pk,
+                config__device__organization__is_active=True,
+                config__device___is_deactivated=False,
+            ).exists()
+        ):
+            instance.vpn._add_zt_network_member(
+                instance.zerotier_member_id, instance.ip.ip_address
+            )
 
     @classmethod
     def post_delete(cls, instance, **kwargs):

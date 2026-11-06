@@ -1,6 +1,8 @@
 from unittest.mock import DEFAULT, patch
 
+from django.db import connection
 from django.test import TransactionTestCase
+from django.test.utils import CaptureQueriesContext
 from swapper import load_model
 
 from .. import tasks
@@ -123,3 +125,33 @@ class TestHandlers(CreateConfigMixin, TransactionTestCase):
         )
         ok_device.refresh_from_db()
         self.assertEqual(ok_device._is_deactivated, True)
+
+    @patch("openwisp_controller.config.handlers.chain")
+    def test_deactivate_organization_devices_loads_organization_once(
+        self, mocked_chain
+    ):
+        org = self._create_org()
+        first_device = self._create_device(
+            organization=org, name="first-device", mac_address="00:11:22:33:44:01"
+        )
+        second_device = self._create_device(
+            organization=org, name="second-device", mac_address="00:11:22:33:44:02"
+        )
+        self._create_config(device=first_device)
+        self._create_config(device=second_device)
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        mocked_chain.assert_called_once()
+        with CaptureQueriesContext(connection) as queries:
+            tasks.deactivate_organization_devices(org.id)
+        organization_queries = [
+            query["sql"]
+            for query in queries
+            if f"FROM {connection.ops.quote_name(Organization._meta.db_table)}"
+            in query["sql"]
+        ]
+        self.assertEqual(organization_queries, [])
+        first_device.refresh_from_db()
+        second_device.refresh_from_db()
+        self.assertEqual(first_device.is_deactivated(), True)
+        self.assertEqual(second_device.is_deactivated(), True)

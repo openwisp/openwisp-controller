@@ -237,7 +237,7 @@ def deactivate_organization_devices(organization_id):
             organization__is_active=False,
             _is_deactivated=False,
         )
-        .select_related("config")
+        .select_related("config", "organization")
         .order_by("created")
     )
     for device in devices.iterator():

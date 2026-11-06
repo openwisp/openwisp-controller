@@ -1035,12 +1035,23 @@ class TestEstimatedLocationTransaction(
 
     @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
     @mock.patch(_ESTIMATED_LOCATION_INFO_LOGGER)
-    def test_manage_estimated_locations_skips_disabled_org(self, mock_info):
+    @mock.patch(
+        "openwisp_controller.geo.estimated_location.service.current_app.send_task"
+    )
+    def test_manage_estimated_locations_skips_disabled_org(self, send_task, mock_info):
         whois_obj = self._create_whois_info(ip_address="172.217.22.14")
         device = self._create_device(last_ip=whois_obj.ip_address)
+        send_task.assert_called_once()
         device.organization.is_active = False
         device.organization.save(update_fields=["is_active"])
-        manage_estimated_locations(device.pk, device.last_ip)
+        with mock.patch.object(
+            estimated_location.service.EstimatedLocationService, "update_from_whois"
+        ) as update_from_whois:
+            manage_estimated_locations(device.pk, device.last_ip)
+        update_from_whois.assert_not_called()
+        self.assertEqual(
+            DeviceLocation.objects.filter(content_object_id=device.pk).exists(), False
+        )
         mock_info.assert_called_once_with(
             f"Device {device.pk} no longer needs estimated location "
             f"for {device.last_ip}"

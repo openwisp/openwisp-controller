@@ -1866,6 +1866,30 @@ class TestZeroTierTransaction(
             )
             mock_requests.post.assert_not_called()
 
+        with self.subTest(
+            "saving a disabled client's member does not enqueue an update"
+        ):
+            with (
+                mock.patch.object(
+                    trigger_zerotier_server_update_member, "delay"
+                ) as delay,
+                mock.patch.object(Vpn, "_invalidate_peer_cache") as invalidate,
+            ):
+                vpn_client.save()
+            delay.assert_not_called()
+            invalidate.assert_called_once()
+
+        with self.subTest(
+            "saving a deactivated client's member does not enqueue an update"
+        ):
+            organization_qs.update(is_active=True)
+            Device.objects.filter(pk=device.pk).update(_is_deactivated=True)
+            with mock.patch.object(
+                trigger_zerotier_server_update_member, "delay"
+            ) as delay:
+                vpn_client.save()
+            delay.assert_not_called()
+
         with self.subTest("queued member update skipped after client cleanup"):
             organization_qs.update(is_active=True)
             vpnclient_qs.all().delete()
