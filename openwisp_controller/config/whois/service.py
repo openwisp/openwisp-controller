@@ -384,7 +384,7 @@ class WHOISService:
             for prefix in range(ip_address.max_prefixlen, -1, -1)
             if prefix not in common_subnet_ranges
         ]
-        # Bound scans of the unindexed CIDR column when no subnet matches.
+        # Bound the number of queries when no subnet matches.
         batches.extend(
             remaining[slice(i, i + 8)] for i in range(0, min(len(remaining), 24), 8)
         )

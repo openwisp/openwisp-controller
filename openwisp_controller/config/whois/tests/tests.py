@@ -9,7 +9,7 @@ from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.core.cache import cache
 from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.core.management import CommandError, call_command
-from django.db import transaction
+from django.db import connection, transaction
 from django.db.models.signals import post_delete, post_save
 from django.test import TestCase, TransactionTestCase, override_settings, tag
 from django.urls import reverse
@@ -435,6 +435,19 @@ class TestWHOISInfoModel(CreateWHOISMixin, TestCase):
                 context_manager.exception.message_dict["coordinates"][0],
                 expected_msg,
             )
+
+    def test_cidr_database_index(self):
+        with connection.cursor() as cursor:
+            constraints = connection.introspection.get_constraints(
+                cursor, WHOISInfo._meta.db_table
+            )
+        self.assertTrue(
+            any(
+                constraint["index"] and constraint["columns"] == ["cidr"]
+                for constraint in constraints.values()
+            ),
+            "WHOIS CIDR lookups require a database index",
+        )
 
 
 # SESSION_ENGINE set to DB to avoid conflicts in parallel tests
