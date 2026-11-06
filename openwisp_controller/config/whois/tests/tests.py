@@ -25,7 +25,7 @@ from swapper import load_model
 from openwisp_controller.config.signals import whois_fetched, whois_lookup_skipped
 from openwisp_utils.tests import SeleniumTestMixin, catch_signal
 
-from ....tests.utils import TestAdminMixin
+from ....tests.utils import LOCAL_MEMORY_CACHE, TestAdminMixin
 from ... import settings as app_settings
 from ..handlers import connect_whois_handlers
 from ..service import WHOISService
@@ -166,6 +166,7 @@ class TestWHOIS(CreateWHOISMixin, TestAdminMixin, TestCase):
         with self.assertRaises(TypeError):
             WHOISService.is_older(naive_dt)
 
+    @override_settings(CACHES=LOCAL_MEMORY_CACHE)
     @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
     def test_approximate_whois_does_not_expose_other_organization_ip(self):
         source = self._create_whois_info()
@@ -444,6 +445,7 @@ class TestWHOISInfoModel(CreateWHOISMixin, TestCase):
 
 # SESSION_ENGINE set to DB to avoid conflicts in parallel tests
 @override_settings(SESSION_ENGINE="django.contrib.sessions.backends.db")
+@override_settings(CACHES=LOCAL_MEMORY_CACHE)
 class TestWHOISTransaction(
     CreateWHOISMixin, WHOISTransactionMixin, TransactionTestCase
 ):
@@ -456,6 +458,7 @@ class TestWHOISTransaction(
     _WHOIS_TASK_NAME = "openwisp_controller.config.whois.tasks.fetch_whois_details"
 
     def setUp(self):
+        cache.clear()
         super().setUp()
         self.admin = self._get_admin()
 
