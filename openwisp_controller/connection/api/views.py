@@ -11,11 +11,7 @@ from swapper import load_model
 
 from openwisp_utils.api.pagination import OpenWispPagination
 
-from ...mixins import (
-    ProtectedAPIMixin,
-    RelatedDeviceModelPermission,
-    RelatedDeviceProtectedAPIMixin,
-)
+from ...mixins import ProtectedAPIMixin, RelatedDeviceProtectedAPIMixin
 from .serializers import (
     CommandSerializer,
     CredentialSerializer,
@@ -35,9 +31,6 @@ class BaseCommandView(RelatedDeviceProtectedAPIMixin):
     queryset = Command.objects.prefetch_related("device")
     serializer_class = CommandSerializer
     select_related_organization = False
-
-    def get_permissions(self):
-        return super().get_permissions() + [RelatedDeviceModelPermission()]
 
     def get_parent_queryset(self):
         return Device.objects.filter(

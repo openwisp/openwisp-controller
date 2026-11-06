@@ -123,6 +123,11 @@ class TestImportExportMixin:
 
     def test_device_import_disabled_organization_rejected(self):
         org = self._get_org()
+        device = Device(
+            organization=org, name="ImportSource", mac_address="00:11:22:09:44:56"
+        )
+        device.full_clean()
+        device.save()
         org.is_active = False
         org.save(update_fields=["is_active"])
         contents = (
@@ -139,6 +144,23 @@ class TestImportExportMixin:
         self.assertEqual(
             Device.objects.filter(name="TestImportDisabled").exists(), False
         )
+        with self.subTest("Import cannot move a disabled organization's device"):
+            active_org = self._create_org(name="active-import", slug="active-import")
+            contents = (
+                "id,organization_id,name,mac_address\n"
+                f"{device.pk},{active_org.pk},MovedDisabled,{device.mac_address}"
+            )
+            response = self.client.post(
+                reverse(f"admin:{self.app_label}_device_import"),
+                {"format": "0", "import_file": ContentFile(contents)},
+            )
+            self.assertNotIn("confirm_form", response.context)
+            self.assertContains(
+                response, "Cannot import rows for disabled organizations."
+            )
+            device.refresh_from_db()
+            self.assertEqual(device.organization_id, org.pk)
+            self.assertNotEqual(device.name, "MovedDisabled")
 
     def test_device_import_empty_config(self):
         org = self._get_org(org_name="default")

@@ -241,21 +241,38 @@ class TestConfigApi(
             execute_assertions(data)
 
     def test_filter_templates_by_organization_excludes_disabled_org(self):
+        active_org = self._get_org()
         disabled_org = self._create_org(name="disabled-org", is_active=False)
+        unrelated_org = self._create_org(name="unrelated-org", slug="unrelated-org")
+        active_template = self._create_template(
+            name="active-template", organization=active_org
+        )
         disabled_template = self._create_template(
             name="disabled-template", organization=disabled_org
+        )
+        unrelated_template = self._create_template(
+            name="unrelated-template", organization=unrelated_org
         )
         shared_template = self._create_template(
             name="shared-template", organization=None
         )
-        admin = self._get_admin()
         request = APIRequestFactory().get("/")
-        request.user = admin
         field = FilterTemplatesByOrganization()
         field._context = {"request": request}
-        queryset = field.get_queryset()
-        self.assertNotIn(disabled_template, queryset)
-        self.assertIn(shared_template, queryset)
+
+        with self.subTest("superuser excludes disabled organization templates"):
+            request.user = self._get_admin()
+            queryset = field.get_queryset()
+            self.assertNotIn(disabled_template, queryset)
+            self.assertIn(shared_template, queryset)
+
+        with self.subTest("operator managing active and disabled orgs"):
+            request.user = self._create_operator(
+                organizations=[active_org, disabled_org]
+            )
+            self.assertCountEqual(
+                field.get_queryset(), [active_template, shared_template]
+            )
 
     def test_device_create_with_devicegroup(self):
         self.assertEqual(Device.objects.count(), 0)

@@ -430,9 +430,9 @@ class DeviceRegisterView(UpdateLastIpMixin, CsrfExtemptMixin, View):
                 # than the one this device actually belongs to; treat it the
                 # same as an unrecognized secret rather than leaking that the
                 # device exists.
-                return ControllerResponse("error: unrecognized secret", status=403)
+                return ControllerResponse(_("error: unrecognized secret"), status=403)
             if not device.organization.is_active:
-                return ControllerResponse("error: organization disabled", status=403)
+                return ControllerResponse(_("error: organization disabled"), status=403)
             # update device info
             for attr in self.UPDATABLE_FIELDS:
                 if attr in request.POST:
@@ -522,9 +522,11 @@ class GetVpnView(SingleObjectMixin, View):
     model = Vpn
 
     def get_object(self, *args, **kwargs):
+        # VPNs of disabled organizations remain downloadable (key protected)
+        # so VPN servers can fetch the configuration.
         queryset = self.model.objects.select_related(
             "organization", "ca", "cert", "subnet", "ip"
-        ).filter(Q(organization__is_active=True) | Q(organization__isnull=True))
+        )
         return get_object_or_404(queryset, *args, **kwargs)
 
     @cache_memoize(

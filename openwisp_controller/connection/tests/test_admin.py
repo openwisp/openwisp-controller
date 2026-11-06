@@ -105,17 +105,26 @@ class TestConnectionAdmin(TestAdminMixin, CreateConnectionsMixin, TestCase):
         credentials = self._create_credentials(
             organization=org, name="disabled-credentials"
         )
+        create_data = {
+            "organization": str(org.pk),
+            "connector": credentials.connector,
+            "params": json.dumps(credentials.params),
+        }
+        self.client.force_login(self._get_admin())
+        response = self.client.post(
+            reverse(f"admin:{self.app_label}_credentials_add"),
+            {**create_data, "name": "active-credentials"},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            Credentials.objects.filter(name="active-credentials").count(), 1
+        )
         org.is_active = False
         org.save(update_fields=["is_active"])
         self._test_disabled_org_admin_crud(
             credentials,
             change_data={"name": "renamed-credentials"},
-            create_data={
-                "name": "new-credentials",
-                "organization": str(org.pk),
-                "connector": credentials.connector,
-                "params": credentials.params,
-            },
+            create_data={**create_data, "name": "new-credentials"},
         )
 
     def test_credentials_disabled_org_admin_org_field_excludes_disabled(self):

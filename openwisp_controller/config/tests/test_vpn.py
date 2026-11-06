@@ -1,3 +1,4 @@
+import gzip
 import json
 import uuid
 from subprocess import CalledProcessError, TimeoutExpired
@@ -10,6 +11,7 @@ from django.core.exceptions import ValidationError
 from django.db.models.signals import post_save
 from django.db.utils import IntegrityError
 from django.test import TestCase, TransactionTestCase
+from django.urls import reverse
 from requests.exceptions import ConnectionError, RequestException, Timeout
 from swapper import load_model
 
@@ -25,6 +27,7 @@ from ..tasks import (
     invalidate_vpn_server_devices_cache_change,
     trigger_vpn_server_endpoint,
 )
+from ..tasks_zerotier import trigger_zerotier_server_update_member
 from .utils import (
     CreateConfigTemplateMixin,
     TestVpnX509Mixin,
@@ -42,6 +45,7 @@ Ca = load_model("django_x509", "Ca")
 Cert = load_model("django_x509", "Cert")
 Subnet = load_model("openwisp_ipam", "Subnet")
 IpAddress = load_model("openwisp_ipam", "IpAddress")
+Organization = load_model("openwisp_users", "Organization")
 
 
 class BaseTestVpn(TestVpnX509Mixin, CreateConfigTemplateMixin):
@@ -887,6 +891,7 @@ class TestWireguardTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTe
             vpn_options={
                 "webhook_endpoint": "https://example.com:8080/trigger-update",
                 "auth_token": "openwisp",
+                "organization": self._get_org(),
             }
         )
         vpnclient_qs = device.config.vpnclient_set
@@ -959,6 +964,21 @@ class TestWireguardTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTe
                 config = vpn.get_config()
             self.assertEqual(config["wireguard"][0]["name"], "wg2")
             self.assertEqual(config["wireguard"][0]["port"], 51821)
+
+        with self.subTest("peers removed from downloadable config on org disable"):
+            mocked_post = args[0]
+            download_url = reverse("controller:vpn_download_config", args=[vpn.pk])
+            peer_public_key = vpnclient_qs.first().public_key.encode()
+            response = self.client.get(download_url, {"key": vpn.key})
+            self.assertIn(peer_public_key, gzip.decompress(response.content))
+            mocked_post.reset_mock()
+            organization = device.organization
+            organization.is_active = False
+            organization.save()
+            mocked_post.assert_called_once()
+            response = self.client.get(download_url, {"key": vpn.key})
+            self.assertEqual(response.status_code, 200)
+            self.assertNotIn(peer_public_key, gzip.decompress(response.content))
 
     def test_update_vpn_server_configuration(self):
         device, vpn, template = self._create_wireguard_vpn_template()
@@ -1822,6 +1842,38 @@ class TestZeroTierTransaction(
                 context["zerotier_member_id"], self._TEST_ZT_MEMBER_CONFIG["address"]
             )
             self.assertEqual(context["secret"], self._TEST_ZT_MEMBER_CONFIG["identity"])
+
+        vpn_client = vpnclient_qs.first()
+        member_id = vpn_client.zerotier_member_id
+        member_ip = str(vpn_client.ip.ip_address)
+        organization_qs = Organization.objects.filter(pk=device.organization_id)
+        mock_requests.post.side_effect = None
+        mock_requests.post.return_value = self._get_mock_response(200)
+        self.assertEqual(vpn.organization, None)
+
+        with self.subTest("queued member update authorizes eligible client"):
+            mock_requests.post.reset_mock()
+            trigger_zerotier_server_update_member.delay(
+                vpn.pk, ip=member_ip, node_id=member_id
+            )
+            mock_requests.post.assert_called_once()
+
+        with self.subTest("queued member update skipped for disabled client org"):
+            organization_qs.update(is_active=False)
+            mock_requests.post.reset_mock()
+            trigger_zerotier_server_update_member.delay(
+                vpn.pk, ip=member_ip, node_id=member_id
+            )
+            mock_requests.post.assert_not_called()
+
+        with self.subTest("queued member update skipped after client cleanup"):
+            organization_qs.update(is_active=True)
+            vpnclient_qs.all().delete()
+            mock_requests.post.reset_mock()
+            trigger_zerotier_server_update_member.delay(
+                vpn.pk, ip=member_ip, node_id=member_id
+            )
+            mock_requests.post.assert_not_called()
 
     @mock.patch(_ZT_GENERATE_IDENTITY_SUBPROCESS)
     @mock.patch(_ZT_SERVICE_REQUESTS)

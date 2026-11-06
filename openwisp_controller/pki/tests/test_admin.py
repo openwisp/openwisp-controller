@@ -146,15 +146,36 @@ class TestAdmin(TestPkiMixin, TestAdminMixin, TestOrganizationMixin, TestCase):
                 html=True,
             )
 
+    def _test_active_org_admin_create(self, model, data):
+        self.client.force_login(self._get_admin())
+        response = self.client.post(
+            reverse(f"admin:{self.app_label}_{model._meta.model_name}_add"), data
+        )
+        form = response.context and response.context["adminform"].form
+        self.assertEqual(response.status_code, 302, form and form.errors)
+        self.assertEqual(model.objects.filter(name=data["name"]).count(), 1)
+
+    def _get_x509_create_data(self, **kwargs):
+        return {
+            "operation_type": "new",
+            "key_length": "2048",
+            "digest": "sha256",
+            "validity_start": "2025-01-01 00:00:00",
+            "validity_end": "2035-01-01 00:00:00",
+            **kwargs,
+        }
+
     def test_ca_disabled_org_admin_crud(self):
         org = self._create_org(name="disabled-org", slug="disabled-org")
         ca = self._create_ca(name="disabled-ca", organization=org)
+        create_data = self._get_x509_create_data(organization=str(org.pk))
+        self._test_active_org_admin_create(Ca, {**create_data, "name": "active-ca"})
         org.is_active = False
         org.save(update_fields=["is_active"])
         self._test_disabled_org_admin_crud(
             ca,
             change_data={"name": "renamed-ca"},
-            create_data={"name": "new-ca", "organization": str(org.pk)},
+            create_data={**create_data, "name": "new-ca"},
         )
 
     def test_ca_disabled_org_admin_org_field_excludes_disabled(self):
@@ -169,16 +190,16 @@ class TestAdmin(TestPkiMixin, TestAdminMixin, TestOrganizationMixin, TestCase):
         org = self._create_org(name="disabled-org", slug="disabled-org")
         ca = self._create_ca(name="disabled-ca", organization=org)
         cert = self._create_cert(name="disabled-cert", ca=ca, organization=org)
+        create_data = self._get_x509_create_data(
+            organization=str(org.pk), ca=str(ca.pk)
+        )
+        self._test_active_org_admin_create(Cert, {**create_data, "name": "active-cert"})
         org.is_active = False
         org.save(update_fields=["is_active"])
         self._test_disabled_org_admin_crud(
             cert,
             change_data={"name": "renamed-cert"},
-            create_data={
-                "name": "new-cert",
-                "organization": str(org.pk),
-                "ca": str(ca.pk),
-            },
+            create_data={**create_data, "name": "new-cert"},
         )
 
     def test_cert_disabled_org_admin_org_field_excludes_disabled(self):

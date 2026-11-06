@@ -234,6 +234,7 @@ def deactivate_organization_devices(organization_id):
     devices = (
         Device.objects.filter(
             organization_id=organization_id,
+            organization__is_active=False,
             _is_deactivated=False,
         )
         .select_related("config")

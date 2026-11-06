@@ -735,7 +735,8 @@ class TestSubnetDivisionRule(
         )
         mocked.assert_not_called()
 
-    def test_provision_extra_ips_skips_disabled_org(self):
+    @patch("openwisp_controller.config.handlers.chain")
+    def test_provision_extra_ips_skips_disabled_org(self, mocked_chain):
         org = self._create_org(name="disabled-org", slug="disabled-org")
         master_subnet = self._get_master_subnet(
             subnet="10.201.0.0/16", organization=org
@@ -754,10 +755,16 @@ class TestSubnetDivisionRule(
             config=config,
         )
         old_number_of_ips = rule.number_of_ips
+        # Queryset update avoids dispatching provisioning automatically.
+        SubnetDivisionRule.objects.filter(pk=rule.pk).update(
+            number_of_ips=old_number_of_ips + 2
+        )
         ip_count_before = IpAddress.objects.count()
         index_count_before = SubnetDivisionIndex.objects.count()
         org.is_active = False
         org.save(update_fields=["is_active"])
+        config.device.refresh_from_db()
+        self.assertEqual(config.device.is_deactivated(), False)
         with patch("openwisp_controller.subnet_division.tasks.logger.info") as mocked:
             tasks.provision_extra_ips.run(rule.id, old_number_of_ips=old_number_of_ips)
         mocked.assert_called_once_with(

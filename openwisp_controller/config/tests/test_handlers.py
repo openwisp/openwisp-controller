@@ -52,7 +52,8 @@ class TestHandlers(CreateConfigMixin, TransactionTestCase):
             org.save()
             mocked_chain.assert_not_called()
 
-    def test_deactivate_organization_devices(self):
+    @patch("openwisp_controller.config.handlers.chain")
+    def test_deactivate_organization_devices(self, mocked_chain):
         org = self._create_org()
         device = self._create_device(organization=org)
         config = self._create_config(device=device)
@@ -61,6 +62,8 @@ class TestHandlers(CreateConfigMixin, TransactionTestCase):
         with self.subTest("Devices are deactivated when org gets disabled"):
             org.is_active = False
             org.save()
+            device.refresh_from_db()
+            self.assertEqual(device.is_deactivated(), False)
             tasks.deactivate_organization_devices(org.id)
             device.refresh_from_db()
             config.refresh_from_db()
@@ -72,6 +75,18 @@ class TestHandlers(CreateConfigMixin, TransactionTestCase):
             org.save()
             device.refresh_from_db()
             self.assertEqual(device._is_deactivated, True)
+
+        with self.subTest("Stale disable task leaves newly registered devices active"):
+            new_device = self._create_device(
+                organization=org, name="new-device", mac_address="00:11:22:33:44:02"
+            )
+            new_config = self._create_config(device=new_device)
+            initial_status = new_config.status
+            tasks.deactivate_organization_devices(org.id)
+            new_device.refresh_from_db()
+            new_config.refresh_from_db()
+            self.assertEqual(new_device.is_deactivated(), False)
+            self.assertEqual(new_config.status, initial_status)
 
     def test_deactivate_organization_devices_partial_failure(self):
         org = self._create_org()

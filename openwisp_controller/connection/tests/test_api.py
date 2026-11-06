@@ -11,6 +11,7 @@ from rest_framework import VERSION as REST_FRAMEWORK_VERSION
 from rest_framework.exceptions import ErrorDetail
 from swapper import load_model
 
+from openwisp_controller.config.tasks import deactivate_organization_devices
 from openwisp_controller.tests.utils import TestAdminMixin
 from openwisp_users.tests.test_api import AuthenticationMixin, TestDisabledOrgApiMixin
 
@@ -151,11 +152,12 @@ class TestCommandsAPI(
                 "type": "reboot",
                 "input": None,
             }
-            response = self.client.post(
-                url,
-                data=payload,
-                content_type="application/json",
-            )
+            with self.assertNumQueries(14):
+                response = self.client.post(
+                    url,
+                    data=payload,
+                    content_type="application/json",
+                )
             self.assertEqual(response.status_code, 201)
             test_command_attributes(self, payload)
 
@@ -642,6 +644,9 @@ class TestConnectionApi(
         org = dc.device.organization
         org.is_active = False
         org.save(update_fields=["is_active"])
+        deactivate_organization_devices(str(org.pk))
+        dc.device.refresh_from_db()
+        self.assertEqual(dc.device.is_deactivated(), True)
         list_url = reverse("connection_api:deviceconnection_list", args=(dc.device.pk,))
         detail_url = reverse(
             "connection_api:deviceconnection_detail", args=(dc.device.pk, dc.pk)

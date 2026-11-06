@@ -465,6 +465,21 @@ class AbstractVpn(
             )
         )
 
+    def can_authorize_zt_member(self, node_id=None):
+        """
+        Returns whether a queued ZeroTier member update may still
+        authorize the member, which can change after it was queued.
+        """
+        if self.organization_id and not self.organization.is_active:
+            return False
+        if not node_id or node_id == self.node_id:
+            return True
+        return self.vpnclient_set.filter(
+            secret__startswith=node_id,
+            config__device__organization__is_active=True,
+            config__device___is_deactivated=False,
+        ).exists()
+
     def _remove_zt_network_member(self, zt_member_id):
         vpn_kwargs = dict(
             id=self.pk,

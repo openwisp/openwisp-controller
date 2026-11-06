@@ -17,11 +17,15 @@ class RelatedDeviceModelPermission(DjangoModelPermissions):
             device = getattr(obj, self._device_field)
         else:
             device = view.get_parent_queryset().first()
+        # Disabled organizations still need to delete related objects after
+        # their devices have been deactivated; active organizations do not.
         return (
             perm
             and device
-            and not device.is_deactivated()
-            and (device.organization.is_active or request.method == "DELETE")
+            and (
+                (device.organization.is_active and not device.is_deactivated())
+                or (not device.organization.is_active and request.method == "DELETE")
+            )
         )
 
     def has_permission(self, request, view):

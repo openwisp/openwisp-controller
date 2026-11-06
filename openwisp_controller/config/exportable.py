@@ -123,6 +123,11 @@ class DeviceResource(resources.ModelResource):
             instance, import_validation_errors=None, validate_unique=True
         )
         if (
+            not instance._state.adding
+            and Device.objects.filter(
+                pk=instance.pk, organization__is_active=False
+            ).exists()
+        ) or (
             instance.organization_id
             and not Organization.objects.filter(
                 pk=instance.organization_id,

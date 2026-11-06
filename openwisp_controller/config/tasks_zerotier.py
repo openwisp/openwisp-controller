@@ -123,7 +123,13 @@ def trigger_zerotier_server_update(self, config, vpn_id):
 )
 def trigger_zerotier_server_update_member(self, vpn_id, ip=None, node_id=None):
     Vpn = load_model("config", "Vpn")
-    vpn = Vpn.objects.get(pk=vpn_id)
+    vpn = Vpn.objects.select_related("organization").get(pk=vpn_id)
+    if not vpn.can_authorize_zt_member(node_id):
+        logger.info(
+            f"Skipping ZeroTier network member update: {node_id or vpn.node_id}, "
+            f"ZeroTier VPN server UUID: {vpn_id}, member no longer eligible"
+        )
+        return
     network_id = vpn.network_id
     node_id = node_id or vpn.node_id
     member_ip = ip or vpn.ip.ip_address
