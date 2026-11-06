@@ -1233,9 +1233,12 @@ class TestWHOISTransaction(
                 mock.patch(self._WHOIS_GEOIP_CLIENT) as mock_client,
             ):
                 cache.delete(WHOISService.get_quota_cache_key())
+                mock_defer.reset_mock()
                 mock_client.return_value.city.side_effect = exception("test")
                 Device.objects.all().delete()  # Clear existing devices
                 device = self._create_device(last_ip="172.217.22.14")
+                if exception is not errors.OutOfQueriesError:
+                    mock_defer.assert_not_called()
                 self.assertEqual(mock_info.call_count, info_calls)
                 self.assertEqual(mock_warn.call_count, warn_calls)
                 self.assertEqual(mock_error.call_count, error_calls)
