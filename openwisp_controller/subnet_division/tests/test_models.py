@@ -7,6 +7,7 @@ from django.test import TransactionTestCase
 from django.urls import reverse
 from swapper import load_model
 
+from openwisp_controller.config import tasks as config_tasks
 from openwisp_controller.config.tests.utils import (
     TestVpnX509Mixin,
     TestWireguardVpnMixin,
@@ -728,9 +729,10 @@ class TestSubnetDivisionRule(
                 organization=org, master_subnet=master_subnet
             )
         queued.assert_called_once_with(rule_id=rule.id)
-        Device.objects.filter(pk=config.device_id).update(_is_deactivated=True)
         org.is_active = False
         org.save(update_fields=["is_active"])
+        mocked_chain.assert_called_once()
+        config_tasks.deactivate_organization_devices(org.id)
         tasks.provision_subnet_ip_for_existing_devices.run(rule.id)
         indexes = rule.subnetdivisionindex_set.filter(config=config)
         self.assertEqual(
@@ -777,7 +779,8 @@ class TestSubnetDivisionRule(
         index_count_before = SubnetDivisionIndex.objects.count()
         org.is_active = False
         org.save(update_fields=["is_active"])
-        Device.objects.filter(pk=config.device_id).update(_is_deactivated=True)
+        mocked_chain.assert_called_once()
+        config_tasks.deactivate_organization_devices(org.id)
         tasks.provision_extra_ips.run(rule.id, old_number_of_ips=old_number_of_ips)
         self.assertEqual(IpAddress.objects.count(), ip_count_before + 2)
         self.assertEqual(SubnetDivisionIndex.objects.count(), index_count_before + 2)

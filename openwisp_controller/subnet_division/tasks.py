@@ -97,7 +97,7 @@ def provision_extra_ips(rule_id, old_number_of_ips):
         return
     # Finish queued work for disabled organizations so the saved IP count
     # stays consistent with provisioned addresses. This avoids performing
-    # reconcillation when the organization is enabled.
+    # reconciliation when the organization is enabled.
     index_queryset = division_rule.subnetdivisionindex_set.filter(
         subnet_id__isnull=False,
         config_id__isnull=False,
