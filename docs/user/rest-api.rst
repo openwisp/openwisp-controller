@@ -1414,3 +1414,30 @@ Revoke Cert
 .. code-block:: text
 
     POST /api/v1/controller/cert/{id}/revoke/
+
+Get Organization Configuration Settings
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: text
+
+    GET /api/v1/controller/organization/{id}/config-settings/
+
+Change Organization Configuration Settings
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: text
+
+    PUT /api/v1/controller/organization/{id}/config-settings/
+
+Patch Organization Configuration Settings
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: text
+
+    PATCH /api/v1/controller/organization/{id}/config-settings/
+
+.. note::
+
+    Configuration settings are not created automatically with the
+    organization. ``GET`` returns ``HTTP 404 Not Found`` if they do not
+    exist yet; ``PUT`` and ``PATCH`` will create them.
