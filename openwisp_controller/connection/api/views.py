@@ -11,11 +11,7 @@ from swapper import load_model
 
 from openwisp_utils.api.pagination import OpenWispPagination
 
-from ...mixins import (
-    ProtectedAPIMixin,
-    RelatedDeviceModelPermission,
-    RelatedDeviceProtectedAPIMixin,
-)
+from ...mixins import ProtectedAPIMixin, RelatedDeviceProtectedAPIMixin
 from .serializers import (
     CommandSerializer,
     CredentialSerializer,
@@ -34,14 +30,12 @@ class BaseCommandView(RelatedDeviceProtectedAPIMixin):
     model = Command
     queryset = Command.objects.prefetch_related("device")
     serializer_class = CommandSerializer
-
-    def get_permissions(self):
-        return super().get_permissions() + [RelatedDeviceModelPermission()]
+    select_related_organization = False
 
     def get_parent_queryset(self):
         return Device.objects.filter(
             pk=self.kwargs["device_id"],
-        )
+        ).select_related("organization")
 
     def get_queryset(self):
         return (
@@ -112,6 +106,7 @@ class BaseDeviceConnection(
     model = DeviceConnection
     serializer_class = DeviceConnectionSerializer
     queryset = DeviceConnection.objects.prefetch_related("device")
+    select_related_organization = False
 
     def get_queryset(self):
         return (
@@ -127,7 +122,9 @@ class BaseDeviceConnection(
         return context
 
     def get_parent_queryset(self):
-        return Device.objects.filter(pk=self.kwargs["device_id"])
+        return Device.objects.filter(pk=self.kwargs["device_id"]).select_related(
+            "organization"
+        )
 
 
 class DeviceConnectionListCreateView(BaseDeviceConnection, ListCreateAPIView):

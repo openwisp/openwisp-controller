@@ -9,11 +9,15 @@ from django.test.client import BOUNDARY, MULTIPART_CONTENT, encode_multipart
 from django.test.testcases import TransactionTestCase
 from django.urls import reverse
 from django.utils import timezone
+from rest_framework.test import APIRequestFactory
 from swapper import load_model
 
-from openwisp_controller.config.api.serializers import BaseConfigSerializer
+from openwisp_controller.config.api.serializers import (
+    BaseConfigSerializer,
+    FilterTemplatesByOrganization,
+)
 from openwisp_controller.tests.utils import TestAdminMixin
-from openwisp_users.tests.test_api import AuthenticationMixin
+from openwisp_users.tests.test_api import AuthenticationMixin, TestDisabledOrgApiMixin
 from openwisp_utils.tests import capture_any_output, catch_signal
 
 from .. import settings as app_settings
@@ -105,6 +109,7 @@ class TestConfigApi(
     CreateConfigTemplateMixin,
     TestVpnX509Mixin,
     CreateDeviceGroupMixin,
+    TestDisabledOrgApiMixin,
     AuthenticationMixin,
     TestCase,
 ):
@@ -235,6 +240,38 @@ class TestConfigApi(
             data["config"].update({"context": {}, "config": {}})
             execute_assertions(data)
 
+    def test_filter_templates_by_organization_excludes_disabled_org(self):
+        active_org = self._get_org()
+        disabled_org = self._create_org(name="disabled-org", is_active=False)
+        unrelated_org = self._create_org(name="unrelated-org", slug="unrelated-org")
+        active_template = self._create_template(
+            name="active-template", organization=active_org
+        )
+        disabled_template = self._create_template(
+            name="disabled-template", organization=disabled_org
+        )
+        self._create_template(name="unrelated-template", organization=unrelated_org)
+        shared_template = self._create_template(
+            name="shared-template", organization=None
+        )
+        request = APIRequestFactory().get("/")
+        field = FilterTemplatesByOrganization()
+        field._context = {"request": request}
+
+        with self.subTest("superuser excludes disabled organization templates"):
+            request.user = self._get_admin()
+            queryset = field.get_queryset()
+            self.assertNotIn(disabled_template, queryset)
+            self.assertIn(shared_template, queryset)
+
+        with self.subTest("operator managing active and disabled orgs"):
+            request.user = self._create_operator(
+                organizations=[active_org, disabled_org]
+            )
+            self.assertCountEqual(
+                field.get_queryset(), [active_template, shared_template]
+            )
+
     def test_device_create_with_devicegroup(self):
         self.assertEqual(Device.objects.count(), 0)
         path = reverse("config_api:device_list")
@@ -251,9 +288,10 @@ class TestConfigApi(
     def test_device_list_api(self):
         device = self._create_device()
         path = reverse("config_api:device_list")
-        with patch.object(
-            app_settings, "WHOIS_CONFIGURED", False
-        ), self.assertNumQueries(3):
+        with (
+            patch.object(app_settings, "WHOIS_CONFIGURED", False),
+            self.assertNumQueries(3),
+        ):
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
         with self.subTest("device list should show most recent first"):
@@ -399,9 +437,10 @@ class TestConfigApi(
     def test_device_detail_api(self):
         d1 = self._create_device()
         path = reverse("config_api:device_detail", args=[d1.pk])
-        with patch.object(
-            app_settings, "WHOIS_CONFIGURED", False
-        ), self.assertNumQueries(2):
+        with (
+            patch.object(app_settings, "WHOIS_CONFIGURED", False),
+            self.assertNumQueries(2),
+        ):
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data["config"], None)
@@ -411,9 +450,10 @@ class TestConfigApi(
         d1 = self._create_device()
         self._create_config(device=d1)
         path = reverse("config_api:device_detail", args=[d1.pk])
-        with patch.object(
-            app_settings, "WHOIS_CONFIGURED", False
-        ), self.assertNumQueries(3):
+        with (
+            patch.object(app_settings, "WHOIS_CONFIGURED", False),
+            self.assertNumQueries(3),
+        ):
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
         self.assertNotEqual(r.data["config"], None)
@@ -555,7 +595,7 @@ class TestConfigApi(
         d1 = self._create_device()
         self._create_config(device=d1)
         path = reverse("config_api:download_device_config", args=[d1.pk])
-        with self.assertNumQueries(7):
+        with self.assertNumQueries(6):
             r = self.client.get(path)
         self.assertEqual(r.status_code, 200)
 
@@ -647,6 +687,115 @@ class TestConfigApi(
         self.assertEqual(response.data["is_deactivated"], False)
         device.refresh_from_db()
         self.assertEqual(device.is_deactivated(), False)
+
+    def test_device_activate_deactivate_api_disabled_org(self):
+        org = self._get_org()
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        deactivated_device = self._create_device(
+            name="deactivated",
+            organization=org,
+            mac_address="00:11:22:09:44:55",
+            _is_deactivated=True,
+        )
+        active_device = self._create_device(
+            name="active", organization=org, mac_address="00:11:22:09:44:56"
+        )
+        activate_path = reverse(
+            "config_api:device_activate", args=[deactivated_device.pk]
+        )
+        deactivate_path = reverse(
+            "config_api:device_deactivate", args=[active_device.pk]
+        )
+        # Reactivation is blocked while the organization is disabled, but
+        # deactivation remains allowed so operators can remediate devices missed
+        # by the organization-wide deactivation task.
+        activate_response = self.client.post(activate_path)
+        deactivate_response = self.client.post(deactivate_path)
+        self.assertEqual(activate_response.status_code, 403)
+        deactivated_device.refresh_from_db()
+        self.assertEqual(deactivated_device.is_deactivated(), True)
+        self.assertEqual(deactivate_response.status_code, 200)
+        active_device.refresh_from_db()
+        self.assertEqual(active_device.is_deactivated(), True)
+
+    def test_device_disabled_org_api_crud(self):
+        org = self._create_org(name="disabled-org", slug="disabled-org")
+        device = self._create_device(organization=org, name="disabled-device")
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        self._test_disabled_org_api_crud(
+            device,
+            detail_url=reverse("config_api:device_detail", args=[device.pk]),
+            list_url=reverse("config_api:device_list"),
+            create_payload={
+                **self._device_data,
+                "organization": str(org.pk),
+                "mac_address": "00:11:22:09:44:70",
+            },
+            update_payload={"name": "renamed-device"},
+            operations=("list", "retrieve", "create", "update"),
+        )
+        with self.subTest("superuser delete, once deactivated"):
+            # Deleting a device additionally requires the device
+            # to be deactivated first, a precondition unrelated
+            # to the disabled-org policy; satisfy it here to isolate and
+            # confirm that a disabled organization's device is deletable.
+            device._is_deactivated = True
+            device.save(update_fields=["_is_deactivated"])
+            admin = self._get_admin()
+            auth = self._disabled_org_api_auth(admin)
+            self._test_disabled_org_api_delete(
+                reverse("config_api:device_detail", args=[device.pk]),
+                auth,
+                Device,
+                device.pk,
+            )
+
+    def test_devicegroup_disabled_org_api_crud(self):
+        org = self._create_org(name="disabled-org", slug="disabled-org")
+        device_group = self._create_device_group(
+            name="disabled-group", organization=org
+        )
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        self._test_disabled_org_api_crud(
+            device_group,
+            detail_url=reverse("config_api:devicegroup_detail", args=[device_group.pk]),
+            list_url=reverse("config_api:devicegroup_list"),
+            create_payload={**self._devicegroup_data, "organization": str(org.pk)},
+            update_payload={"name": "renamed-group"},
+        )
+
+    def test_template_disabled_org_api_crud(self):
+        org = self._create_org(name="disabled-org", slug="disabled-org")
+        template = self._create_template(name="disabled-template", organization=org)
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        self._test_disabled_org_api_crud(
+            template,
+            detail_url=reverse("config_api:template_detail", args=[template.pk]),
+            list_url=reverse("config_api:template_list"),
+            create_payload={**self._template_data, "organization": str(org.pk)},
+            update_payload={"name": "renamed-template"},
+        )
+
+    def test_vpn_disabled_org_api_crud(self):
+        org = self._create_org(name="disabled-org", slug="disabled-org")
+        vpn = self._create_vpn(name="disabled-vpn", organization=org)
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        self._test_disabled_org_api_crud(
+            vpn,
+            detail_url=reverse("config_api:vpn_detail", args=[vpn.pk]),
+            list_url=reverse("config_api:vpn_list"),
+            create_payload={
+                **self._vpn_data,
+                "organization": str(org.pk),
+                "ca": str(vpn.ca.pk),
+            },
+            update_payload={"name": "renamed-vpn"},
+        )
 
     def test_device_delete_api(self):
         self._create_template(required=True)

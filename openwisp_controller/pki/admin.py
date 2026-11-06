@@ -26,6 +26,7 @@ CaAdmin.Media.js += ("admin/pki/js/show-org-field.js",)
 class CertAdmin(MultitenantAdminMixin, AbstractCertAdmin, VersionAdmin):
     multitenant_shared_relations = ("ca",)
     history_latest_first = True
+    disabled_organization_action_exclusions = ("revoke_action",)
 
 
 CertAdmin.fields.insert(2, "organization")

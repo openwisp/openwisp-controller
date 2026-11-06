@@ -1,6 +1,10 @@
 from openwisp_users.api.mixins import FilterByOrganizationManaged, FilterByParentManaged
 from openwisp_users.api.mixins import ProtectedAPIMixin as BaseProtectedAPIMixin
-from openwisp_users.api.permissions import DjangoModelPermissions, IsOrganizationManager
+from openwisp_users.api.permissions import (
+    DisabledOrgReadOnly,
+    DjangoModelPermissions,
+    IsOrganizationManager,
+)
 
 
 class RelatedDeviceModelPermission(DjangoModelPermissions):
@@ -13,7 +17,16 @@ class RelatedDeviceModelPermission(DjangoModelPermissions):
             device = getattr(obj, self._device_field)
         else:
             device = view.get_parent_queryset().first()
-        return perm and device and not device.is_deactivated()
+        # Disabled organizations still need to delete related objects after
+        # their devices have been deactivated; active organizations do not.
+        return (
+            perm
+            and device
+            and (
+                device.is_operational()
+                or (not device.organization.is_active and request.method == "DELETE")
+            )
+        )
 
     def has_permission(self, request, view):
         perm = super().has_permission(request, view)
@@ -28,6 +41,7 @@ class RelatedDeviceProtectedAPIMixin(FilterByParentManaged, BaseProtectedAPIMixi
     permission_classes = [
         IsOrganizationManager,
         RelatedDeviceModelPermission,
+        DisabledOrgReadOnly,
     ]
 
 

@@ -95,7 +95,9 @@ def provision_extra_ips(rule_id, old_number_of_ips):
             f'with id: "{rule_id}", reason: {e}'
         )
         return
-
+    # Finish queued work for disabled organizations so the saved IP count
+    # stays consistent with provisioned addresses. This avoids performing
+    # reconciliation when the organization is enabled.
     index_queryset = division_rule.subnetdivisionindex_set.filter(
         subnet_id__isnull=False,
         config_id__isnull=False,
@@ -141,5 +143,6 @@ def provision_subnet_ip_for_existing_devices(rule_id):
             f'Division Rule with id: "{rule_id}", reason: {error}'
         )
         return
-    else:
-        rule.rule_class.provision_for_existing_objects(rule)
+    # Finish queued work for disabled organizations so devices have their
+    # subnet variables without requiring reconciliation on reactivation.
+    rule.rule_class.provision_for_existing_objects(rule)

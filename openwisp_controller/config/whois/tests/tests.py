@@ -1383,6 +1383,27 @@ class TestWHOISTransaction(
         mock_client.assert_not_called()
 
     @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
+    @mock.patch("openwisp_controller.config.handlers.chain")
+    @mock.patch(_WHOIS_GEOIP_CLIENT)
+    def test_fetch_details_skips_when_org_disabled(self, mock_client, mocked_chain):
+        whois_obj = self._create_whois_info(ip_address="8.8.8.8")
+        device = self._create_device(last_ip=whois_obj.ip_address)
+        stale_time = timezone.now() - timedelta(
+            days=app_settings.WHOIS_REFRESH_THRESHOLD_DAYS + 1
+        )
+        WHOISInfo.objects.filter(pk=whois_obj.pk).update(modified=stale_time)
+        device.organization.is_active = False
+        device.organization.save(update_fields=["is_active"])
+        device.refresh_from_db()
+        self.assertEqual(device.is_deactivated(), False)
+        mock_client.reset_mock()
+        mock_client.return_value.city.return_value = self._mocked_client_response()
+        fetch_whois_details(
+            device_pk=device.pk, initial_ip_address=whois_obj.ip_address
+        )
+        mock_client.assert_not_called()
+
+    @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
     @mock.patch(_WHOIS_GEOIP_CLIENT)
     def test_fetch_details_record_already_exists(self, mock_client):
         whois_obj = self._create_whois_info()
