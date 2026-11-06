@@ -250,9 +250,7 @@ class TestConfigApi(
         disabled_template = self._create_template(
             name="disabled-template", organization=disabled_org
         )
-        self._create_template(
-            name="unrelated-template", organization=unrelated_org
-        )
+        self._create_template(name="unrelated-template", organization=unrelated_org)
         shared_template = self._create_template(
             name="shared-template", organization=None
         )
