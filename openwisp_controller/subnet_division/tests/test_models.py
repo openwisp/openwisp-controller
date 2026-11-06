@@ -712,31 +712,43 @@ class TestSubnetDivisionRule(
         self.assertNotIn(config1_subnets.first(), config2_subnets)
         self.assertNotIn(config1_subnets.last(), config2_subnets)
 
-    def test_provision_subnet_ip_skips_disabled_org(self):
+    @patch("openwisp_controller.config.handlers.chain")
+    def test_queued_subnet_provisioning_completes_after_org_disabled(
+        self, mocked_chain
+    ):
         org = self._create_org(name="disabled-org", slug="disabled-org")
-        rule = self._get_vpn_subdivision_rule(
-            organization=org,
-            master_subnet=self._get_master_subnet(
-                subnet="10.200.0.0/16", organization=org
-            ),
+        config = self._create_config(organization=org)
+        master_subnet = self._get_master_subnet(
+            subnet="10.200.0.0/16", organization=org
         )
+        with patch.object(
+            tasks.provision_subnet_ip_for_existing_devices, "delay"
+        ) as queued:
+            rule = self._get_device_subdivision_rule(
+                organization=org, master_subnet=master_subnet
+            )
+        queued.assert_called_once_with(rule_id=rule.id)
+        Device.objects.filter(pk=config.device_id).update(_is_deactivated=True)
         org.is_active = False
         org.save(update_fields=["is_active"])
-        with (
-            patch(
-                "openwisp_controller.subnet_division.tasks.logger.info"
-            ) as mocked_logger,
-            patch.object(rule.rule_class, "provision_for_existing_objects") as mocked,
-        ):
-            tasks.provision_subnet_ip_for_existing_devices.run(rule.id)
-        mocked_logger.assert_called_once_with(
-            "Skipping subnet provisioning for rule %s of disabled organization",
-            rule.id,
+        tasks.provision_subnet_ip_for_existing_devices.run(rule.id)
+        indexes = rule.subnetdivisionindex_set.filter(config=config)
+        self.assertEqual(
+            indexes.filter(ip__isnull=True).count(), rule.number_of_subnets
         )
-        mocked.assert_not_called()
+        self.assertEqual(
+            indexes.filter(ip__isnull=False).count(),
+            rule.number_of_subnets * rule.number_of_ips,
+        )
+        config.device.refresh_from_db()
+        self.assertEqual(config.device.is_deactivated(), True)
+        context = get_subnet_division_config_context(config)
+        self.assertIn(f"{rule.label}_subnet1_ip1", context)
 
     @patch("openwisp_controller.config.handlers.chain")
-    def test_provision_extra_ips_skips_disabled_org(self, mocked_chain):
+    def test_queued_extra_ip_provisioning_completes_after_org_disabled(
+        self, mocked_chain
+    ):
         org = self._create_org(name="disabled-org", slug="disabled-org")
         master_subnet = self._get_master_subnet(
             subnet="10.201.0.0/16", organization=org
@@ -755,24 +767,22 @@ class TestSubnetDivisionRule(
             config=config,
         )
         old_number_of_ips = rule.number_of_ips
-        # Queryset update avoids dispatching provisioning automatically.
-        SubnetDivisionRule.objects.filter(pk=rule.pk).update(
-            number_of_ips=old_number_of_ips + 2
+        with patch.object(tasks.provision_extra_ips, "delay") as queued:
+            rule.number_of_ips += 2
+            rule.save()
+        queued.assert_called_once_with(
+            rule_id=str(rule.id), old_number_of_ips=old_number_of_ips
         )
         ip_count_before = IpAddress.objects.count()
         index_count_before = SubnetDivisionIndex.objects.count()
         org.is_active = False
         org.save(update_fields=["is_active"])
+        Device.objects.filter(pk=config.device_id).update(_is_deactivated=True)
+        tasks.provision_extra_ips.run(rule.id, old_number_of_ips=old_number_of_ips)
+        self.assertEqual(IpAddress.objects.count(), ip_count_before + 2)
+        self.assertEqual(SubnetDivisionIndex.objects.count(), index_count_before + 2)
         config.device.refresh_from_db()
-        self.assertEqual(config.device.is_deactivated(), False)
-        with patch("openwisp_controller.subnet_division.tasks.logger.info") as mocked:
-            tasks.provision_extra_ips.run(rule.id, old_number_of_ips=old_number_of_ips)
-        mocked.assert_called_once_with(
-            "Skipping extra IP provisioning for rule %s of disabled organization",
-            rule.id,
-        )
-        self.assertEqual(IpAddress.objects.count(), ip_count_before)
-        self.assertEqual(SubnetDivisionIndex.objects.count(), index_count_before)
+        self.assertEqual(config.device.is_deactivated(), True)
 
     def test_device_deleted(self):
         rule = self._get_vpn_subdivision_rule()

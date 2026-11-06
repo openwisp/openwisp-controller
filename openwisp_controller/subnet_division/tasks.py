@@ -88,21 +88,16 @@ def provision_extra_ips(rule_id, old_number_of_ips):
     generated_indexes = []
 
     try:
-        division_rule = SubnetDivisionRule.objects.select_related("organization").get(
-            id=rule_id
-        )
+        division_rule = SubnetDivisionRule.objects.get(id=rule_id)
     except SubnetDivisionRule.DoesNotExist as e:
         logger.warning(
             "Failed to provision extra IPs for Subnet Division Rule "
             f'with id: "{rule_id}", reason: {e}'
         )
         return
-    if division_rule.organization_id and not division_rule.organization.is_active:
-        logger.info(
-            "Skipping extra IP provisioning for rule %s of disabled organization",
-            rule_id,
-        )
-        return
+    # Finish queued work for disabled organizations so the saved IP count
+    # stays consistent with provisioned addresses. This avoids performing
+    # reconcillation when the organization is enabled.
     index_queryset = division_rule.subnetdivisionindex_set.filter(
         subnet_id__isnull=False,
         config_id__isnull=False,
@@ -141,17 +136,13 @@ def provision_extra_ips(rule_id, old_number_of_ips):
 @shared_task
 def provision_subnet_ip_for_existing_devices(rule_id):
     try:
-        rule = SubnetDivisionRule.objects.select_related("organization").get(id=rule_id)
+        rule = SubnetDivisionRule.objects.get(id=rule_id)
     except SubnetDivisionRule.DoesNotExist as error:
         logger.warning(
             "Failed to provision IPs on existing devices for Subnet "
             f'Division Rule with id: "{rule_id}", reason: {error}'
         )
         return
-    if rule.organization_id and not rule.organization.is_active:
-        logger.info(
-            "Skipping subnet provisioning for rule %s of disabled organization",
-            rule_id,
-        )
-        return
+    # Finish queued work for disabled organizations so devices have their
+    # subnet variables without requiring reconciliation on reactivation.
     rule.rule_class.provision_for_existing_objects(rule)
