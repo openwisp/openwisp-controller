@@ -75,8 +75,16 @@ def get_whois_info(pk):
     if not whois_obj:
         return None
     data = WHOISSerializer(whois_obj).data
-    data["formatted_address"] = getattr(whois_obj, "formatted_address", None)
     if approximate:
+        address = {
+            key: data["address"].get(key, "")
+            for key in ("city", "country", "continent", "postal")
+        }
+        data = {key: data[key] for key in ("isp", "asn", "timezone", "cidr")}
         data["ip_address"] = device.last_ip
+        data["address"] = address
+        data["formatted_address"] = ", ".join(filter(None, address.values()))
+    else:
+        data["formatted_address"] = getattr(whois_obj, "formatted_address", None)
     data["approximate"] = approximate
     return data
