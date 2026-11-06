@@ -1,10 +1,12 @@
 from datetime import timedelta
 from ipaddress import ip_address as ip_addr
+from ipaddress import ip_network
 
 import requests
 from django.contrib.gis.geos import Point
 from django.core.cache import cache
 from django.db import transaction
+from django.db.models import Case, IntegerField, Value, When
 from django.utils import timezone
 from geoip2 import errors
 from geoip2 import webservice as geoip2_webservice
@@ -14,7 +16,7 @@ from openwisp_controller.config import settings as app_settings
 from openwisp_controller.config.signals import whois_lookup_skipped
 
 from .tasks import fetch_whois_details
-from .utils import EXCEPTION_MESSAGES
+from .utils import ADDRESS_FIELDS, EXCEPTION_MESSAGES
 
 
 class WHOISService:
@@ -45,6 +47,10 @@ class WHOISService:
         Used to get cache key for caching org settings of a device.
         """
         return f"organization_config_{org_id}"
+
+    @staticmethod
+    def get_quota_cache_key():
+        return f"whois_geolite_city_quota_{app_settings.WHOIS_GEOIP_ACCOUNT}"
 
     @staticmethod
     def is_valid_public_ip_address(ip):
@@ -145,6 +151,13 @@ class WHOISService:
             errors.OutOfQueriesError,
             errors.PermissionRequiredError,
         ) as e:
+            if isinstance(e, errors.OutOfQueriesError):
+                timeout = 6 * 60 * 60
+                cache.set(
+                    self.get_quota_cache_key(),
+                    timezone.now().timestamp() + timeout,
+                    timeout=timeout,
+                )
             exc_type = type(e)
             message = EXCEPTION_MESSAGES.get(exc_type)
             if exc_type is errors.AddressNotFoundError:
@@ -231,10 +244,7 @@ class WHOISService:
         )
         if force_lookup or self._need_whois_lookup(new_ip):
             transaction.on_commit(
-                lambda: fetch_whois_details.delay(
-                    device_pk=self.device.pk,
-                    initial_ip_address=new_ip,
-                )
+                lambda: self._lookup_or_reuse(new_ip, initial_ip, force_lookup)
             )
         elif self.is_whois_enabled and self.is_valid_public_ip_address(new_ip):
             # Emit signal when lookup is skipped so receivers can react
@@ -288,3 +298,114 @@ class WHOISService:
             whois_instance.save(force_insert=True)
             update_fields = list(whois_details.keys())
         return whois_instance, update_fields
+
+    def _lookup_or_reuse(self, ip_address, previous_ip, force_lookup=False):
+        """During a quota pause, reuse the previous IP's data or schedule a lookup."""
+        if (
+            not force_lookup
+            and cache.get(self.get_quota_cache_key())
+            and self.reuse_previous(ip_address, previous_ip)
+        ):
+            return
+        kwargs = {"device_pk": self.device.pk, "initial_ip_address": ip_address}
+        if (
+            not force_lookup
+            and self.is_valid_public_ip_address(previous_ip)
+            and previous_ip != ip_address
+        ):
+            kwargs["previous_ip"] = previous_ip
+        fetch_whois_details.delay(**kwargs)
+
+    def reuse_previous(self, ip_address, previous_ip):
+        """Copy the previous IP's WHOIS data if both IPs share its subnet.
+
+        Preserve the original update time so the data is refreshed on schedule.
+        """
+        if not self.is_valid_public_ip_address(previous_ip):
+            return False
+        Device = load_model("config", "Device")
+        WHOISInfo = load_model("config", "WHOISInfo")
+        with transaction.atomic():
+            device = (
+                Device.objects.select_for_update().filter(pk=self.device.pk).first()
+            )
+            if (
+                not device
+                or device.is_deactivated()
+                or self.normalize_ip_address(device.last_ip) != ip_address
+                or not device.whois_service.is_whois_enabled
+            ):
+                return False
+            source = WHOISInfo.objects.filter(pk=previous_ip).first()
+            if not source or self.is_older(source.modified):
+                return False
+            try:
+                if ip_addr(ip_address) not in ip_network(source.cidr, strict=False):
+                    return False
+            except ValueError:
+                return False
+            fields = {
+                name: getattr(source, name)
+                for name in ("isp", "asn", "timezone", "cidr", "coordinates")
+            }
+            fields["address"] = {
+                key: source.address[key]
+                for key in ADDRESS_FIELDS
+                if key in source.address
+            }
+            target, created = WHOISInfo.objects.select_for_update().get_or_create(
+                ip_address=ip_address, defaults=fields
+            )
+            if not created and not self.is_older(target.modified):
+                return False
+            WHOISInfo.objects.filter(pk=target.pk).update(
+                **fields, modified=source.modified, unreferenced_since=None
+            )
+            transaction.on_commit(
+                lambda: whois_lookup_skipped.send(sender=self.__class__, device=device)
+            )
+        return True
+
+    def get_display_fallback(self):
+        """Find a temporary subnet match for WHOIS display during quota cooldown."""
+        if not cache.get(self.get_quota_cache_key()):
+            return None
+        ip_address = ip_addr(self.normalize_ip_address(self.device.last_ip))
+        # Try common subnet sizes first to keep each query small.
+        common_subnet_ranges = (
+            (24, 23, 22, 20, 19)
+            if ip_address.version == 4
+            else (64, 63, 62, 61, 56, 48)
+        )
+        WHOISInfo = load_model("config", "WHOISInfo")
+        batches = [common_subnet_ranges]
+        remaining = [
+            prefix
+            for prefix in range(ip_address.max_prefixlen, -1, -1)
+            if prefix not in common_subnet_ranges
+        ]
+        # Bound scans of the unindexed CIDR column when no subnet matches.
+        batches.extend(
+            remaining[slice(i, i + 8)] for i in range(0, min(len(remaining), 24), 8)
+        )
+        for prefixes in batches:
+            subnets = {
+                str(ip_network(f"{ip_address}/{prefix}", strict=False)): prefix
+                for prefix in prefixes
+            }
+            specificity = Case(
+                *[
+                    When(cidr=cidr, then=Value(prefix))
+                    for cidr, prefix in subnets.items()
+                ],
+                output_field=IntegerField(),
+            )
+            match = (
+                WHOISInfo.objects.filter(cidr__in=subnets)
+                .alias(specificity=specificity)
+                .order_by("-specificity", "-modified", "ip_address")
+                .first()
+            )
+            if match:
+                return match
+        return None
