@@ -16,7 +16,7 @@ from openwisp_controller.config import settings as app_settings
 from openwisp_controller.config.signals import whois_lookup_skipped
 
 from .tasks import fetch_whois_details
-from .utils import EXCEPTION_MESSAGES
+from .utils import ADDRESS_FIELDS, EXCEPTION_MESSAGES
 
 
 class WHOISService:
@@ -345,10 +345,13 @@ class WHOISService:
             except ValueError:
                 return False
             fields = {
-                field.attname: getattr(source, field.attname)
-                for field in source._meta.concrete_fields
-                if not field.primary_key
-                and field.name not in {"created", "modified", "unreferenced_since"}
+                name: getattr(source, name)
+                for name in ("isp", "asn", "timezone", "cidr", "coordinates")
+            }
+            fields["address"] = {
+                key: source.address[key]
+                for key in ADDRESS_FIELDS
+                if key in source.address
             }
             target, created = WHOISInfo.objects.select_for_update().get_or_create(
                 ip_address=ip_address, defaults=fields

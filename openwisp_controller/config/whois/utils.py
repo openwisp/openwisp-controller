@@ -5,6 +5,8 @@ from swapper import load_model
 
 from .. import settings as app_settings
 
+ADDRESS_FIELDS = ("city", "country", "continent", "postal")
+
 MESSAGE_MAP = {
     "whois_device_error": {
         "type": "generic_message",
@@ -76,10 +78,7 @@ def get_whois_info(pk):
         return None
     data = WHOISSerializer(whois_obj).data
     if approximate:
-        address = {
-            key: data["address"].get(key, "")
-            for key in ("city", "country", "continent", "postal")
-        }
+        address = {key: data["address"].get(key, "") for key in ADDRESS_FIELDS}
         data = {key: data[key] for key in ("isp", "asn", "timezone", "cidr")}
         data["ip_address"] = device.last_ip
         data["address"] = address
