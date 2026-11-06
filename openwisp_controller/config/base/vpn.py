@@ -252,12 +252,16 @@ class AbstractVpn(
         """
         Calls _auto_create_cert() if cert is not set.
         """
-        if self.organization_id and not self.organization.is_active:
-            return super().save(*args, **kwargs)
-        config = {}
         created = self._state.adding
         if not created:
             self._check_changes()
+        if self.organization_id and not self.organization.is_active:
+            super().save(*args, **kwargs)
+            if not created and self._send_vpn_modified_after_save:
+                self.handle_related_change()
+                self._send_vpn_modified_after_save = False
+            return
+        config = {}
         create_dh = False
         if self.ca and (not self.cert or self.cert.ca_id != self.ca_id):
             self.cert = self._auto_create_cert()
@@ -331,8 +335,7 @@ class AbstractVpn(
     def handle_related_change(self):
         """
         Invalidates the VPN checksum and emits ``vpn_server_modified`` so that
-        client configs are recomputed. Called by :class:`CacheDependency` when
-        a related object (e.g. server CA/Cert) changes content.
+        client configs are recomputed.
         """
         self.invalidate_checksum_cache()
         self._send_vpn_modified_signal()

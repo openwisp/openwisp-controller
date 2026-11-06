@@ -553,6 +553,46 @@ class TestVpnTransaction(BaseTestVpn, TestWireguardVpnMixin, TransactionTestCase
         self.assertNotEqual(vpn.dh, Vpn._placeholder_dh)
         dhparam.assert_called_once()
 
+    @mock.patch("openwisp_controller.config.handlers.chain")
+    def test_queued_dh_update_invalidates_disabled_org_vpn_cache(self, mocked_chain):
+        org = self._get_org()
+        with mock.patch.object(create_vpn_dh, "delay") as queued:
+            vpn = self._create_vpn(
+                dh="",
+                organization=org,
+                config={
+                    **self._vpn_config,
+                    "files": [
+                        {"path": "dh.pem", "mode": "0644", "contents": "{{ dh }}"}
+                    ],
+                },
+            )
+        queued.assert_called_once_with(vpn.pk)
+        vpn = Vpn.objects.get(pk=vpn.pk)
+        old_checksum = vpn.get_cached_checksum()
+        old_configuration = vpn.get_cached_configuration().getvalue()
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        mocked_chain.assert_called_once()
+        with (
+            mock.patch.object(Vpn, "dhparam", return_value=self._dh),
+            mock.patch.object(create_vpn_dh, "delay") as queued,
+            catch_signal(vpn_server_modified) as modified,
+        ):
+            create_vpn_dh.run(vpn.pk)
+        queued.assert_not_called()
+        modified.assert_called_once()
+        vpn = Vpn.objects.get(pk=vpn.pk)
+        self.assertEqual(vpn.dh, self._dh)
+        self.assertNotEqual(vpn.checksum, old_checksum)
+        self.assertNotEqual(vpn.get_cached_checksum(), old_checksum)
+        self.assertNotEqual(
+            vpn.get_cached_configuration().getvalue(), old_configuration
+        )
+        with catch_signal(vpn_server_modified) as modified:
+            vpn.save()
+        modified.assert_not_called()
+
     def test_vpn_server_change_invalidates_device_cache(self):
         device, vpn, template = self._create_wireguard_vpn_template()
         with (
