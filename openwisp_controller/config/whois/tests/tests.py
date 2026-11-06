@@ -467,26 +467,51 @@ class TestWHOISTransaction(
         return_value=True,
     )
     def test_quota_reuses_previous_subnet(self, enabled, lookup, location_task):
-        previous = self._create_whois_info()
-        modified = timezone.now() - timedelta(days=1)
-        WHOISInfo.objects.filter(pk=previous.pk).update(modified=modified)
-        device = self._create_device(last_ip=previous.pk)
-        lookup.reset_mock()
-        location_task.reset_mock()
         cache.set(WHOISService.get_quota_cache_key(), timezone.now().timestamp() + 3600)
-        device.last_ip = "172.217.22.15"
-        with catch_signal(whois_lookup_skipped) as skipped:
-            device.save()
-        reused = WHOISInfo.objects.get(pk=device.last_ip)
-        self.assertEqual(reused.cidr, previous.cidr)
-        self.assertEqual(reused.address, previous.address)
-        self.assertEqual(reused.modified, modified)
-        lookup.assert_not_called()
-        skipped.assert_called_once()
-        location_task.assert_called_once_with(
-            "whois_estimated_location_task",
-            kwargs={"device_pk": device.pk, "ip_address": device.last_ip},
+        cases = (
+            ("172.217.22.14", "172.217.22.0/24", "172.217.22.15", False),
+            (
+                "2606:4700:4700::1111",
+                "2606:4700:4700::/64",
+                "2606:4700:4700::1001",
+                False,
+            ),
+            ("8.8.8.8", "8.8.8.0/24", "8.8.8.9", True),
         )
+        for index, (old_ip, cidr, new_ip, stale) in enumerate(cases):
+            with self.subTest(cidr=cidr, stale_target=stale):
+                previous = self._create_whois_info(ip_address=old_ip, cidr=cidr)
+                modified = timezone.now() - timedelta(days=1)
+                WHOISInfo.objects.filter(pk=previous.pk).update(modified=modified)
+                if stale:
+                    target = self._create_whois_info(
+                        ip_address=new_ip, cidr=cidr, isp="Old ISP"
+                    )
+                    WHOISInfo.objects.filter(pk=target.pk).update(
+                        modified=timezone.now()
+                        - timedelta(days=app_settings.WHOIS_REFRESH_THRESHOLD_DAYS + 1)
+                    )
+                device = self._create_device(
+                    last_ip=old_ip,
+                    name=f"reuse-{index}",
+                    mac_address=f"00:11:22:33:44:{index:02x}",
+                )
+                lookup.reset_mock()
+                location_task.reset_mock()
+                device.last_ip = new_ip
+                with catch_signal(whois_lookup_skipped) as skipped:
+                    device.save()
+                reused = WHOISInfo.objects.get(pk=new_ip)
+                self.assertEqual(reused.cidr, cidr)
+                self.assertEqual(reused.address, previous.address)
+                self.assertEqual(reused.isp, previous.isp)
+                self.assertEqual(reused.modified, modified)
+                lookup.assert_not_called()
+                skipped.assert_called_once()
+                location_task.assert_called_once_with(
+                    "whois_estimated_location_task",
+                    kwargs={"device_pk": device.pk, "ip_address": new_ip},
+                )
 
     @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
     @mock.patch(_WHOIS_GEOIP_CLIENT)
@@ -526,25 +551,6 @@ class TestWHOISTransaction(
 
     @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
     @mock.patch("openwisp_controller.config.whois.tasks.fetch_whois_details.delay")
-    def test_quota_replaces_stale_record_from_previous_subnet(self, lookup):
-        previous = self._create_whois_info()
-        stale = self._create_whois_info(ip_address="172.217.22.15", isp="Old ISP")
-        WHOISInfo.objects.filter(pk=stale.pk).update(
-            modified=timezone.now()
-            - timedelta(days=app_settings.WHOIS_REFRESH_THRESHOLD_DAYS + 1)
-        )
-        device = self._create_device(last_ip=previous.pk)
-        lookup.reset_mock()
-        cache.set(WHOISService.get_quota_cache_key(), timezone.now().timestamp() + 3600)
-        device.last_ip = stale.pk
-        device.save()
-        stale.refresh_from_db()
-        self.assertEqual(stale.isp, previous.isp)
-        self.assertEqual(stale.modified, previous.modified)
-        lookup.assert_not_called()
-
-    @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
-    @mock.patch("openwisp_controller.config.whois.tasks.fetch_whois_details.delay")
     def test_quota_previous_subnet_requires_fresh_matching_data(self, lookup):
         previous = self._create_whois_info()
         device = self._create_device(last_ip=previous.pk)
@@ -573,8 +579,10 @@ class TestWHOISTransaction(
     @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
     @mock.patch("openwisp_controller.config.whois.tasks.fetch_whois_details.delay")
     def test_quota_display_uses_most_specific_saved_subnet(self, lookup):
-        self._create_whois_info(ip_address="172.217.0.1", cidr="172.217.0.0/16")
-        specific = self._create_whois_info(ip_address="172.217.22.14")
+        self._create_whois_info(ip_address="172.217.16.1", cidr="172.217.16.0/20")
+        specific = self._create_whois_info(
+            ip_address="172.217.22.14", cidr="172.217.22.0/24"
+        )
         device = self._create_device(last_ip="172.217.22.15")
         self.assertIsNone(get_whois_info(device.pk))
         cache.set(WHOISService.get_quota_cache_key(), timezone.now().timestamp() + 3600)
@@ -604,20 +612,6 @@ class TestWHOISTransaction(
                 details = get_whois_info(device.pk)
                 self.assertTrue(details["approximate"])
                 self.assertEqual(details["cidr"], cidr)
-
-    @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
-    @mock.patch("openwisp_controller.config.whois.tasks.fetch_whois_details.delay")
-    def test_quota_reuses_previous_ipv6_subnet(self, lookup):
-        previous = self._create_whois_info(
-            ip_address="2606:4700:4700::1111", cidr="2606:4700:4700::/64"
-        )
-        device = self._create_device(last_ip=previous.pk)
-        lookup.reset_mock()
-        cache.set(WHOISService.get_quota_cache_key(), timezone.now().timestamp() + 3600)
-        device.last_ip = "2606:4700:4700::1001"
-        device.save()
-        self.assertTrue(WHOISInfo.objects.filter(pk=device.last_ip).exists())
-        lookup.assert_not_called()
 
     @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
     @mock.patch("openwisp_controller.config.whois.tasks.fetch_whois_details.delay")

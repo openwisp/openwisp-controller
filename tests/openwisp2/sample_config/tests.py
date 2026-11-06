@@ -47,7 +47,6 @@ from openwisp_controller.config.tests.test_vpn import (
 from openwisp_controller.config.tests.test_vpn import TestVxlan as BaseTestVxlan
 from openwisp_controller.config.tests.test_vpn import TestWireguard as BaseTestWireguard
 from openwisp_controller.config.whois.service import WHOISService
-from openwisp_controller.config.whois.tests.tests import TestWHOIS as BaseTestWHOIS
 from openwisp_controller.config.whois.tests.utils import CreateWHOISMixin
 from openwisp_controller.config.whois.utils import get_whois_info
 from openwisp_controller.tests.utils import LOCAL_MEMORY_CACHE, TestAdminMixin
@@ -136,10 +135,6 @@ class TestVxlan(BaseTestVxlan):
 
 @override_settings(CACHES=LOCAL_MEMORY_CACHE)
 class TestWHOIS(CreateWHOISMixin, TestAdminMixin, TestCase):
-    test_approximate_whois_does_not_expose_other_organization_ip = (
-        BaseTestWHOIS.test_approximate_whois_does_not_expose_other_organization_ip
-    )
-
     @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
     def test_approximate_whois_excludes_custom_fields(self):
         source = self._create_whois_info(
@@ -156,6 +151,8 @@ class TestWHOIS(CreateWHOISMixin, TestAdminMixin, TestCase):
             reverse("admin:sample_config_device_change", args=[device.pk])
         )
         self.assertContains(response, '"approximate": true')
+        self.assertContains(response, f'"ip_address": "{device.last_ip}"')
+        self.assertNotContains(response, source.ip_address)
         self.assertNotContains(response, "private organization data")
         self.assertNotContains(response, "private address data")
         self.assertNotIn("details", get_whois_info(device.pk))
@@ -185,4 +182,3 @@ del BaseTestApps
 del BaseTestConfigApi
 del BaseTestWireguard
 del BaseTestVxlan
-del BaseTestWHOIS
