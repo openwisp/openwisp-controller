@@ -162,6 +162,21 @@ class TestWHOIS(CreateWHOISMixin, TestAdminMixin, TestCase):
             WHOISService.is_older(naive_dt)
 
     @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
+    def test_approximate_whois_does_not_expose_other_organization_ip(self):
+        source = self._create_whois_info()
+        other_org = self._get_org("other")
+        self._create_device(organization=other_org, last_ip=source.ip_address)
+        device = self._create_device(last_ip="172.217.22.15")
+        operator = self._create_operator(organizations=[device.organization])
+        self.client.force_login(operator)
+        cache.set(WHOISService.get_quota_cache_key(), timezone.now().timestamp() + 3600)
+        url = reverse(f"admin:{Device._meta.app_label}_device_change", args=[device.pk])
+        response = self.client.get(url)
+        self.assertContains(response, '"approximate": true')
+        self.assertContains(response, f'"ip_address": "{device.last_ip}"')
+        self.assertNotContains(response, source.ip_address)
+
+    @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
     def test_enabled(self):
         OrganizationConfigSettings.objects.all().delete()
         device = self._create_device()
@@ -566,6 +581,7 @@ class TestWHOISTransaction(
         details = get_whois_info(device.pk)
         self.assertEqual(details["cidr"], specific.cidr)
         self.assertTrue(details["approximate"])
+        self.assertEqual(details["ip_address"], device.last_ip)
         self.assertIsNone(device.whois_service.get_device_whois_info())
         self.assertFalse(WHOISInfo.objects.filter(pk=device.last_ip).exists())
 

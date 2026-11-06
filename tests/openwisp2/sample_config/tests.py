@@ -1,3 +1,5 @@
+from django.test import TestCase, override_settings
+
 from openwisp_controller.config.tests.test_admin import TestAdmin as BaseTestAdmin
 from openwisp_controller.config.tests.test_admin import (
     TestDeviceGroupAdmin as BaseTestDeviceGroupAdmin,
@@ -38,6 +40,9 @@ from openwisp_controller.config.tests.test_vpn import (
 )
 from openwisp_controller.config.tests.test_vpn import TestVxlan as BaseTestVxlan
 from openwisp_controller.config.tests.test_vpn import TestWireguard as BaseTestWireguard
+from openwisp_controller.config.whois.tests.tests import TestWHOIS as BaseTestWHOIS
+from openwisp_controller.config.whois.tests.utils import CreateWHOISMixin
+from openwisp_controller.tests.utils import LOCAL_MEMORY_CACHE, TestAdminMixin
 
 
 class TestAdmin(BaseTestAdmin):
@@ -121,6 +126,13 @@ class TestVxlan(BaseTestVxlan):
     pass
 
 
+@override_settings(CACHES=LOCAL_MEMORY_CACHE)
+class TestWHOIS(CreateWHOISMixin, TestAdminMixin, TestCase):
+    test_approximate_whois_does_not_expose_other_organization_ip = (
+        BaseTestWHOIS.test_approximate_whois_does_not_expose_other_organization_ip
+    )
+
+
 del BaseTestAdmin
 del BaseTestTransactionAdmin
 del BaseTestDeviceGroupAdmin
@@ -141,3 +153,4 @@ del BaseTestApps
 del BaseTestConfigApi
 del BaseTestWireguard
 del BaseTestVxlan
+del BaseTestWHOIS

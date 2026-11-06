@@ -76,5 +76,7 @@ def get_whois_info(pk):
         return None
     data = WHOISSerializer(whois_obj).data
     data["formatted_address"] = getattr(whois_obj, "formatted_address", None)
+    if approximate:
+        data["ip_address"] = device.last_ip
     data["approximate"] = approximate
     return data
