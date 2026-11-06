@@ -1,3 +1,4 @@
+from cryptography import x509
 from django.test import TestCase
 from django.urls import reverse
 from swapper import load_model
@@ -255,10 +256,13 @@ class TestAdmin(TestPkiMixin, TestAdminMixin, TestOrganizationMixin, TestCase):
         org.save(update_fields=["is_active"])
         changelist = reverse(f"admin:{self.app_label}_cert_changelist")
         revoke_payload = {"action": "revoke_action", "_selected_action": [cert.pk]}
-        self.client.post(changelist, revoke_payload, follow=True)
+        response = self.client.post(changelist, revoke_payload, follow=True)
+        self.assertEqual(response.status_code, 200)
         cert.refresh_from_db()
         self.assertEqual(cert.revoked, True)
         self.assertIn(cert, list(ca.get_revoked_certs()))
+        crl = x509.load_pem_x509_crl(ca.crl)
+        self.assertIn(int(cert.serial_number), [entry.serial_number for entry in crl])
 
     def test_cert_renew_action_skips_disabled_org(self):
         self.client.force_login(self._get_admin())

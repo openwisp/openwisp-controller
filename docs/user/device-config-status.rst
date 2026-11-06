@@ -70,6 +70,7 @@ While the organization is disabled:
   using their key, so that the peers of the deactivated devices are
   removed;
 - objects of the organization can still be viewed and deleted.
+- certificates can still be revoked as a cleanup operation.
 
 Re-enabling the organization does not reactivate its devices. Each device
 must be activated again separately, for example with the "Activate" action

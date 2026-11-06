@@ -713,6 +713,8 @@ class TestConfigApi(
         activate_response = self.client.post(activate_path)
         deactivate_response = self.client.post(deactivate_path)
         self.assertEqual(activate_response.status_code, 403)
+        deactivated_device.refresh_from_db()
+        self.assertEqual(deactivated_device.is_deactivated(), True)
         self.assertEqual(deactivate_response.status_code, 200)
 
     def test_device_disabled_org_api_crud(self):

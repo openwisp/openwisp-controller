@@ -1,3 +1,4 @@
+from cryptography import x509
 from django.test import TestCase, TransactionTestCase
 from django.urls import reverse
 from packaging.version import parse as parse_version
@@ -280,6 +281,11 @@ class TestPkiApi(
         cert.refresh_from_db()
         self.assertEqual(cert.revoked, True)
         self.assertIn(cert, list(ca.get_revoked_certs()))
+        crl_path = reverse("pki_api:crl_download", args=[ca.pk])
+        crl_response = self.client.get(crl_path)
+        self.assertEqual(crl_response.status_code, 200)
+        crl = x509.load_pem_x509_crl(crl_response.content)
+        self.assertIn(int(cert.serial_number), [entry.serial_number for entry in crl])
 
     def test_cert_renew_api_disabled_org(self):
         org = self._get_org()
