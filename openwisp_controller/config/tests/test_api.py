@@ -716,6 +716,8 @@ class TestConfigApi(
         deactivated_device.refresh_from_db()
         self.assertEqual(deactivated_device.is_deactivated(), True)
         self.assertEqual(deactivate_response.status_code, 200)
+        active_device.refresh_from_db()
+        self.assertEqual(active_device.is_deactivated(), True)
 
     def test_device_disabled_org_api_crud(self):
         org = self._create_org(name="disabled-org", slug="disabled-org")

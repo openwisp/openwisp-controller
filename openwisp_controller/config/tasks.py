@@ -223,7 +223,7 @@ def invalidate_controller_views_cache(organization_id):
         GetVpnView.invalidate_get_vpn_cache(vpn)
 
 
-@shared_task(base=OpenwispCeleryTask, soft_time_limit=7200)
+@shared_task(soft_time_limit=7200)
 def deactivate_organization_devices(organization_id):
     """
     Deactivate all active devices of an organization.
