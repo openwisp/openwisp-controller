@@ -1,8 +1,10 @@
 import logging
+import random
 
 from celery import shared_task
 from django.core.cache import cache
 from django.db import transaction
+from django.utils import timezone
 from geoip2 import errors
 from swapper import load_model
 
@@ -13,6 +15,8 @@ from .. import settings as app_settings
 from .utils import send_whois_task_notification
 
 logger = logging.getLogger(__name__)
+QUOTA_COOLDOWN = "quota_cooldown"
+LOOKUP_SUCCESS = "lookup_success"
 
 
 class WHOISCeleryRetryTask(OpenwispCeleryTask):
@@ -24,10 +28,32 @@ class WHOISCeleryRetryTask(OpenwispCeleryTask):
     # that should trigger a retry of the task.
     autoretry_for = (errors.HTTPError,)
 
+    def schedule_quota_retry(self, device_pk, ip_address, expires):
+        """Schedule a retry within the broker visibility timeout."""
+        # Eager tasks ignore countdowns and would immediately call themselves again.
+        if self.app.conf.task_always_eager:
+            return
+        options = self.app.conf.broker_transport_options or {}
+        visibility = options.get("visibility_timeout", 3600)
+        limit = visibility * 0.9
+        remaining = max(0, expires - timezone.now().timestamp())
+        jitter_window = min(300, limit / 2)
+        if remaining > limit:
+            delay = limit
+        elif remaining > limit - jitter_window:
+            # Check again early so the full jitter window fits before the limit.
+            delay = remaining - jitter_window
+        else:
+            # Spread requests after the cooldown to avoid a burst at expiry.
+            delay = remaining + random.uniform(0, jitter_window)
+        self.apply_async(args=(device_pk, ip_address), countdown=delay)
+
     def on_success(self, retval, task_id, args, kwargs):
         """Mark the task as successfully completed."""
-        task_key = f"{self.name}_last_operation"
-        cache.set(task_key, "success", None)
+        # Skipped lookups must not reset the failure notification state.
+        if retval == LOOKUP_SUCCESS:
+            task_key = f"{self.name}_last_operation"
+            cache.set(task_key, "success", None)
         return super().on_success(retval, task_id, args, kwargs)
 
     def on_failure(self, exc, task_id, args, kwargs, einfo):
@@ -58,7 +84,7 @@ class WHOISCeleryRetryTask(OpenwispCeleryTask):
     base=WHOISCeleryRetryTask,
     **app_settings.API_TASK_RETRY_OPTIONS,
 )
-def fetch_whois_details(self, device_pk, initial_ip_address):
+def fetch_whois_details(self, device_pk, initial_ip_address, previous_ip=None):
     """
     Fetches the WHOIS details of the given IP address
     and creates/updates the WHOIS record.
@@ -84,8 +110,25 @@ def fetch_whois_details(self, device_pk, initial_ip_address):
     whois_obj = WHOISInfo.objects.filter(ip_address=ip_address).first()
     if whois_obj and not whois_service.is_older(whois_obj.modified):
         return
+    # Avoid repeated requests to MaxMind while the exhausted quota is cooling down.
+    if expires := cache.get(whois_service.get_quota_cache_key()):
+        if whois_service.reuse_previous(ip_address, previous_ip):
+            return LOOKUP_SUCCESS
+        # Older workers may have stored a boolean rather than an expiry timestamp.
+        if expires is True:
+            expires = timezone.now().timestamp() + 6 * 60 * 60
+        self.schedule_quota_retry(device_pk, initial_ip_address, expires)
+        return QUOTA_COOLDOWN
     # WARNING: execute HTTP requests before transaction lock is acquired
-    fetched_details = whois_service.process_whois_details(ip_address)
+    try:
+        fetched_details = whois_service.process_whois_details(ip_address)
+    except errors.OutOfQueriesError:
+        if whois_service.reuse_previous(ip_address, previous_ip):
+            return LOOKUP_SUCCESS
+        expires = cache.get(whois_service.get_quota_cache_key())
+        if expires:
+            self.schedule_quota_retry(device_pk, initial_ip_address, expires)
+        raise
 
     with transaction.atomic():
         device = Device.objects.select_for_update().filter(pk=device_pk).first()
@@ -112,6 +155,7 @@ def fetch_whois_details(self, device_pk, initial_ip_address):
                 device=device,
             )
         )
+    return LOOKUP_SUCCESS
 
 
 @shared_task

@@ -468,7 +468,9 @@ class TestEstimatedLocationTransaction(
             "Estimated location task called when last_ip is changed and is public"
         ):
             with (
-                mock.patch("django.core.cache.cache.get") as mocked_get,
+                mock.patch(
+                    "django.core.cache.cache.get", return_value=None
+                ) as mocked_get,
                 mock.patch("django.core.cache.cache.set") as mocked_set,
             ):
                 device.last_ip = "172.217.22.10"
