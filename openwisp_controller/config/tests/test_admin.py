@@ -577,10 +577,19 @@ class TestAdmin(
     def test_template_vpn_fk_autocomplete_view(self):
         data = self._create_multitenancy_test_env(vpn=True)
         self._test_multitenant_admin(
-            url=self._get_autocomplete_view_path(self.app_label, "template", "vpn"),
+            url=reverse("admin:autocomplete")
+            + f"?app_label={self.app_label}&model_name=template&field_name=vpn",
             visible=[data["vpn1"].name],
             hidden=[data["vpn2"].name, data["vpn_inactive"].name],
             superuser_hidden=[data["vpn_inactive"].name],
+        )
+
+    def test_template_vpn_fk_autocomplete_filter_view(self):
+        data = self._create_multitenancy_test_env(vpn=True)
+        self._test_multitenant_admin(
+            url=self._get_autocomplete_view_path(self.app_label, "template", "vpn"),
+            visible=[data["vpn1"].name],
+            hidden=[data["vpn2"].name, data["vpn_inactive"].name],
         )
 
     def test_vpn_queryset(self):

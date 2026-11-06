@@ -103,11 +103,21 @@ class TestAdmin(TestPkiMixin, TestAdminMixin, TestOrganizationMixin, TestCase):
     def test_cert_ca_fk_autocomplete_view(self):
         data = self._create_multitenancy_test_env()
         self._test_multitenant_admin(
-            url=self._get_autocomplete_view_path(self.app_label, "cert", "ca"),
+            url=reverse("admin:autocomplete")
+            + f"?app_label={self.app_label}&model_name=cert&field_name=ca",
             visible=[data["ca1"].name],
             hidden=[data["ca2"].name, data["ca_inactive"].name],
             administrator=True,
             superuser_hidden=[data["ca_inactive"].name],
+        )
+
+    def test_cert_ca_fk_autocomplete_filter_view(self):
+        data = self._create_multitenancy_test_env()
+        self._test_multitenant_admin(
+            url=self._get_autocomplete_view_path(self.app_label, "cert", "ca"),
+            visible=[data["ca1"].name],
+            hidden=[data["ca2"].name, data["ca_inactive"].name],
+            administrator=True,
         )
 
     def test_cert_changeform_200(self):
