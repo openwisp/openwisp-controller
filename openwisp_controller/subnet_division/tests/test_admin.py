@@ -529,6 +529,21 @@ class TestSubnetDivisionRuleAdmin(
         self.assertTrue(Subnet.objects.filter(pk=self.master_subnet.pk).exists())
         self.assertTrue(SubnetDivisionRule.objects.filter(pk=self.rule.pk).exists())
 
+    def test_master_subnet_delete_selected_in_use_shows_error(self):
+        changelist_url = reverse(f"admin:{self.ipam_label}_subnet_changelist")
+        response = self.client.post(
+            changelist_url,
+            {
+                "action": "delete_selected",
+                "_selected_action": [str(self.master_subnet.pk)],
+                "post": "yes",
+            },
+            follow=True,
+        )
+        self.assertContains(response, "cannot be deleted")
+        self.assertTrue(Subnet.objects.filter(pk=self.master_subnet.pk).exists())
+        self.assertTrue(SubnetDivisionRule.objects.filter(pk=self.rule.pk).exists())
+
     def test_master_subnet_delete_in_use_rest_api(self):
         """The REST API reports the refusal instead of failing with a 500."""
         url = reverse("ipam:subnet", args=[self.master_subnet.pk])

@@ -167,6 +167,25 @@ class SubnetAdmin(BaseSubnetAdmin):
     inlines = [SubnetDivisionRuleInlineAdmin] + list(BaseSubnetAdmin.inlines)
     list_display = BaseSubnetAdmin.list_display
     list_display.insert(list_display.index("created"), "related_device")
+    actions = ["delete_selected"]
+
+    @admin.action(
+        description=django_delete_selected.short_description, permissions=["delete"]
+    )
+    def delete_selected(self, request, queryset):
+        try:
+            with transaction.atomic():
+                return django_delete_selected(self, request, queryset)
+        except ValidationError as e:
+            if getattr(e, "code", None) != "subnet_division_rule_in_use":
+                raise
+            messages.error(
+                request,
+                _(
+                    "Some selected subnets cannot be deleted because one of their "
+                    "subnet division rules is used by device configurations."
+                ),
+            )
 
     def delete_view(self, request, object_id, extra_context=None):
         # Deleting a subnet cascades to its subnet division rules, which

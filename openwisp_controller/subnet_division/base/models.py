@@ -258,10 +258,6 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
                 code="subnet_division_rule_in_use",
             )
 
-    def delete(self, *args, **kwargs):
-        self._check_in_use()
-        return super().delete(*args, **kwargs)
-
     @classmethod
     def pre_save(cls, instance, **kwargs):
         instance.check_and_queue_modified_fields()

@@ -1,5 +1,6 @@
 from uuid import UUID
 
+from django.apps import apps
 from django.utils.translation import gettext_lazy as _
 from django_filters import rest_framework as filters
 from django_filters.rest_framework import DjangoFilterBackend
@@ -108,6 +109,15 @@ class DeviceListFilter(BaseConfigAPIFilter):
     )
 
     def filter_subnet_division_rule(self, queryset, name, value):
+        if not apps.is_installed("openwisp_controller.subnet_division"):
+            raise ValidationError(
+                {
+                    name: _(
+                        "Subnet division filtering is unavailable because the "
+                        "subnet division app is not installed."
+                    )
+                }
+            )
         return queryset.filter(config__subnetdivisionindex__rule=value).distinct()
 
     def _set_valid_filterform_lables(self):
