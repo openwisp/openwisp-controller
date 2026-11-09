@@ -99,7 +99,6 @@ class CertRenewView(CertRevokeRenewBaseView):
             instance.renew()
         except ValidationError as error:
             raise serializers.ValidationError(error.messages)
-
         serializer = CertRevokeRenewSerializer(instance)
         return Response(serializer.data, status=200)
 
