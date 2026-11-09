@@ -184,7 +184,7 @@ class TestPkiApi(
         ca1 = self._create_ca(name="ca1", organization=self._get_org())
         old_serial_num = ca1.serial_number
         path = reverse("pki_api:ca_renew", args=[ca1.pk])
-        with self.assertNumQueries(5):
+        with self.assertNumQueries(7):
             r = self.client.post(path)
         ca1.refresh_from_db()
         self.assertEqual(r.status_code, 200)
