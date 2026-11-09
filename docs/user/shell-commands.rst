@@ -41,22 +41,22 @@ shell commands, you can add new commands by following instructions in the
     You can also use the :ref:`REST API <controller_execute_command_api>`
     to execute commands on a device.
 
-.. note::
-
-    If you're an advanced user and want to learn how to register commands
-    programmatically, refer to the
-    :ref:`registering_unregistering_commands` section.
-
 .. _defining_new_menu_options:
 
 Defining New Options in the Commands Menu
 -----------------------------------------
 
+.. note::
+
+    If you're developing an OpenWISP extension, use the functions
+    described in :ref:`registering_unregistering_commands` in the
+    developer documentation instead of the setting described below.
+
 Let's explore to define new custom commands to help users perform
 additional management actions without having to be Linux/Unix experts.
 
-We can do so by using the ``OPENWISP_CONTROLLER_USER_COMMANDS`` django
-setting.
+We can do so by using the :ref:`OPENWISP_CONTROLLER_USER_COMMANDS
+<openwisp_controller_user_commands>` Django setting.
 
 The following example defines a simple command that can ``ping`` an input
 ``destination_address`` through a network interface, ``interface_name``.
@@ -107,9 +107,10 @@ in the GIF below:
     :target: https://github.com/openwisp/openwisp-controller/tree/docs/docs/ping_command_example.gif
     :alt: Adding a *ping* command
 
-The ``OPENWISP_CONTROLLER_USER_COMMANDS`` setting takes a ``list`` of
-``tuple`` each containing two elements. The first element of the tuple
-should contain an identifier for the command and the second element should
+The :ref:`OPENWISP_CONTROLLER_USER_COMMANDS
+<openwisp_controller_user_commands>` setting takes a ``list`` of ``tuple``
+each containing two elements. The first element of the tuple should
+contain an identifier for the command and the second element should
 contain a ``dict`` defining configuration of the command.
 
 .. _comand_configuration:

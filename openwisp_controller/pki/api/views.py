@@ -1,6 +1,5 @@
 from django.core.exceptions import ValidationError
 from django.http import HttpResponse
-from django.shortcuts import get_object_or_404
 from rest_framework import serializers
 from rest_framework.generics import (
     GenericAPIView,
@@ -54,10 +53,10 @@ class CaRenewView(ProtectedAPIMixin, GenericAPIView):
 
 class CrlDownloadView(ProtectedAPIMixin, RetrieveAPIView):
     serializer_class = CaDetailSerializer
-    queryset = Ca.objects.none()
+    queryset = Ca.objects.all()
 
     def retrieve(self, request, *args, **kwargs):
-        instance = get_object_or_404(Ca, pk=kwargs["pk"])
+        instance = self.get_object()
         return HttpResponse(
             instance.crl, status=200, content_type="application/x-pem-file"
         )

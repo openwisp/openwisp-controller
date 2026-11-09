@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.urls import reverse
-from django.utils.html import mark_safe
+from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from openwisp_ipam.admin import IpAddressAdmin as BaseIpAddressAdmin
 from openwisp_ipam.admin import SubnetAdmin as BaseSubnetAdmin
@@ -95,15 +95,19 @@ class SubnetAdmin(BaseSubnetAdmin):
         app_label = Device._meta.app_label
         url = reverse(f"admin:{app_label}_device_changelist")
         if obj.master_subnet is None:
-            msg_string = _("See all devices")
-            return mark_safe(
-                f'<a href="{url}?subnet={str(obj.subnet)}">{msg_string}</a>'
+            return format_html(
+                '<a href="{}?subnet={}">{}</a>',
+                url,
+                str(obj.subnet),
+                _("See all devices"),
             )
         else:
             if obj.id in self._lookup:
-                device = self._lookup[obj.id]
-                return mark_safe(
-                    f'<a href="{url}?subnet={str(obj.subnet)}">{device}</a>'
+                return format_html(
+                    '<a href="{}?subnet={}">{}</a>',
+                    url,
+                    str(obj.subnet),
+                    self._lookup[obj.id],
                 )
 
     def has_change_permission(self, request, obj=None):

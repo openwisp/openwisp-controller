@@ -117,7 +117,6 @@ TIME_ZONE = "Europe/Rome"
 LANGUAGE_CODE = "en-gb"
 USE_TZ = True
 USE_I18N = False
-USE_L10N = False
 STATIC_URL = "/static/"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = f"{os.path.dirname(BASE_DIR)}/media/"

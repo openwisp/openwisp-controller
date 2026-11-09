@@ -30,10 +30,25 @@ django.jQuery(function ($) {
           isDeviceGroup() && templateConfig.backend
             ? ` (backend: ${templateConfig.backend})`
             : "",
-        element = $(
-          `<li class="sortedm2m-item"><label for="id_config-${prefix}templates_${index}"><input type="checkbox" value="${templateId}" id="id_config-${prefix}templates_${index}" class="sortedm2m" data-required=${templateConfig.required}> ${templateConfig.name}${requiredString}${backendString}</label></li>`,
-        ),
-        inputField = element.children().children("input");
+        inputId = `id_config-${prefix}templates_${index}`,
+        inputField = $("<input>")
+          .attr({
+            type: "checkbox",
+            value: templateId,
+            id: inputId,
+            "data-required": templateConfig.required,
+          })
+          .addClass("sortedm2m"),
+        element = $('<li class="sortedm2m-item">').append(
+          $("<label>")
+            .attr("for", inputId)
+            .append(inputField)
+            .append(
+              document.createTextNode(
+                ` ${templateConfig.name}${requiredString}${backendString}`,
+              ),
+            ),
+        );
 
       if (templateConfig.required) {
         inputField.prop("disabled", true);

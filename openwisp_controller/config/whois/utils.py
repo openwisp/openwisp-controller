@@ -5,6 +5,8 @@ from swapper import load_model
 
 from .. import settings as app_settings
 
+ADDRESS_FIELDS = ("city", "country", "continent", "postal")
+
 MESSAGE_MAP = {
     "whois_device_error": {
         "type": "generic_message",
@@ -66,9 +68,22 @@ def get_whois_info(pk):
     )
     if not device or not device._get_organization__config_settings().whois_enabled:
         return None
-    whois_obj = WHOISService(device).get_device_whois_info()
+    service = WHOISService(device)
+    whois_obj = service.get_device_whois_info()
+    approximate = False
+    if not whois_obj and service.is_valid_public_ip_address(device.last_ip):
+        whois_obj = service.get_display_fallback()
+        approximate = bool(whois_obj)
     if not whois_obj:
         return None
     data = WHOISSerializer(whois_obj).data
-    data["formatted_address"] = getattr(whois_obj, "formatted_address", None)
+    if approximate:
+        address = {key: data["address"].get(key, "") for key in ADDRESS_FIELDS}
+        data = {key: data[key] for key in ("isp", "asn", "timezone", "cidr")}
+        data["ip_address"] = device.last_ip
+        data["address"] = address
+        data["formatted_address"] = ", ".join(filter(None, address.values()))
+    else:
+        data["formatted_address"] = getattr(whois_obj, "formatted_address", None)
+    data["approximate"] = approximate
     return data

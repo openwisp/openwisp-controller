@@ -49,6 +49,16 @@ class TestSubnetAdmin(
                 f'<a href="{url}">{self.config.device.name}</a>',
             )
 
+        with self.subTest("Test device name is escaped"):
+            Device.objects.filter(pk=self.config.device_id).update(name="<b>device</b>")
+            response = self.client.get(
+                reverse(f"admin:{self.ipam_label}_subnet_changelist")
+            )
+            self.assertContains(
+                response, f'<a href="{url}">&lt;b&gt;device&lt;/b&gt;</a>'
+            )
+            self.assertNotContains(response, "<b>device</b>")
+
     def test_device_filter(self):
         subnet_changelist = reverse(f"admin:{self.ipam_label}_subnet_changelist")
         config2 = self._create_config(

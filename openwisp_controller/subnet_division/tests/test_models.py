@@ -560,15 +560,15 @@ class TestSubnetDivisionRule(
             ip_query.count(), (rule.number_of_subnets * rule.number_of_ips)
         )
 
-    @patch("openwisp_controller.subnet_division.rule_types.base.logger.info")
+    @patch("openwisp_controller.subnet_division.rule_types.base.logger.warning")
     def test_subnets_exhausted(self, mocked_logger, *args):
         subnet = self._get_master_subnet(
             "10.0.0.0/29", master_subnet=self.master_subnet
         )
         # The master subnet can accommodate
         # this rule only once:
-        # A /29 has 4 /31 slots available
-        # Minus the reserved subnet = 3
+        # A /29 has 4 /31 slots available.
+        # Exclude the reserved subnet and the parent's broadcast address = 2.
         # Each run will eat 2 slots.
         # Hence we expect this to run fine the
         # first time but fail the second time.
@@ -591,6 +591,8 @@ class TestSubnetDivisionRule(
         mocked_logger.assert_called_with(
             f"Cannot create more subnets of {subnet}",
         )
+        self.assertFalse(config2.subnetdivisionindex_set.exists())
+        self.assertFalse(Subnet.objects.filter(subnet="10.0.0.6/31").exists())
         notification = Notification.objects.first()
         self.assertEqual(notification.level, "error")
         self.assertEqual(notification.type, "generic_message")
@@ -727,6 +729,23 @@ class TestSubnetDivisionRule(
             0,
         )
 
+    def test_subnet_whitespace_is_reused(self):
+        rule = self._get_vpn_subdivision_rule(number_of_subnets=1)
+        self.config.templates.add(self.template)
+        config2 = self._create_config(
+            device=self._create_device(name="device-2", mac_address="00:11:22:33:44:66")
+        )
+        config2.templates.add(self.template)
+        subnet = config2.subnetdivisionindex_set.get(rule=rule, ip__isnull=True).subnet
+        self.assertEqual(str(subnet.subnet), "10.0.0.32/28")
+        self.config.device.delete(check_deactivated=False)
+        config3 = self._create_config(
+            device=self._create_device(name="device-3", mac_address="00:11:22:33:44:77")
+        )
+        config3.templates.add(self.template)
+        subnet = config3.subnetdivisionindex_set.get(rule=rule, ip__isnull=True).subnet
+        self.assertEqual(str(subnet.subnet), "10.0.0.16/28")
+
     def test_reserved_subnet(self):
         # An IP is already provisioned
         ip = self.master_subnet.request_ip()
@@ -810,7 +829,7 @@ class TestSubnetDivisionRule(
 
     def test_device_rule_use_entire_subnet(self):
         self.config.delete()
-        rule = self._get_device_subdivision_rule(size=29, number_of_ips=8)
+        rule = self._get_device_subdivision_rule(size=31, number_of_ips=2)
         OrganizationConfigSettings.objects.create(
             organization=self.org, shared_secret="shared_secret"
         )
@@ -841,12 +860,12 @@ class TestSubnetDivisionRule(
         subnets = subnet_query.order_by("created")
         subnet1 = subnets[0]
         subnet2 = subnets[1]
-        self.assertEqual(str(subnet1.subnet), "10.0.0.8/29")
-        self.assertEqual(str(subnet2.subnet), "10.0.0.16/29")
-        self.assertEqual(subnet1.ipaddress_set.count(), 8)
-        self.assertEqual(subnet2.ipaddress_set.count(), 8)
+        self.assertEqual(str(subnet1.subnet), "10.0.0.2/31")
+        self.assertEqual(str(subnet2.subnet), "10.0.0.4/31")
+        self.assertEqual(subnet1.ipaddress_set.count(), 2)
+        self.assertEqual(subnet2.ipaddress_set.count(), 2)
 
-        number = 8
+        number = 2
         for subnet in [subnet1, subnet2]:
             for ip in subnet.ipaddress_set.order_by("created").all():
                 expected_ip = f"10.0.0.{number}"
@@ -1057,6 +1076,53 @@ class TestSubnetDivisionRule(
         self.assertEqual(
             self.subnet_query.exclude(id=self.master_subnet.id).count(),
             device_rule.number_of_subnets,
+        )
+
+    def test_usable_ip_count(self):
+        ipv6 = self._get_master_subnet(subnet="fd12:3456:7890::/48")
+        for master, size, count, valid in (
+            (self.master_subnet, 29, 6, True),
+            (self.master_subnet, 29, 7, False),
+            (self.master_subnet, 29, 8, False),
+            (self.master_subnet, 31, 2, True),
+            (self.master_subnet, 32, 1, True),
+            (ipv6, 126, 3, True),
+            (ipv6, 126, 4, False),
+            (ipv6, 127, 2, True),
+            (ipv6, 128, 1, True),
+        ):
+            with self.subTest(size=size, count=count):
+                rule = SubnetDivisionRule(
+                    master_subnet=master,
+                    organization=self.org,
+                    label="TEST",
+                    type="openwisp_controller.subnet_division.rule_types.vpn."
+                    "VpnSubnetDivisionRuleType",
+                    size=size,
+                    number_of_ips=count,
+                    number_of_subnets=1,
+                )
+                if valid:
+                    rule.full_clean()
+                else:
+                    with self.assertRaises(ValidationError) as error:
+                        rule.full_clean()
+                    self.assertIn("number_of_ips", error.exception.message_dict)
+
+    def test_slash_127_rule_ipv6(self):
+        master = self._get_master_subnet(subnet="fd12:3456:7890::/48")
+        self.vpn_server.ip.delete()
+        self.vpn_server.ip = None
+        self.vpn_server.subnet = master
+        self.vpn_server.save()
+        rule = self._get_vpn_subdivision_rule(
+            master_subnet=master, size=127, number_of_ips=2, number_of_subnets=1
+        )
+        self.config.templates.add(self.template)
+        indexes = rule.subnetdivisionindex_set.filter(ip__isnull=False)
+        self.assertEqual(
+            set(indexes.values_list("ip__ip_address", flat=True)),
+            {"fd12:3456:7890::2", "fd12:3456:7890::3"},
         )
 
     def test_invalid_master_subnet(self):

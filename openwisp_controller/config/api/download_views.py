@@ -17,29 +17,29 @@ Template = load_model("config", "Template")
 
 class DownloadVpnView(ProtectedAPIMixin, RetrieveAPIView):
     serializer_class = VpnSerializer
-    queryset = Vpn.objects.none()
+    queryset = Vpn.objects.all()
     model = Vpn
 
     def retrieve(self, request, *args, **kwargs):
-        return BaseConfigAdmin.download_view(self, request, pk=kwargs["pk"])
+        return BaseConfigAdmin.get_download_response(self, self.get_object())
 
 
 class DownloadDeviceView(ProtectedAPIMixin, RetrieveAPIView):
     serializer_class = DeviceListSerializer
-    queryset = Device.objects.none()
+    queryset = Device.objects.all()
     model = Device
 
     def retrieve(self, request, *args, **kwargs):
-        return BaseConfigAdmin.download_view(self, request, pk=kwargs["pk"])
+        return BaseConfigAdmin.get_download_response(self, self.get_object())
 
 
 class DownloadTemplateconfiguration(ProtectedAPIMixin, RetrieveAPIView):
     serializer_class = TemplateSerializer
-    queryset = Template.objects.none()
+    queryset = Template.objects.all()
     model = Template
 
     def retrieve(self, request, *args, **kwargs):
-        return BaseConfigAdmin.download_view(self, request, pk=kwargs["pk"])
+        return BaseConfigAdmin.get_download_response(self, self.get_object())
 
 
 download_vpn_config = DownloadVpnView.as_view()

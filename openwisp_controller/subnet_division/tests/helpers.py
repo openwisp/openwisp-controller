@@ -83,7 +83,7 @@ class SubnetDivisionTestMixin(CreateConfigTemplateMixin, SubnetIpamMixin):
             # and use it as starting point
             required_subnet = next(
                 IPNetwork(str(master_subnet.subnet)).subnet(prefixlen=32)
-            )
+            ).next()
         else:
             required_subnet = IPNetwork(str(max_subnet)).next()
 
@@ -94,6 +94,9 @@ class SubnetDivisionTestMixin(CreateConfigTemplateMixin, SubnetIpamMixin):
             name="TEST_subnet1",
         )
         ip = subnet.request_ip()
+        self.assertIsNotNone(
+            ip, "The admin fixture must provision a usable IP address."
+        )
         SubnetDivisionIndex.objects.create(
             rule=rule, config=config, subnet=subnet, keyword="TEST_subnet1"
         )

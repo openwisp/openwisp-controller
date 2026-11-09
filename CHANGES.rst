@@ -6,6 +6,108 @@ Version 1.4.0 [unreleased]
 
 Work in progress.
 
+Version 1.3.2 [2026-10-23]
+--------------------------
+
+Bugfixes
+~~~~~~~~
+
+- Prevented cross-organization configuration access in admin
+
+  Updated admin configuration download and context views to resolve
+  devices, VPNs, and templates through organization-scoped querysets and
+  object permissions.
+
+  This ensures users cannot access configuration data for resources
+  belonging to unauthorized organizations.
+
+  Advisory: **GHSA-2x7f-qxwh-m483**.
+
+- Prevented cross-organization access to configuration downloads
+
+  Updated API configuration download views to resolve devices, VPNs, and
+  templates through organization-scoped querysets and object permissions.
+
+  This ensures users cannot access configuration downloads for resources
+  belonging to unauthorized organizations.
+
+  Advisory: **GHSA-5c5w-h9xc-3mq5**.
+
+- Escaped OpenWrt change_password SSH command
+
+  The password and confirm_password values were interpolated into the
+  remote shell command without escaping, allowing shell command injection
+  on the device. They are now quoted with shlex.quote() and passed to
+  printf instead of echo -e, so backslashes are no longer interpreted.
+
+  Advisory: **GHSA-rcf7-q946-fvpg**.
+
+- Prevented cross-organization access to CA CRLs
+
+  Organization managers with permission to view CAs could guess CA IDs and
+  download certificate revocation lists belonging to other organizations.
+
+  The issue did not expose CA private keys or allow changes. It primarily
+  affected deployments configured to protect CRLs, because CRLs are
+  publicly accessible by default.
+
+  Advisory: **GHSA-9gh4-xw24-9xh5**.
+
+Version 1.3.1 [2026-10-15]
+--------------------------
+
+Security
+~~~~~~~~
+
+- Fixed insecure multi-tenancy boundary in location REST API
+
+  Fixed a **security issue** that allowed organization managers to link
+  locations and floorplans belonging to other organizations to their
+  devices by submitting known object IDs.
+
+  The API now resolves related objects only from organizations managed by
+  the requesting user and validates the organization of all
+  device-location relationships. Device lists for a location are scoped to
+  managed organizations and no longer expose device keys.
+
+  Nested location and floorplan writes are validated before being saved
+  and run in a database transaction, preventing rejected requests from
+  leaving related database objects or files behind.
+
+  Advisory: **GHSA-39c4-xj33-j8j3**.
+
+- Fixed XSS vulnerabilities in device and command admin UI
+
+  Fixed cross-site scripting (XSS) vulnerabilities caused by improper
+  escaping of user-controlled data in the following admin pages:
+
+  - Device and device group forms (template names).
+  - Device pages (command inputs, outputs, and management IP).
+  - Subnet administration (device names and links).
+
+  These vulnerabilities could allow attackers to execute malicious
+  JavaScript in an administrator's browser.
+
+  Advisory: **GHSA-4f2x-pxjx-h8m3**.
+
+Bugfixes
+~~~~~~~~
+
+- Fixed loss of data in PATCH requests to device location endpoint `#1510
+  <https://github.com/openwisp/openwisp-controller/issues/1510>`_
+
+  Sending `PATCH` requests to the device location endpoint
+  (`/api/v1/controller/device/{id}/location/`) now doesn't set `location`
+  and `floorplan` to `NULL` when they are not included in the request
+  body.
+
+Changes
+~~~~~~~
+
+- Added IP address search to DeviceAdmin
+
+  Enabled searches by last and management IP addresses.
+
 Version 1.3.0 [2026-09-03]
 --------------------------
 

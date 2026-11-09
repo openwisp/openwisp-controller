@@ -7,6 +7,14 @@ var gettext =
   };
 var interpolate = interpolate || function () {};
 
+// For XSS prevention
+function escapeHtml(text) {
+  if (text === null || text === undefined) return "";
+  const div = document.createElement("div");
+  div.textContent = text;
+  return div.innerHTML;
+}
+
 const deviceId = getObjectIdFromUrl();
 
 django.jQuery(function ($) {
@@ -73,7 +81,9 @@ function initCommandDropdown($) {
     }
 
     Object.keys(schema).forEach(function (el) {
-      owCommandBtns += `<button class="ow-command-btn option" data-command="${el}">${schema[el].title}</button>`;
+      owCommandBtns += `<button class="ow-command-btn option" data-command="${escapeHtml(el)}">${escapeHtml(
+        schema[el].title,
+      )}</button>`;
     });
     widgetElement = `
             <li>
@@ -468,24 +478,24 @@ function initCommandOverlay($) {
         input = "";
       }
       return `<div class="inline-related has_original dynamic-command_set-2" id="command_set-2-${counter}">
-                <h3><b>Recent Commands:</b>&nbsp;<span class="inline_label">«${
-                  response.type
-                }» ${sentOn} ${dateTimeStampToDateTimeLocaleString(
+                <h3><b>Recent Commands:</b>&nbsp;<span class="inline_label">«${escapeHtml(
+                  response.type,
+                )}» ${sentOn} ${dateTimeStampToDateTimeLocaleString(
                   new Date(response.created),
                 )}</span></h3>
                     <fieldset class="module aligned ">
                     <div class="form-row field-status">
-                        <div><label>Status:</label><div class="readonly">${
-                          response.status
-                        }</div></div>
+                        <div><label>Status:</label><div class="readonly">${escapeHtml(
+                          response.status,
+                        )}</div></div>
                     </div>
                     <div class="form-row field-type">
-                        <div><label>Type:</label><div class="readonly">${
-                          response.type
-                        }</div></div>
+                        <div><label>Type:</label><div class="readonly">${escapeHtml(
+                          response.type,
+                        )}</div></div>
                     </div>
                     <div class="form-row field-input">
-                        <div><label>Input:</label><div class="readonly">${input}</div></div>
+                        <div><label>Input:</label><div class="readonly">${escapeHtml(input)}</div></div>
                     </div>
                     <div class="form-row field-output_data">
                         <div>
@@ -493,7 +503,7 @@ function initCommandOverlay($) {
                             <div class="readonly">${
                               response.status === "in-progress"
                                 ? '<div class="loader recent-commands-loader"></div>'
-                                : response.output
+                                : escapeHtml(response.output)
                             }
                             </div>
                         </div>
@@ -555,9 +565,9 @@ function initCommandWebSockets($, commandWebSocket) {
       input = "";
     }
 
-    commandObjectFieldset.find(".field-status .readonly").html(data.status);
-    commandObjectFieldset.find(".field-input .readonly").html(input);
-    commandObjectFieldset.find(".field-output_data .readonly").html(data.output);
+    commandObjectFieldset.find(".field-status .readonly").text(data.status);
+    commandObjectFieldset.find(".field-input .readonly").text(input);
+    commandObjectFieldset.find(".field-output_data .readonly").text(data.output);
 
     // Is it required to update modified timestamp?
     // We will require to to manipulation for rendering dates tp maintain consistency
