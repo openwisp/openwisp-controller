@@ -2,7 +2,7 @@ django-sortedm2m~=4.0.0
 django-reversion~=6.4.0
 django-taggit~=6.1.0
 netjsonconfig @ https://github.com/openwisp/netjsonconfig/archive/refs/heads/1.4.tar.gz
-django-x509 @ https://github.com/openwisp/django-x509/archive/refs/heads/krrishnaik-issues/1467-prevent-renewing-revoked-certs.tar.gz
+django-x509 @ https://github.com/openwisp/django-x509/archive/refs/heads/1.5.tar.gz
 django-loci @ https://github.com/openwisp/django-loci/archive/refs/heads/1.4.tar.gz
 django-flat-json-widget @ https://github.com/openwisp/django-flat-json-widget/archive/refs/heads/0.6.tar.gz
 openwisp-users @ https://github.com/openwisp/openwisp-users/archive/refs/heads/1.4.tar.gz
