@@ -210,6 +210,27 @@ class TestTasks(CreateConnectionsMixin, TestCase):
     @mock.patch(
         "openwisp_controller.connection.base.models.AbstractCommand._exec_command"
     )
+    def test_launch_command_disabled_organization(self, mocked_exec_command):
+        dc = self._create_device_connection()
+        command = Command(
+            device=dc.device,
+            connection=dc,
+            type="custom",
+            input={"command": "/usr/sbin/exotic_command"},
+        )
+        command.full_clean()
+        command.save()
+        dc.device.organization.is_active = False
+        dc.device.organization.save(update_fields=["is_active"])
+        tasks.launch_command.delay(command.pk)
+        command.refresh_from_db()
+        self.assertEqual(command.status, "failed")
+        self.assertEqual(command.output, "Organization is disabled.\n")
+        mocked_exec_command.assert_not_called()
+
+    @mock.patch(
+        "openwisp_controller.connection.base.models.AbstractCommand._exec_command"
+    )
     def test_launch_command_deactivated_device(self, mocked_exec_command):
         dc = self._create_device_connection()
         command = Command(

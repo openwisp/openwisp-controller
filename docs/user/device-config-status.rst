@@ -30,6 +30,8 @@ the device to revert to its previous working configuration.
 The device is in the process of being deactivated. The configuration is
 scheduled to be removed from the device.
 
+.. _controller_deactivated_config_status:
+
 ``deactivated``
 ---------------
 
@@ -46,3 +48,30 @@ templates.
     force the deletion from OpenWISP by hitting the delete button in the
     device detail page after having deactivated the device or by using the
     bulk delete action from the device list page.
+
+.. _controller_disabled_organization_devices:
+
+Devices of Disabled Organizations
+---------------------------------
+
+When an organization is disabled, all its devices are deactivated
+automatically: their configuration and templates are cleared and the
+configuration status changes to ``deactivating`` (or directly to
+``deactivated`` when there is nothing to remove).
+
+While the organization is disabled:
+
+- creating or changing devices and other objects of the organization is
+  rejected, and devices cannot register or re-register;
+- devices which are still ``deactivating`` can download their final
+  configuration, receive the related push update and report their status,
+  so that the removal of the configuration completes;
+- VPN servers of the organization can still download their configuration
+  using their key, so that the peers of the deactivated devices are
+  removed;
+- objects of the organization can still be viewed and deleted.
+- certificates can still be revoked as a cleanup operation.
+
+Re-enabling the organization does not reactivate its devices. Each device
+must be activated again separately, for example with the "Activate" action
+of the device list page.

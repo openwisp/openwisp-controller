@@ -11,6 +11,7 @@ from openwisp_notifications.types import (
 )
 from swapper import get_model_name, load_model
 
+from openwisp_users.signals import organization_disabled
 from openwisp_utils.admin_theme import register_dashboard_chart
 from openwisp_utils.admin_theme.menu import register_menu_group
 
@@ -105,11 +106,11 @@ class ConfigConfig(AppConfig):
                     DeviceChecksumView.invalidate_get_device_cache_on_config_deactivated
                 ),
             ),
-            # When an organization is disabled, all its devices are deactivated,
-            # so we need to invalidate the controller view caches for all objects.
             CacheDependency(
-                source=self.org_model,
-                signal="pre_save",
+                signal_obj=organization_disabled,
+                name="organization_disabled",
+                # organization_disabled signal is fired when the transaction
+                # is committed to the database.
                 on_commit=False,
                 target=organization_disabled_handler,
             ),

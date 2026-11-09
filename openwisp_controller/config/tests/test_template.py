@@ -592,6 +592,24 @@ class TestTemplateTransaction(
                 handler.assert_not_called()
                 self.assertEqual(c.status, "modified")
 
+        with self.subTest("Disabled organization is unchanged before deactivation"):
+            c.set_status_applied()
+            org = c.device.organization
+            with mock.patch("openwisp_controller.config.handlers.chain"):
+                org.is_active = False
+                org.save(update_fields=["is_active"])
+            c.device.refresh_from_db()
+            self.assertEqual(c.device.is_deactivated(), False)
+            previous_checksum = c.checksum_db
+            with catch_signal(config_modified) as handler:
+                t.config["interfaces"][0]["name"] = "eth3"
+                t.full_clean()
+                t.save()
+            c.refresh_from_db()
+            self.assertEqual(c.status, "applied")
+            self.assertEqual(c.checksum_db, previous_checksum)
+            handler.assert_not_called()
+
     def test_config_modified_signal(self):
         conf = self._create_config(device=self._create_device(name="test-status"))
         # The templates should have different configurations, otherwise the checksum
@@ -908,6 +926,24 @@ class TestTemplateTransaction(
             org2_deactivating_config,
             org2_deactivated_config,
         )
+        with self.subTest("Shared defaults skip disabled organizations"):
+            org = org2_config.device.organization
+            with mock.patch("openwisp_controller.config.handlers.chain"):
+                org.is_active = False
+                org.save(update_fields=["is_active"])
+            org2_config.device.refresh_from_db()
+            self.assertEqual(org2_config.device.is_deactivated(), False)
+            previous_templates = list(org2_config.templates.all())
+            new_template = self._create_template(
+                name="new-shared-default", default=True, organization=None
+            )
+            self.assertIn(new_template, org1_config.templates.all())
+            self.assertEqual(list(org2_config.templates.all()), previous_templates)
+            org2_config.device.deactivate()
+            org.is_active = True
+            org.save(update_fields=["is_active"])
+            org2_config.device.activate()
+            self.assertIn(new_template, org2_config.templates.all())
 
     def test_update_existing_template_to_be_required(self):
         template = self._create_template(

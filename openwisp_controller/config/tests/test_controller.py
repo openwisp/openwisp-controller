@@ -13,8 +13,9 @@ from swapper import load_model
 from openwisp_utils.tests import capture_any_output, catch_signal
 
 from .. import settings as app_settings
+from .. import tasks
 from ..base.base import logger as base_config_logger
-from ..controller.views import DeviceChecksumView, VpnChecksumView
+from ..controller.views import DeviceChecksumView, DeviceRegisterView, VpnChecksumView
 from ..controller.views import logger as controller_views_logger
 from ..signals import (
     checksum_requested,
@@ -63,17 +64,6 @@ class TestRegistrationMixin:
         data.update(**kwargs)
         return data
 
-
-class TestController(
-    TestRegistrationMixin, CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase
-):
-    """
-    tests for config.controller
-    """
-
-    def _check_header(self, response):
-        self.assertEqual(response["X-Openwisp-Controller"], "true")
-
     def _test_view_organization_disabled(
         self, obj, url, http_method="get", org=None, data=None
     ):
@@ -88,6 +78,13 @@ class TestController(
         org.save()
         response = method(url, {"key": obj.key})
         self.assertEqual(response.status_code, 404)
+
+
+class TestController(
+    TestRegistrationMixin, CreateConfigTemplateMixin, TestVpnX509Mixin, TestCase
+):
+    def _check_header(self, response):
+        self.assertEqual(response["X-Openwisp-Controller"], "true")
 
     def test_device_checksum(self):
         d = self._create_device_config()
@@ -269,12 +266,6 @@ class TestController(
         )
         self.assertEqual(response.status_code, 405)
 
-    def test_vpn_checksum_org_disabled(self):
-        vpn = self._create_vpn(organization=self._get_org())
-        self._test_view_organization_disabled(
-            vpn, reverse("controller:vpn_checksum", args=[vpn.pk])
-        )
-
     def test_vpn_get_object_cached(self):
         vpn = self._create_vpn()
         view = VpnChecksumView()
@@ -338,13 +329,6 @@ class TestController(
             reverse("controller:vpn_download_config", args=[v.pk]), {"key": v.key}
         )
         self.assertEqual(response.status_code, 405)
-
-    def test_vpn_download_config_org_disabled(self):
-        vpn = self._create_vpn(organization=self._get_org())
-        self._test_view_organization_disabled(
-            vpn,
-            reverse("controller:vpn_download_config", args=[vpn.pk]),
-        )
 
     def test_register(self, **kwargs):
         options = {
@@ -1234,22 +1218,67 @@ class TestController(
         )
         self.assertContains(response, "error: unrecognized secret", status_code=403)
 
-    def test_checksum_404_disabled_org(self):
-        org = self._create_org()
-        c = self._create_config(organization=org)
-        # Cache checksum
-        response = self.client.get(
-            reverse("controller:device_checksum", args=[c.device.pk]),
-            {"key": c.device.key},
+    @capture_any_output()
+    def test_register_reregistration_403_disabled_org(self):
+        org = self._get_org()
+        device = self._create_device(
+            organization=org,
+            key=TEST_CONSISTENT_KEY,
+            mac_address=TEST_MACADDR,
+            name=TEST_MACADDR_NAME,
         )
-        self.assertEqual(response.status_code, 200)
+        self._create_config(device=device)
+        config_checksum = device.config.checksum_db
+        original_forbidden = DeviceRegisterView.forbidden
+
+        def disable_org_after_secret_validation(view, request):
+            response = original_forbidden(view, request)
+            Organization.objects.filter(pk=org.pk).update(is_active=False)
+            return response
+
+        with self.subTest("org disabled after secret validation"):
+            with patch.object(
+                DeviceRegisterView,
+                "forbidden",
+                autospec=True,
+                side_effect=disable_org_after_secret_validation,
+            ):
+                payload = self._get_reregistration_payload(device, name="changed")
+                response = self.client.post(self.register_url, payload)
+            self.assertContains(
+                response, "error: organization disabled", status_code=403
+            )
+            device.refresh_from_db()
+            self.assertEqual(device.name, TEST_MACADDR_NAME)
+            self.assertEqual(device.is_deactivated(), False)
+            self.assertEqual(device.config.checksum_db, config_checksum)
+
+        with self.subTest("org disabled before secret validation"):
+            org.is_active = False
+            org.save(update_fields=["is_active"])
+            payload = self._get_reregistration_payload(device, name=TEST_MACADDR_NAME)
+            response = self.client.post(self.register_url, payload)
+            self.assertContains(response, "error: unrecognized secret", status_code=403)
+
+    @capture_any_output()
+    def test_register_reregistration_403_cross_tenant_secret(self):
+        org = self._get_org()
+        device = self._create_device(
+            organization=org,
+            key=TEST_CONSISTENT_KEY,
+            mac_address=TEST_MACADDR,
+            name=TEST_MACADDR_NAME,
+        )
+        self._create_config(device=device)
         org.is_active = False
-        org.save()
-        response = self.client.get(
-            reverse("controller:device_checksum", args=[c.device.pk]),
-            {"key": c.device.key},
+        org.save(update_fields=["is_active"])
+        other_org = self._create_org(
+            shared_secret="other_org_secret", name="other-org", slug="other-org"
         )
-        self.assertEqual(response.status_code, 404)
+        payload = self._get_reregistration_payload(device, name=TEST_MACADDR_NAME)
+        payload["secret"] = other_org.config_settings.shared_secret
+        response = self.client.post(self.register_url, payload)
+        self.assertContains(response, "error: organization disabled", status_code=403)
 
     def test_download_config_404_disabled_org(self):
         org = self._create_org(is_active=False)
@@ -1447,6 +1476,81 @@ class TestControllerTransaction(
         self.assertEqual(response.status_code, 404)
         config.refresh_from_db()
         self.assertEqual(config.status, "deactivated")
+
+    def test_device_checksum_404_disabled_org(self):
+        org = self._create_org()
+        config = self._create_config(organization=org)
+        device = config.device
+        # Cache checksum
+        response = self.client.get(
+            reverse("controller:device_checksum", args=[device.pk]),
+            {"key": device.key},
+        )
+        self.assertEqual(response.status_code, 200)
+        org.is_active = False
+        org.save()
+        response = self.client.get(
+            reverse("controller:device_checksum", args=[device.pk]),
+            {"key": device.key},
+        )
+        self.assertEqual(response.status_code, 404)
+
+    @patch("openwisp_controller.config.handlers.chain")
+    def test_report_status_deactivating_allowed_disabled_org(self, mocked_chain):
+        org = self._get_org()
+        self._create_template(required=True, organization=org)
+        device = self._create_device_config(device_opts={"organization": org})
+        c = device.config
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        device.refresh_from_db()
+        self.assertEqual(device.is_deactivated(), False)
+        tasks.deactivate_organization_devices(org.id)
+        c.refresh_from_db()
+        self.assertEqual(c.status, "deactivating")
+
+        with self.subTest("deactivating device can download final configuration"):
+            response = self.client.get(
+                reverse("controller:device_download_config", args=[device.pk]),
+                {"key": device.key},
+            )
+            self.assertEqual(response.status_code, 200)
+
+        with self.subTest("deactivating device can download final checksum"):
+            response = self.client.get(
+                reverse("controller:device_checksum", args=[device.pk]),
+                {"key": device.key},
+            )
+            self.assertEqual(response.status_code, 200)
+
+        with self.subTest("deactivating device can report configuration removal"):
+            response = self.client.post(
+                reverse("controller:device_report_status", args=[device.pk]),
+                {"key": device.key, "status": "applied"},
+            )
+            self.assertEqual(response.status_code, 200)
+        c.refresh_from_db()
+        self.assertEqual(c.status, "deactivated")
+
+    def test_vpn_views_org_disabled(self):
+        vpn = self._create_vpn(organization=self._get_org())
+        org = vpn.organization
+        org.is_active = False
+        org.save()
+        checksum_url = reverse("controller:vpn_checksum", args=[vpn.pk])
+        download_url = reverse("controller:vpn_download_config", args=[vpn.pk])
+
+        with self.subTest("checksum remains available for cleanup"):
+            response = self.client.get(checksum_url, {"key": vpn.key})
+            self.assertEqual(response.status_code, 200)
+            response = self.client.get(checksum_url, {"key": "wrong"})
+            self.assertEqual(response.status_code, 403)
+
+        with self.subTest("config download remains available for cleanup"):
+            response = self.client.get(download_url, {"key": vpn.key})
+            self.assertEqual(response.status_code, 200)
+            response = self.client.get(download_url, {"key": "wrong"})
+            self.assertEqual(response.status_code, 403)
 
     def test_device_config_deactivated_checksum(self):
         self._test_deactivating_deactivated_device_view("device_checksum")
