@@ -141,6 +141,7 @@ device returns to a recently used IP address.
     During cooldown, IP changes within the previous subnet reuse its WHOIS
     data without resetting its age. Other matching subnets may provide
     approximate WHOIS data while retrying, but not estimated locations.
+    The WHOIS CIDR field is indexed to speed up these subnet lookups.
 
 A periodic Celery Beat task removes expired unreferenced records. It is
 automatically configured by :doc:`ansible-openwisp2 </ansible/index>` and
