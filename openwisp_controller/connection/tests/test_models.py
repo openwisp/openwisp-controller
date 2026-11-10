@@ -1402,7 +1402,7 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
         org = self._get_org()
         org2 = self._create_org(name="org2", slug="org2")
 
-        with self.subTest("org command not allowed"):
+        with self.subTest("device moved out of the organization"):
             device_a = self._create_device(
                 name="device-a",
                 mac_address="00:11:22:33:44:aa",
@@ -1417,30 +1417,26 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
             )
             self._create_config(device=device_b)
             self._create_device_connection(device=device_b)
-            with mock.patch.dict(
-                ORGANIZATION_ENABLED_COMMANDS,
-                {str(org2.pk): ("reboot",)},
-            ):
-                batch = self._create_batch_command(
-                    organization=org,
-                    devices=[device_a, device_b],
-                )
-                with self.assertLogs(LOGGER_NAME, level="WARNING") as logs:
-                    batch.create_commands()
-                self.assertIn("Skipping device", logs.output[0])
-                batch.refresh_from_db()
-                self.assertIn(str(device_b.pk), batch.skipped_devices)
-                self.assertEqual(
-                    batch.skipped_devices[str(device_b.pk)]["error"],
-                    f'The device was moved out of "{org.name}", the organization'
-                    f' of the mass command "{batch.label}", so the command was'
-                    " not run.",
-                )
-                db_batch = BatchCommand.objects.get(pk=batch.pk)
-                self.assertEqual(batch.skipped_devices, db_batch.skipped_devices)
-                command_qs = Command.objects.filter(batch_command=batch)
-                self.assertTrue(command_qs.filter(device=device_a).exists())
-                self.assertFalse(command_qs.filter(device=device_b).exists())
+            batch = self._create_batch_command(
+                organization=org,
+                devices=[device_a, device_b],
+            )
+            with self.assertLogs(LOGGER_NAME, level="WARNING") as logs:
+                batch.create_commands()
+            self.assertIn("Skipping device", logs.output[0])
+            batch.refresh_from_db()
+            self.assertIn(str(device_b.pk), batch.skipped_devices)
+            self.assertEqual(
+                batch.skipped_devices[str(device_b.pk)]["error"],
+                f'The device was moved out of "{org.name}", the organization'
+                f' of the mass command "{batch.label}", so the command was'
+                " not run.",
+            )
+            db_batch = BatchCommand.objects.get(pk=batch.pk)
+            self.assertEqual(batch.skipped_devices, db_batch.skipped_devices)
+            command_qs = Command.objects.filter(batch_command=batch)
+            self.assertTrue(command_qs.filter(device=device_a).exists())
+            self.assertFalse(command_qs.filter(device=device_b).exists())
 
         with self.subTest("org command not allowed on a system wide batch"):
             with mock.patch.dict(

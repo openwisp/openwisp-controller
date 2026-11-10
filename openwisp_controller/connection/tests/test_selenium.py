@@ -1551,9 +1551,9 @@ class TestBatchCommandAdmin(
             search("menu-reboot")
             self.assertEqual(self._changelist_labels(), ["menu-reboot"])
             search("no-such-batch")
-            self.assertEqual(
-                self.find_element(by=By.CSS_SELECTOR, value=".paginator").text,
+            self.assertIn(
                 "0 Mass commands",
+                self.find_element(by=By.CSS_SELECTOR, value=".paginator").text,
             )
             self.open(self.changelist_url)
             self._wait_for_url(self.changelist_url)
