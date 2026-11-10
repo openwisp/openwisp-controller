@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from django.db.migrations.loader import MigrationLoader
 from django.test import SimpleTestCase, tag
 

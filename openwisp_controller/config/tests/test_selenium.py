@@ -736,7 +736,7 @@ class TestDeviceAdminUnsavedChanges(
             self._override_unsaved_changes_alert()
             # Simulate navigating away from the page
             self.find_element(
-                by=By.XPATH, value='//*[@id="main-content"]/div[2]/a[3]'
+                by=By.XPATH, value='(//*[contains(@class, "breadcrumbs")]//a)[3]'
             ).click()
             if self._is_unsaved_changes_alert_present():
                 self.fail("Unsaved changes alert displayed without any change")

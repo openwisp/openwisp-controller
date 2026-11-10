@@ -1,10 +1,8 @@
 name: Issue Assignment Bot
 on:
-  issue_comment:
+  issue_comment: # zizmor: ignore[dangerous-triggers] Comments are the assignment interface; trusted bot code validates requests and issues.
     types: [created]
-permissions:
-  contents: read
-  issues: write
+permissions: {}
 concurrency:
   group: bot-autoassign-issue-${{ github.repository }}-${{ github.event.issue.number }}
   cancel-in-progress: true
@@ -13,7 +11,9 @@ jobs:
     if: >
       github.repository == 'openwisp/openwisp-controller' &&
       github.event.issue.pull_request == null
-    uses: openwisp/openwisp-utils/.github/workflows/reusable-bot-autoassign.yml@master
+    permissions:
+      contents: read
+    uses: openwisp/openwisp-actions/.github/workflows/reusable-bot-autoassign.yml@61f8fad5c4f6b9b1cf47eb396c2e1c8392aed52f # 0.1.1
     with:
       bot_command: issue_assignment
     secrets:

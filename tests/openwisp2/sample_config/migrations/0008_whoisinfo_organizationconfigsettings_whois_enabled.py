@@ -55,7 +55,12 @@ class Migration(migrations.Migration):
                     "address",
                     models.JSONField(blank=True, default=dict, help_text="Address"),
                 ),
-                ("cidr", models.CharField(blank=True, help_text="CIDR", max_length=49)),
+                (
+                    "cidr",
+                    models.CharField(
+                        blank=True, db_index=True, help_text="CIDR", max_length=49
+                    ),
+                ),
                 ("details", models.CharField(blank=True, max_length=64, null=True)),
                 (
                     "coordinates",
