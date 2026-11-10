@@ -912,9 +912,9 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
             return self._restart(
                 request,
                 _(
-                    "This mass command was replaced by another one started in a"
-                    " different browser tab, so it was not executed. Please fill"
-                    " in the details again."
+                    "The devices targeted by this mass command changed after this page"
+                    " was opened, so the command was not executed. Please fill in the"
+                    " details again."
                 ),
             )
         if not self._claim_wizard(wizard):
@@ -1279,8 +1279,9 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
     def execute_mass_command_admin_action(modeladmin, request, queryset):
         """Second entry point of the mass command workflow: the devices are
         picked one by one instead of being matched by organization, group or
-        location. The selection travels in the form rather than in the session,
-        so it cannot outlive the wizard it belongs to.
+        location. The selection reaches the first step in a hidden field and
+        is then saved with the wizard, so it cannot leak into another wizard
+        or outlive it.
         """
         batch_admin = modeladmin.admin_site.get_model_admin(BatchCommand)
         batch_admin._check_add_permission(request)

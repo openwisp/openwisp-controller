@@ -748,15 +748,15 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
                 self._messages(response),
             )
 
-        with self.subTest("a token from another tab"):
+        with self.subTest("a stale token"):
             wizard = self._start_wizard(organization=str(org.pk))
             self.client.get(self._confirm_url())
             response = self._post_confirm("stale-token")
             self.assertRedirects(response, self.execute_url)
             self.assertIn(
-                "This mass command was replaced by another one started in a"
-                " different browser tab, so it was not executed. Please fill"
-                " in the details again.",
+                "The devices targeted by this mass command changed after this page"
+                " was opened, so the command was not executed. Please fill in the"
+                " details again.",
                 self._messages(response),
             )
             self.assertFalse(BatchCommand.objects.exists())
