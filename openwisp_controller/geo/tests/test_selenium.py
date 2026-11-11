@@ -3,6 +3,7 @@ from unittest import mock
 from channels.testing import ChannelsLiveServerTestCase
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
+from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.test import tag
 from django.urls.base import reverse
 from django_loci.tests import TestAdminMixin
@@ -42,19 +43,6 @@ class TestDeviceAdminGeoSelenium(
     def _get_prefix(cls):
         return cls.inline_field_prefix
 
-    @classmethod
-    def setUpClass(cls):
-        cls.whois_configured = mock.patch.object(
-            config_app_settings, "WHOIS_CONFIGURED", True
-        )
-        cls.whois_configured.start()
-        super().setUpClass()
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.whois_configured.stop()
-        super().tearDownClass()
-
     def _fill_device_form(self):
         org = self._get_org()
         self.find_element(by=By.NAME, value="mac_address").send_keys(
@@ -75,6 +63,24 @@ class TestDeviceAdminGeoSelenium(
         self.find_element(by=By.CLASS_NAME, value="select2-results__option").click()
         super()._fill_device_form()
 
+
+@tag("selenium_tests")
+class TestEstimatedLocationSelenium(
+    TestGeoMixin,
+    TestAdminMixin,
+    TestOrganizationMixin,
+    SeleniumTestMixin,
+    StaticLiveServerTestCase,
+):
+    """Run in-process so WHOIS_CONFIGURED mocks apply without fork inheritance."""
+
+    app_label = "geo"
+    object_model = Device
+    location_model = Location
+    object_location_model = DeviceLocation
+    user_model = get_user_model()
+
+    @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
     def test_estimated_location_warning(self):
         org = self._get_org()
         org.geo_settings.estimated_location_enabled = True
