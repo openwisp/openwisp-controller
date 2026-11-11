@@ -227,7 +227,7 @@ Create ``asgi.py`` in your project folder and add following lines in it:
     from channels.security.websocket import AllowedHostsOriginValidator
     from django.core.asgi import get_asgi_application
 
-    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "my_project.settings")
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "mycontroller.settings")
     # Initialize Django before importing routing/model code.
     django_asgi_app = get_asgi_application()
 
@@ -254,7 +254,7 @@ Add the following settings to ``settings.py``:
 
     FORM_RENDERER = "django.forms.renderers.TemplatesSetting"
 
-    ASGI_APPLICATION = "my_project.asgi.application"
+    ASGI_APPLICATION = "mycontroller.asgi.application"
     CHANNEL_LAYERS = {
         "default": {"BACKEND": "channels.layers.InMemoryChannelLayer"},
     }
