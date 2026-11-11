@@ -1118,10 +1118,13 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
                 _make_choice(current_status, display_name, "status", status_value)
             )
         filter_specs.append(SimpleNamespace(title=_("status"), choices=status_choices))
-        # the locations and groups offered are those of the organization of
-        # the mass command, and only those the user is allowed to see
-        locations = Location.objects.all()
-        groups = DeviceGroup.objects.all()
+        # the locations and groups offered are those of the devices of the
+        # mass command, and only those the user is allowed to see
+        devices = obj.devices.all()
+        locations = Location.objects.filter(
+            devicelocation__content_object__in=devices
+        ).distinct()
+        groups = DeviceGroup.objects.filter(device__in=devices).distinct()
         if obj.organization_id:
             locations = locations.filter(organization_id=obj.organization_id)
             groups = groups.filter(organization_id=obj.organization_id)
@@ -1164,7 +1167,9 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
                 _("organization"),
                 "organization_id",
                 current_org or "",
-                Organization.objects.values_list("id", "name"),
+                Organization.objects.filter(device__in=devices)
+                .distinct()
+                .values_list("id", "name"),
                 _make_choice,
             )
             if org_spec:

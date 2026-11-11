@@ -1104,7 +1104,9 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
             if devices_list is None:
                 # the batch is still unsaved, so this matches the
                 # organization, group and location
-                devices_list = list(batch.resolve_devices())
+                devices_list = list(
+                    batch.resolve_devices().values_list("pk", flat=True)
+                )
                 batch.save()
                 batch.devices.set(devices_list)
             else:

@@ -346,6 +346,20 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
             f"admin:{self.config_app_label}_device_changelist"
         )
 
+    def _create_viewer(self, org):
+        """Creates a manager who can only view mass commands.
+
+        No default group grants the view permission alone.
+        """
+        viewer = self._create_operator(
+            organizations=[org], username="viewer", email="viewer@test.com"
+        )
+        viewer.groups.clear()
+        viewer.user_permissions.set(
+            Permission.objects.filter(codename="view_batchcommand")
+        )
+        return viewer
+
     def test_wizard_permissions_and_tenant_isolation(self):
         org = self._get_org()
         org2 = self._create_org(name="org2", slug="org2")
@@ -355,13 +369,7 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
         )
 
         with self.subTest("view permission is not enough"):
-            viewer = self._create_operator(
-                organizations=[org], username="viewer", email="viewer@test.com"
-            )
-            viewer.groups.clear()
-            viewer.user_permissions.set(
-                Permission.objects.filter(codename="view_batchcommand")
-            )
+            viewer = self._create_viewer(org)
             self.client.force_login(viewer)
             self.assertEqual(self.client.get(self.execute_url).status_code, 403)
             self.assertEqual(self.client.get(self._confirm_url()).status_code, 403)
@@ -530,13 +538,7 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
                 self.assertEqual(list(self.client.get(url).json()), ["reboot"])
 
         with self.subTest("the add permission is required"):
-            viewer = self._create_operator(
-                organizations=[org], username="viewer", email="viewer@test.com"
-            )
-            viewer.groups.clear()
-            viewer.user_permissions.set(
-                Permission.objects.filter(codename="view_batchcommand")
-            )
+            viewer = self._create_viewer(org)
             self.client.force_login(viewer)
             self.assertEqual(self.client.get(url).status_code, 403)
 
@@ -650,14 +652,12 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
             self.client.get(self._confirm_url())
             with CaptureQueriesContext(db_connection) as few:
                 self.client.get(self._confirm_url())
-            more_devices = [
+            for index in range(8):
                 self._create_device(
                     name=f"budget-more{index}",
                     mac_address=f"00:11:22:33:56:{index:02x}",
                     organization=org,
                 )
-                for index in range(8)
-            ]
             self._start_wizard(organization=str(org.pk))
             self.client.get(self._confirm_url())
             with CaptureQueriesContext(db_connection) as many:
@@ -672,7 +672,15 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
             self.client.get(url)
             with CaptureQueriesContext(db_connection) as few:
                 self.client.get(url)
-            self._create_commands(batch, more_devices)
+            extra_devices = [
+                self._create_device(
+                    name=f"budget-detail{index}",
+                    mac_address=f"00:11:22:33:57:{index:02x}",
+                    organization=org,
+                )
+                for index in range(8)
+            ]
+            self._create_commands(batch, extra_devices)
             self.client.get(url)
             with CaptureQueriesContext(db_connection) as many:
                 response = self.client.get(url)
@@ -1159,13 +1167,7 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
         action_name = "execute_mass_command_admin_action"
 
         with self.subTest("the device change permission is required"):
-            viewer = self._create_operator(
-                organizations=[org], username="viewer", email="viewer@test.com"
-            )
-            viewer.groups.clear()
-            viewer.user_permissions.set(
-                Permission.objects.filter(codename="view_batchcommand")
-            )
+            viewer = self._create_viewer(org)
             request.user = viewer
             self.assertNotIn(action_name, device_admin.get_actions(request))
 
@@ -1481,6 +1483,22 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
                 rows = self.client.get(url, {"page": 2}).context["commands"]
                 self.assertEqual(rows[0]["device"], commands[-1].device.pk)
 
+            with self.subTest("the total counts the devices of an all skipped batch"):
+                skipped_batch = self._create_batch_command(organization=org)
+                skipped_batch.skipped_devices = {
+                    str(uuid4()): {"name": f"skipped{index}", "error": "no credentials"}
+                    for index in range(2)
+                }
+                skipped_batch.save(update_fields=["skipped_devices"])
+                response = self.client.get(
+                    reverse(
+                        f"admin:{self.app_label}_batchcommand_change",
+                        args=[skipped_batch.pk],
+                    )
+                )
+                self.assertContains(response, "2 devices")
+                self.assertNotContains(response, "2 commands")
+
     def test_change_view_filters(self):
         org = self._get_org()
         org2 = self._create_org(name="org2", slug="org2")
@@ -1514,6 +1532,22 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
         DeviceLocation.objects.create(
             content_object=transferred_device, location=transferred_location
         )
+        unrelated_group = DeviceGroup.objects.create(
+            name="unrelated-group", organization=org
+        )
+        unrelated_location = Location.objects.create(
+            name="unrelated-location", type="indoor", organization=org
+        )
+        unrelated_device = self._create_device(
+            name="unrelated-device",
+            mac_address="00:11:22:33:44:90",
+            organization=org,
+            group=unrelated_group,
+        )
+        DeviceLocation.objects.create(
+            content_object=unrelated_device, location=unrelated_location
+        )
+        batch.devices.set([device, skipped_device, transferred_device])
         batch.skipped_devices = {
             str(skipped_device.pk): {
                 "name": skipped_device.name,
@@ -1591,8 +1625,9 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
                 [row["device_name"] for row in rows], [transferred_device.name]
             )
 
+        operator = self._create_operator(organizations=[org])
+
         with self.subTest("the organization filter is for superusers only"):
-            operator = self._create_operator(organizations=[org])
             self.client.force_login(operator)
             response = self.client.get(url)
             titles = [str(spec.title) for spec in response.context["filter_specs"]]
@@ -1613,8 +1648,13 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
                 self.assertNotIn(transferred_location.name, specs["location"])
                 self.assertIn(location.name, specs["location"])
 
+        with self.subTest("the filters only offer those of the devices of the batch"):
+            specs = _filter_specs(url)
+            self.assertNotIn(unrelated_group.name, specs["device group"])
+            self.assertNotIn(unrelated_location.name, specs["location"])
+
         with self.subTest("the filters do not wait for the commands to be created"):
-            fresh = self._create_batch_command(organization=org)
+            fresh = self._create_batch_command(organization=org, devices=[device])
             specs = _filter_specs(
                 reverse(f"admin:{self.app_label}_batchcommand_change", args=[fresh.pk])
             )
@@ -1623,7 +1663,9 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
             self.assertNotIn("organization", specs)
 
         with self.subTest("the target of the batch is not offered as a filter"):
-            targeted = self._create_batch_command(organization=org, group=group)
+            targeted = self._create_batch_command(
+                organization=org, group=group, devices=[device]
+            )
             specs = _filter_specs(
                 reverse(
                     f"admin:{self.app_label}_batchcommand_change", args=[targeted.pk]
@@ -1631,7 +1673,9 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
             )
             self.assertNotIn("device group", specs)
             self.assertIn("location", specs)
-            targeted = self._create_batch_command(organization=org, location=location)
+            targeted = self._create_batch_command(
+                organization=org, location=location, devices=[device]
+            )
             specs = _filter_specs(
                 reverse(
                     f"admin:{self.app_label}_batchcommand_change", args=[targeted.pk]
@@ -1640,8 +1684,13 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
             self.assertNotIn("location", specs)
             self.assertIn("device group", specs)
 
-        with self.subTest("a system wide batch offers every organization"):
-            system_wide = self._create_batch_command(organization=None)
+        with self.subTest(
+            "a system wide batch offers the organizations of its devices"
+        ):
+            org3 = self._create_org(name="org3", slug="org3")
+            system_wide = self._create_batch_command(
+                organization=None, devices=[device, transferred_device]
+            )
             specs = _filter_specs(
                 reverse(
                     f"admin:{self.app_label}_batchcommand_change",
@@ -1650,8 +1699,10 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
             )
             self.assertIn(org.name, specs["organization"])
             self.assertIn(org2.name, specs["organization"])
+            self.assertNotIn(org3.name, specs["organization"])
             self.assertIn(transferred_group.name, specs["device group"])
             self.assertIn(transferred_location.name, specs["location"])
+            self.assertNotIn(unrelated_group.name, specs["device group"])
 
         with self.subTest("the search term is not an active filter"):
             response = self.client.get(url, {"q": "anything"})
