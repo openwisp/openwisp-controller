@@ -551,7 +551,7 @@ input formats.
 .. code-block:: json
 
     {
-        "organization": "org-uuid",
+        "organization": "1f6c5666-1011-4f1d-bce9-fc6fcb4f3a05",
         "type": "custom",
         "input": {"command": "uptime"},
         "label": "Check uptime"
@@ -566,7 +566,7 @@ input formats.
         -H 'authorization: Bearer <token>' \
         -H 'content-type: application/json' \
         -d '{
-                "organization": "org-uuid",
+                "organization": "1f6c5666-1011-4f1d-bce9-fc6fcb4f3a05",
                 "type": "custom",
                 "input": {"command": "uptime"},
                 "label": "Check uptime"

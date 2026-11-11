@@ -17,6 +17,7 @@ from swapper import load_model
 
 from openwisp_users.api.mixins import FilterByParentManaged
 from openwisp_users.api.mixins import ProtectedAPIMixin as BaseProtectedAPIMixin
+from openwisp_users.api.permissions import DjangoModelPermissions, IsOrganizationManager
 from openwisp_utils.api.pagination import OpenWispPagination
 
 from ...mixins import (
@@ -216,6 +217,11 @@ class BatchCommandDetailView(ProtectedAPIMixin, RetrieveAPIView):
         return qs
 
 
+class BatchCommandModelPermissions(DjangoModelPermissions):
+    def get_required_permissions(self, method, model_cls):
+        return super().get_required_permissions(method, BatchCommand)
+
+
 class BatchCommandResultListView(
     FilterByParentManaged, BaseProtectedAPIMixin, ListAPIView
 ):
@@ -223,6 +229,7 @@ class BatchCommandResultListView(
     queryset = Command.objects.select_related("device").order_by("-created")
     serializer_class = CommandSerializer
     pagination_class = OpenWispPagination
+    permission_classes = (IsOrganizationManager, BatchCommandModelPermissions)
 
     def get_parent_queryset(self):
         return BatchCommand.objects.filter(pk=self.kwargs["batch_id"])

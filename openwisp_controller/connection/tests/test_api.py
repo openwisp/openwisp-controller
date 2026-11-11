@@ -178,6 +178,8 @@ class TestCommandsAPI(TestCase, AuthenticationMixin, CreateCommandMixin):
             )
             self.assertEqual(response.status_code, 201)
             test_command_attributes(self, payload)
+            self.assertEqual(response.data["input"], "********")
+            self.assertNotContains(response, "ass@1234", status_code=201)
 
         with self.subTest('Test "custom" command'):
             payload = {
@@ -1039,6 +1041,55 @@ class TestBatchCommandsAPI(
             response = self.client.get(url)
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.data["count"], 0)
+
+    def test_batch_command_result_list_permissions(self):
+        """The mass command view permission alone grants access to its results.
+
+        The manager is not in a default group, so that the permission can be
+        granted alone, without the ``Command`` permissions of the groups.
+        """
+        org = self._get_org()
+        batch = self._create_batch_command(organization=org)
+        device = self._create_device(organization=org)
+        self._create_config(device=device)
+        connection = self._create_device_connection(
+            device=device, credentials=self._create_credentials(organization=org)
+        )
+        with patch.object(Command, "_schedule_command"):
+            self._create_command(device_conn=connection, batch_command=batch)
+        url = reverse("connection_api:batch_command_result_list", args=[batch.pk])
+        manager = self._create_user(is_staff=True)
+        self._create_org_user(user=manager, organization=org, is_admin=True)
+        self.client.force_login(manager)
+
+        with self.subTest("a manager without permissions is denied"):
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 403)
+
+        with self.subTest("a manager who can view mass commands is allowed"):
+            manager.user_permissions.add(
+                Permission.objects.get(codename="view_batchcommand")
+            )
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data["count"], 1)
+
+        with self.subTest("the password of a pending command is masked"):
+            with patch.object(Command, "_schedule_command"):
+                self._create_command(
+                    device_conn=connection,
+                    batch_command=batch,
+                    type="change_password",
+                    input={
+                        "password": "Secret@1234",
+                        "confirm_password": "Secret@1234",
+                    },
+                )
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+            inputs = [result["input"] for result in response.data["results"]]
+            self.assertIn("********", inputs)
+            self.assertNotContains(response, "Secret@1234")
 
     def test_batch_command_dry_run_endpoint(self):
         org = self._get_org()

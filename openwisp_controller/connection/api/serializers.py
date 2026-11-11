@@ -65,7 +65,10 @@ class CommandSerializer(ValidatedDeviceFieldSerializer):
     def to_representation(self, instance):
         repr = super().to_representation(instance)
         repr["type"] = instance.get_type_display()
-        repr["input"] = instance.input_data
+        if instance.type == "change_password":
+            repr["input"] = "********"
+        else:
+            repr["input"] = instance.input_data
         return repr
 
     class Meta:

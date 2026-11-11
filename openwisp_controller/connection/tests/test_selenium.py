@@ -1,4 +1,3 @@
-from time import sleep
 from unittest.mock import patch
 from urllib.parse import quote, urlparse
 from uuid import UUID, uuid4
@@ -95,11 +94,9 @@ class TestDeviceAdmin(
         self.find_element(
             by=By.CSS_SELECTOR, value='button.ow-command-btn[data-command="reboot"]'
         ).click()
+        page = self.find_element(by=By.TAG_NAME, value="html")
         self.find_element(by=By.CSS_SELECTOR, value="#ow-command-confirm-yes").click()
-        # Wait for the redirect triggered by command submission to complete.
-        # Navigating away immediately can race with the redirect
-        sleep(0.3)
-        self.open(path)
+        WebDriverWait(self.web_driver, 10).until(EC.staleness_of(page))
         self.wait_for_visibility(
             By.CSS_SELECTOR,
             "#tabs-container li.recent.commands",
@@ -1089,7 +1086,7 @@ class TestBatchCommandAdmin(
             self.assertEqual(command_input.text, "-")
             self.assertEqual(affected_devices.text, "49")
             self.assertEqual(len(command_names), 20)
-            self.assertEqual(paginator.text, "49 commands")
+            self.assertEqual(paginator.text, "49 devices")
             self.assertEqual(self._command_statuses(), ["failed"] * 20)
             self.assertEqual(
                 set(command_names) - {device.name for device in devices}, set()
@@ -1176,7 +1173,7 @@ class TestBatchCommandAdmin(
             self.find_element(
                 by=By.CSS_SELECTOR, value=".results-container .paginator"
             ).text,
-            "2 commands",
+            "2 devices",
         )
 
         command.refresh_from_db()
@@ -1228,7 +1225,7 @@ class TestBatchCommandAdmin(
         self.assertEqual(sorted(self._command_device_names()), failed_names)
         self.assertEqual(
             self.find_element(by=By.CSS_SELECTOR, value=".paginator").text,
-            "2 commands",
+            "2 devices",
         )
         self.web_driver.execute_script(
             "document.querySelector('#result_list tbody tr').remove();"
@@ -1244,7 +1241,7 @@ class TestBatchCommandAdmin(
         self.assertEqual(sorted(self._command_device_names()), failed_names)
         self.assertEqual(
             self.find_element(by=By.CSS_SELECTOR, value=".paginator").text,
-            "2 commands",
+            "2 devices",
         )
         self.assertEqual(self.get_browser_errors(), [])
 
@@ -1532,7 +1529,7 @@ class TestBatchCommandAdmin(
             paginator = self.find_element(by=By.CSS_SELECTOR, value=".paginator")
             command_names = self._command_device_names()
             self.assertEqual(affected_devices.text, "50")
-            self.assertEqual(paginator.text, "50 commands")
+            self.assertEqual(paginator.text, "50 devices")
             self.assertEqual(len(command_names), 20)
             self.assertEqual(
                 set(command_names) - {device.name for device in devices}, set()

@@ -64,7 +64,7 @@ Mass Commands
 -------------
 
 Mass commands run the same command on many devices at once, for example to
-reboot all the devices of a organization, as shown in the GIF below:
+reboot all the devices of an organization, as shown in the GIF below:
 
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/mass-command-tutorial/mass_command_demo.gif
     :target: https://github.com/openwisp/openwisp-controller/tree/docs/docs/mass-command-tutorial/mass_command_demo.gif
@@ -118,6 +118,9 @@ device, updated in real time, as shown in the GIF below:
 
 - Devices which cannot run the command, for example because they have no
   access credentials, are marked as *skipped* together with the reason.
+- The output column shows only the last line of the output, limited to
+  100 characters.
+- If any device fails or is skipped, the mass command is marked as failed.
 - Past mass commands are listed in *Network Operations* > *Mass commands*.
 - Commands sent by a mass command also appear in the **Recent Commands**
   of each device, with a link back to the mass command.
