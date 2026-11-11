@@ -307,7 +307,7 @@ function updateTotals($, affectedDevices, totalRows, filtered) {
   const $paginator = $(".results-container .paginator");
   if ($paginator.length) {
     $paginator.text(
-      interpolate(ngettext("%s command", "%s commands", totalRows), [totalRows]),
+      interpolate(ngettext("%s device", "%s devices", totalRows), [totalRows]),
     );
   }
   renderPagination($, totalRows);
