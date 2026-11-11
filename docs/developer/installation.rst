@@ -27,11 +27,7 @@ the OpenWISP architecture.
 Dependencies
 ------------
 
-- Python >= 3.11. Supported versions in the CI test matrix are Python
-  3.11, 3.12, 3.13, 3.14 and 3.15. Tested Django combinations are defined
-  by the CI workflow matrix: Django 5.2 on Python 3.11; Django 5.2, 6.0
-  and 6.1 on Python 3.12, 3.13 and 3.14; and Django 6.1 (starting with
-  6.1.3) on Python 3.15.
+- Python >= 3.11
 - OpenSSL
 
 Installing for Development
