@@ -220,16 +220,10 @@ Create ``asgi.py`` in your project folder and add following lines in it:
 
 .. code-block:: python
 
-    import os
-
     from channels.auth import AuthMiddlewareStack
     from channels.routing import ProtocolTypeRouter, URLRouter
     from channels.security.websocket import AllowedHostsOriginValidator
     from django.core.asgi import get_asgi_application
-
-    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "mycontroller.settings")
-    # Initialize Django before importing routing/model code.
-    django_asgi_app = get_asgi_application()
 
     from openwisp_controller.routing import get_routes
 
@@ -238,7 +232,7 @@ Create ``asgi.py`` in your project folder and add following lines in it:
 
     application = ProtocolTypeRouter(
         {
-            "http": django_asgi_app,
+            "http": get_asgi_application(),
             "websocket": AllowedHostsOriginValidator(
                 AuthMiddlewareStack(URLRouter(get_routes() + my_routes))
             ),
@@ -254,7 +248,7 @@ Add the following settings to ``settings.py``:
 
     FORM_RENDERER = "django.forms.renderers.TemplatesSetting"
 
-    ASGI_APPLICATION = "mycontroller.asgi.application"
+    ASGI_APPLICATION = "my_project.asgi.application"
     CHANNEL_LAYERS = {
         "default": {"BACKEND": "channels.layers.InMemoryChannelLayer"},
     }
