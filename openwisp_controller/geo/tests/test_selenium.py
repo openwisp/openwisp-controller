@@ -72,7 +72,12 @@ class TestEstimatedLocationSelenium(
     SeleniumTestMixin,
     StaticLiveServerTestCase,
 ):
-    """Run in-process so WHOIS_CONFIGURED mocks apply without fork inheritance."""
+    """
+    Keep the WHOIS_CONFIGURED mock visible to the live server.
+
+    Python 3.14 uses forkserver by default on Linux, so a separate server
+    process no longer inherits the mock from the test process.
+    """
 
     app_label = "geo"
     object_model = Device
