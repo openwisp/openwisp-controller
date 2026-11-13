@@ -9,8 +9,10 @@ from django.test.client import BOUNDARY, MULTIPART_CONTENT, encode_multipart
 from django.test.testcases import TransactionTestCase
 from django.urls import reverse
 from django.utils import timezone
+from rest_framework.exceptions import ValidationError
 from swapper import load_model
 
+from openwisp_controller.config.api.filters import DeviceListFilter
 from openwisp_controller.config.api.serializers import BaseConfigSerializer
 from openwisp_controller.tests.utils import TestAdminMixin
 from openwisp_users.tests.test_api import AuthenticationMixin
@@ -111,6 +113,20 @@ class TestConfigApi(
     def setUp(self):
         super().setUp()
         self._login()
+
+    def test_subnet_division_filter_requires_optional_app(self):
+        filterset = DeviceListFilter(queryset=Device.objects.none())
+        with patch(
+            "openwisp_controller.config.api.filters.apps.is_installed",
+            side_effect=lambda app: app != "openwisp_controller.subnet_division",
+        ):
+            with self.assertRaises(ValidationError) as error:
+                filterset.filter_subnet_division_rule(
+                    Device.objects.none(),
+                    "subnet_division_rule",
+                    "8bbc4b0e-0a3a-4f5e-9d9f-1a2b3c4d5e6f",
+                )
+        self.assertIn("subnet division app is not installed", str(error.exception))
 
     def test_device_create_with_config_api(self):
         self.assertEqual(Device.objects.count(), 0)
