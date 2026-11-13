@@ -1,6 +1,6 @@
 from django.contrib import admin, messages
 from django.contrib.admin.actions import delete_selected as django_delete_selected
-from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.http import HttpResponseRedirect
 from django.urls import reverse
@@ -126,7 +126,8 @@ class SubnetDivisionRuleAdmin(
             if getattr(e, "code", None) != "subnet_division_rule_in_use":
                 raise
             obj = self.get_object(request, object_id)
-            self._in_use_error(request, obj)
+            if obj is not None:
+                self._in_use_error(request, obj)
             return HttpResponseRedirect(
                 reverse("admin:subnet_division_subnetdivisionrule_changelist")
             )
@@ -135,8 +136,6 @@ class SubnetDivisionRuleAdmin(
         description=django_delete_selected.short_description, permissions=["delete"]
     )
     def delete_selected(self, request, queryset):
-        if not self.has_delete_permission(request):
-            raise PermissionDenied
         try:
             with transaction.atomic():
                 return django_delete_selected(self, request, queryset)

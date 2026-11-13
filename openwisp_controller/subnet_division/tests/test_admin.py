@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+from django.core.exceptions import ValidationError
 from django.test import TestCase, TransactionTestCase
 from django.urls import reverse
 from swapper import load_model
@@ -414,6 +415,7 @@ class TestSubnetDivisionRuleAdmin(
 ):
     config_label = "config"
     ipam_label = "openwisp_ipam"
+    rule_label = "subnet_division"
 
     def _affected_devices_url(self):
         return (
@@ -423,7 +425,7 @@ class TestSubnetDivisionRuleAdmin(
 
     def test_delete_in_use_rule_shows_error_with_link(self):
         delete_url = reverse(
-            "admin:subnet_division_subnetdivisionrule_delete", args=[self.rule.pk]
+            f"admin:{self.rule_label}_subnetdivisionrule_delete", args=[self.rule.pk]
         )
         # The confirmation page is rendered normally; the refusal is raised
         # by the model guard when the deletion is actually attempted.
@@ -434,8 +436,39 @@ class TestSubnetDivisionRuleAdmin(
         self.assertContains(response, self._affected_devices_url())
         self.assertTrue(SubnetDivisionRule.objects.filter(pk=self.rule.pk).exists())
 
+    def test_delete_error_with_missing_rule_redirects_to_changelist(self):
+        delete_url = reverse(
+            f"admin:{self.rule_label}_subnetdivisionrule_delete", args=[self.rule.pk]
+        )
+        changelist_url = reverse(
+            f"admin:{self.rule_label}_subnetdivisionrule_changelist"
+        )
+        with (
+            patch(
+                "django.contrib.admin.ModelAdmin.delete_view",
+                side_effect=ValidationError(
+                    "Rule is in use", code="subnet_division_rule_in_use"
+                ),
+            ),
+            patch(
+                "openwisp_controller.subnet_division.admin."
+                "SubnetDivisionRuleAdmin.get_object",
+                return_value=None,
+            ),
+            patch(
+                "openwisp_controller.subnet_division.admin."
+                "SubnetDivisionRuleAdmin._in_use_error"
+            ) as in_use_error,
+        ):
+            response = self.client.post(delete_url, {"post": "yes"})
+
+        self.assertRedirects(response, changelist_url, fetch_redirect_response=False)
+        in_use_error.assert_not_called()
+
     def test_delete_selected_action_blocked_for_in_use_rules(self):
-        changelist_url = reverse("admin:subnet_division_subnetdivisionrule_changelist")
+        changelist_url = reverse(
+            f"admin:{self.rule_label}_subnetdivisionrule_changelist"
+        )
         response = self.client.post(
             changelist_url,
             {
@@ -456,7 +489,9 @@ class TestSubnetDivisionRuleAdmin(
             number_of_subnets=1,
             label="VPN2",
         )
-        changelist_url = reverse("admin:subnet_division_subnetdivisionrule_changelist")
+        changelist_url = reverse(
+            f"admin:{self.rule_label}_subnetdivisionrule_changelist"
+        )
         response = self.client.post(
             changelist_url,
             {
@@ -475,7 +510,9 @@ class TestSubnetDivisionRuleAdmin(
             number_of_subnets=1,
             label="VPN2",
         )
-        changelist_url = reverse("admin:subnet_division_subnetdivisionrule_changelist")
+        changelist_url = reverse(
+            f"admin:{self.rule_label}_subnetdivisionrule_changelist"
+        )
         response = self.client.post(
             changelist_url,
             {
@@ -496,7 +533,7 @@ class TestSubnetDivisionRuleAdmin(
         self.assertTrue(SubnetDivisionRule.objects.filter(pk=self.rule.pk).exists())
         self.assertTrue(SubnetDivisionRule.objects.filter(pk=rule2.pk).exists())
 
-    def test_delete_selected_action_denied_without_delete_permission(self):
+    def test_delete_selected_action_permissions(self):
         rule2 = self._get_vpn_subdivision_rule(
             number_of_ips=1,
             number_of_subnets=1,
@@ -509,7 +546,7 @@ class TestSubnetDivisionRuleAdmin(
             user=org_admin, organization=rule2.organization, is_admin=True
         )
         self._test_action_permission(
-            path=reverse("admin:subnet_division_subnetdivisionrule_changelist"),
+            path=reverse(f"admin:{self.rule_label}_subnetdivisionrule_changelist"),
             action="delete_selected",
             user=org_admin,
             obj=rule2,
@@ -569,7 +606,7 @@ class TestSubnetDivisionRuleAdmin(
             label="VPN2",
         )
         delete_url = reverse(
-            "admin:subnet_division_subnetdivisionrule_delete", args=[rule2.pk]
+            f"admin:{self.rule_label}_subnetdivisionrule_delete", args=[rule2.pk]
         )
         response = self.client.post(delete_url, {"post": "yes"})
         self.assertEqual(response.status_code, 302)
@@ -608,3 +645,39 @@ class TestDeviceSubnetDivisionRuleFilter(
         )
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Invalid subnet division rule ID")
+
+    def test_filter_does_not_return_devices_for_unavailable_rules(self):
+        device_changelist = reverse(f"admin:{self.config_label}_device_changelist")
+        other_org = self._create_org(name="other-org", slug="other-org")
+        other_master_subnet = self._get_master_subnet(
+            subnet="172.20.0.0/16", organization=other_org
+        )
+        other_config = self._create_config(
+            device=self._create_device(
+                name="other-org-device",
+                mac_address="00:11:22:33:44:88",
+                organization=other_org,
+            )
+        )
+        other_rule = self._get_vpn_subdivision_rule(
+            number_of_ips=1,
+            number_of_subnets=1,
+            label="OtherOrgVPN",
+            organization=other_org,
+            master_subnet=other_master_subnet,
+        )
+        self._mock_subnet_division_rule(other_config, other_master_subnet, other_rule)
+        administrator = self._create_administrator([self.config.device.organization])
+        self.client.force_login(administrator)
+
+        cases = (
+            ("valid UUID without a rule", "8bbc4b0e-0a3a-4f5e-9d9f-1a2b3c4d5e6f"),
+            ("rule from another organization", str(other_rule.pk)),
+        )
+        for description, rule_id in cases:
+            with self.subTest(description=description):
+                response = self.client.get(
+                    device_changelist, {"subnet_division_rule": rule_id}
+                )
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.context["cl"].result_count, 0)

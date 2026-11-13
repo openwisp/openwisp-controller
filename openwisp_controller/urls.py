@@ -24,7 +24,11 @@ url_metadata = [
         "include": {
             "module": (
                 "openwisp_controller.subnet_division.ipam_urls"
-                if "openwisp_controller.subnet_division" in settings.INSTALLED_APPS
+                if (
+                    "openwisp_controller.subnet_division" in settings.INSTALLED_APPS
+                    or "openwisp_controller.subnet_division"
+                    in getattr(settings, "EXTENDED_APPS", ())
+                )
                 else "openwisp_ipam.urls"
             )
         },
