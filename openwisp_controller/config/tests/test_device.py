@@ -461,6 +461,42 @@ class TestDevice(
             self._create_device(name="test", organization=org, group=device_group)
         handler.assert_not_called()
 
+    def test_device_group_changed_not_repeated_on_subsequent_saves(self):
+        org = self._get_org()
+        group_a = self._create_device_group(name="group-a", organization=org)
+        group_b = self._create_device_group(name="group-b", organization=org)
+        group_c = self._create_device_group(name="group-c", organization=org)
+        device = self._create_device(name="test-save-sequence", organization=org, group=group_a)
+
+        with catch_signal(device_group_changed) as handler:
+            # 1. Change group from A to B: signal emitted once with old_group_id=group_a.id
+            device.group = group_b
+            device.save()
+            self.assertEqual(handler.call_count, 1)
+            handler.assert_called_with(
+                signal=device_group_changed,
+                sender=Device,
+                instance=device,
+                old_group_id=group_a.id,
+                group_id=group_b.id,
+            )
+
+            # 2. Save same instance again without group change: no duplicate signal
+            device.save()
+            self.assertEqual(handler.call_count, 1)
+
+            # 3. Change group from B to C: exactly 1 new signal emitted with old_group_id=group_b.id
+            device.group = group_c
+            device.save()
+            self.assertEqual(handler.call_count, 2)
+            handler.assert_called_with(
+                signal=device_group_changed,
+                sender=Device,
+                instance=device,
+                old_group_id=group_b.id,
+                group_id=group_c.id,
+            )
+
     def test_manage_devices_group_templates_skips_deactivated_devices(self):
         org = self._get_org()
         old_template = self._create_template(name="old-template", organization=org)
