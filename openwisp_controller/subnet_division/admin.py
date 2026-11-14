@@ -2,6 +2,7 @@ from django.contrib import admin, messages
 from django.contrib.admin.actions import delete_selected as django_delete_selected
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.forms.models import BaseInlineFormSet
 from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.html import format_html, format_html_join
@@ -30,10 +31,40 @@ IpAddress = load_model("openwisp_ipam", "IpAddress")
 Device = load_model("config", "Device")
 
 
+def affected_devices_url(rule):
+    return (
+        reverse(f"admin:{Device._meta.app_label}_{Device._meta.model_name}_changelist")
+        + f"?subnet_division_rule={rule.pk}"
+    )
+
+
+class SubnetDivisionRuleInlineFormSet(BaseInlineFormSet):
+    def clean(self):
+        super().clean()
+        for form in self.forms:
+            if not form.cleaned_data.get("DELETE") or not form.instance.pk:
+                continue
+            try:
+                form.instance.validate_deletion()
+            except ValidationError as error:
+                if getattr(error, "code", None) != "subnet_division_rule_in_use":
+                    raise
+                raise ValidationError(
+                    format_html(
+                        '{} <a href="{}">{}</a>',
+                        error.message,
+                        affected_devices_url(form.instance),
+                        _("View affected devices"),
+                    ),
+                    code="subnet_division_rule_in_use",
+                ) from None
+
+
 class SubnetDivisionRuleInlineAdmin(
     MultitenantAdminMixin, TimeReadonlyAdminMixin, HelpTextStackedInline
 ):
     model = SubnetDivisionRule
+    formset = SubnetDivisionRuleInlineFormSet
     extra = 0
     help_text = {
         "text": _(
@@ -59,13 +90,18 @@ class SubnetDivisionRuleAdmin(
     list_filter = ["type"]
     search_fields = ["label"]
     actions = ["delete_selected"]
+    multitenant_shared_relations = ("master_subnet",)
     # caps how many affected-device links are listed in the bulk error message
     in_use_links_limit = 10
 
+    def get_readonly_fields(self, request, obj=None):
+        readonly_fields = list(super().get_readonly_fields(request, obj=obj))
+        if obj is not None and "master_subnet" not in readonly_fields:
+            readonly_fields.append("master_subnet")
+        return readonly_fields
+
     def _affected_devices_url(self, obj):
-        return reverse("admin:config_device_changelist") + (
-            f"?subnet_division_rule={obj.pk}"
-        )
+        return affected_devices_url(obj)
 
     def _in_use_error(self, request, obj):
         messages.error(
@@ -87,9 +123,9 @@ class SubnetDivisionRuleAdmin(
         capped, so the message never embeds an unbounded device list.
         """
         rules = list(
-            queryset.filter(subnetdivisionindex__config_id__isnull=False)
-            .distinct()
-            .order_by("label")[: self.in_use_links_limit + 1]
+            SubnetDivisionRule.filter_in_use(queryset).order_by("label")[
+                : self.in_use_links_limit + 1
+            ]
         )
         truncated = len(rules) > self.in_use_links_limit
         rules = rules[: self.in_use_links_limit]
@@ -129,7 +165,9 @@ class SubnetDivisionRuleAdmin(
             if obj is not None:
                 self._in_use_error(request, obj)
             return HttpResponseRedirect(
-                reverse("admin:subnet_division_subnetdivisionrule_changelist")
+                reverse(
+                    f"admin:{self.opts.app_label}_{self.opts.model_name}_changelist"
+                )
             )
 
     @admin.action(
@@ -167,6 +205,38 @@ class SubnetAdmin(BaseSubnetAdmin):
     list_display = BaseSubnetAdmin.list_display
     list_display.insert(list_display.index("created"), "related_device")
     actions = ["delete_selected"]
+
+    def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
+        try:
+            with transaction.atomic():
+                return super().changeform_view(
+                    request,
+                    object_id=object_id,
+                    form_url=form_url,
+                    extra_context=extra_context,
+                )
+        except ValidationError as error:
+            if getattr(error, "code", None) != "subnet_division_rule_in_use":
+                raise
+            rule = SubnetDivisionRule.filter_in_use(
+                SubnetDivisionRule.objects.filter(master_subnet_id=object_id)
+            ).first()
+            if rule is not None:
+                messages.error(
+                    request,
+                    format_html(
+                        '{} <a href="{}">{}</a>',
+                        error.message,
+                        affected_devices_url(rule),
+                        _("View affected devices"),
+                    ),
+                )
+            return HttpResponseRedirect(
+                reverse(
+                    f"admin:{self.opts.app_label}_{self.opts.model_name}_change",
+                    args=[object_id],
+                )
+            )
 
     @admin.action(
         description=django_delete_selected.short_description, permissions=["delete"]

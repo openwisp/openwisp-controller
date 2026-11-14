@@ -64,9 +64,16 @@ class DeviceFilter(SimpleInputFilter):
             )
 
 
+def filter_devices_by_subnet_division_rule(queryset, rule):
+    return queryset.filter(config__subnetdivisionindex__rule=rule).distinct()
+
+
 class DeviceSubnetDivisionRuleFilter(admin.SimpleListFilter):
     title = _("subnet division rule")
     parameter_name = "subnet_division_rule"
+
+    def has_output(self):
+        return self.value() is not None or super().has_output()
 
     def lookups(self, request, model_admin):
         device_qs = model_admin.get_queryset(request).order_by()
@@ -84,11 +91,11 @@ class DeviceSubnetDivisionRuleFilter(admin.SimpleListFilter):
         if value is None:
             return queryset
         try:
-            uuid.UUID(value)
+            uuid.UUID(str(value))
         except (AttributeError, ValueError):
             messages.error(request, _("Invalid subnet division rule ID."))
             return queryset
-        return queryset.filter(config__subnetdivisionindex__rule_id=value).distinct()
+        return filter_devices_by_subnet_division_rule(queryset, value)
 
 
 class VpnFilter(AutocompleteFilter):

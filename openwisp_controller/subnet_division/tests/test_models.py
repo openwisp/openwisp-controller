@@ -580,6 +580,93 @@ class TestSubnetDivisionRule(
             "provisioned subnet should have been cleaned up",
         )
 
+    def test_cleanup_preserves_master_subnet_of_surviving_rule(self):
+        deleted_rule = self._get_vpn_subdivision_rule(label="VPNcleanup")
+        provisioned_subnet = self._create_subnet(
+            subnet="10.0.6.0/24",
+            organization=self.org,
+            master_subnet=self.master_subnet,
+        )
+        SubnetDivisionIndex.objects.create(
+            rule=deleted_rule, keyword="to_cleanup", subnet=provisioned_subnet
+        )
+        surviving_rule = self._get_vpn_subdivision_rule(
+            label="VPNsurviving", master_subnet=provisioned_subnet
+        )
+
+        deleted_rule.delete()
+
+        self.assertTrue(Subnet.objects.filter(pk=provisioned_subnet.pk).exists())
+        self.assertTrue(
+            SubnetDivisionRule.objects.filter(pk=surviving_rule.pk).exists()
+        )
+
+    def test_cleanup_preserves_ancestor_of_surviving_rule_subnets(self):
+        deleted_rule = self._get_vpn_subdivision_rule(label="VPNcleanup")
+        candidate_parent = self._create_subnet(
+            subnet="10.0.6.0/24",
+            organization=self.org,
+            master_subnet=self.master_subnet,
+        )
+        surviving_master = self._create_subnet(
+            subnet="10.0.6.0/25",
+            organization=self.org,
+            master_subnet=candidate_parent,
+        )
+        surviving_subnet = self._create_subnet(
+            subnet="10.0.6.0/26",
+            organization=self.org,
+            master_subnet=surviving_master,
+        )
+        SubnetDivisionIndex.objects.create(
+            rule=deleted_rule, keyword="to_cleanup", subnet=candidate_parent
+        )
+        surviving_rule = self._get_vpn_subdivision_rule(
+            label="VPNsurviving", master_subnet=surviving_master
+        )
+        surviving_index = SubnetDivisionIndex.objects.create(
+            rule=surviving_rule,
+            config=self.config,
+            keyword="surviving",
+            subnet=surviving_subnet,
+        )
+
+        deleted_rule.delete()
+
+        self.assertTrue(Subnet.objects.filter(pk=candidate_parent.pk).exists())
+        self.assertTrue(Subnet.objects.filter(pk=surviving_master.pk).exists())
+        self.assertTrue(Subnet.objects.filter(pk=surviving_subnet.pk).exists())
+        self.assertTrue(
+            SubnetDivisionRule.objects.filter(pk=surviving_rule.pk).exists()
+        )
+        self.assertTrue(
+            SubnetDivisionIndex.objects.filter(pk=surviving_index.pk).exists()
+        )
+
+    def test_cleanup_preserves_subnet_of_surviving_ip_only_index(self):
+        deleted_rule = self._get_vpn_subdivision_rule(label="VPNcleanup")
+        surviving_rule = self._get_vpn_subdivision_rule(label="VPNsurviving")
+        provisioned_subnet = self._create_subnet(
+            subnet="10.0.6.0/24",
+            organization=self.org,
+            master_subnet=self.master_subnet,
+        )
+        ip = IpAddress.objects.create(subnet=provisioned_subnet, ip_address="10.0.6.1")
+        SubnetDivisionIndex.objects.create(
+            rule=deleted_rule, keyword="to_cleanup", subnet=provisioned_subnet
+        )
+        surviving_index = SubnetDivisionIndex.objects.create(
+            rule=surviving_rule, keyword="ip_only", ip=ip
+        )
+
+        deleted_rule.delete()
+
+        self.assertTrue(Subnet.objects.filter(pk=provisioned_subnet.pk).exists())
+        self.assertTrue(IpAddress.objects.filter(pk=ip.pk).exists())
+        self.assertTrue(
+            SubnetDivisionIndex.objects.filter(pk=surviving_index.pk).exists()
+        )
+
     def test_master_subnet_delete_blocked_when_rule_in_use(self):
         """A master subnet cascade must not bypass the deletion guard.
 

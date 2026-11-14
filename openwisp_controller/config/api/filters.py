@@ -1,11 +1,13 @@
 from uuid import UUID
 
+from django import forms
 from django.apps import apps
+from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 from django_filters import rest_framework as filters
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.exceptions import ValidationError
-from swapper import load_model
+from swapper import get_model_name, load_model
 
 from openwisp_users.api.filters import OrganizationManagedFilter
 
@@ -13,6 +15,18 @@ Template = load_model("config", "Template")
 Vpn = load_model("config", "Vpn")
 Device = load_model("config", "Device")
 DeviceGroup = load_model("config", "DeviceGroup")
+
+
+def template_filter_queryset(request):
+    queryset = Template.objects.all()
+    if request is None or request.user.is_superuser:
+        return queryset
+    if request.user.is_anonymous:
+        return queryset.none()
+    organizations = request.user.organizations_managed
+    return queryset.filter(
+        Q(organization__in=organizations) | Q(organization__isnull=True)
+    )
 
 
 class BaseConfigAPIFilter(OrganizationManagedFilter):
@@ -88,6 +102,7 @@ class DeviceListFilterBackend(DjangoFilterBackend):
 
 
 class DeviceListFilter(BaseConfigAPIFilter):
+    config__templates = filters.UUIDFilter(field_name="config__templates")
     mac_address = filters.CharFilter(
         field_name="mac_address",
         lookup_expr="icontains",
@@ -109,7 +124,9 @@ class DeviceListFilter(BaseConfigAPIFilter):
     )
 
     def filter_subnet_division_rule(self, queryset, name, value):
-        if not apps.is_installed("openwisp_controller.subnet_division"):
+        try:
+            apps.get_model(get_model_name("subnet_division", "SubnetDivisionRule"))
+        except LookupError:
             raise ValidationError(
                 {
                     name: _(
@@ -117,8 +134,12 @@ class DeviceListFilter(BaseConfigAPIFilter):
                         "subnet division app is not installed."
                     )
                 }
-            )
-        return queryset.filter(config__subnetdivisionindex__rule=value).distinct()
+            ) from None
+        from openwisp_controller.subnet_division.filters import (
+            filter_devices_by_subnet_division_rule,
+        )
+
+        return filter_devices_by_subnet_division_rule(queryset, value)
 
     def _set_valid_filterform_lables(self):
         self.filters["group"].label = _("Device group")
@@ -129,6 +150,17 @@ class DeviceListFilter(BaseConfigAPIFilter):
 
     def __init__(self, *args, **kwargs):
         super(DeviceListFilter, self).__init__(*args, **kwargs)
+
+        def template_choices():
+            yield "", "---------"
+            yield from (
+                (str(template.pk), str(template))
+                for template in template_filter_queryset(self.request)
+            )
+
+        self.filters["config__templates"].field.widget = forms.Select(
+            choices=template_choices
+        )
         self._set_valid_filterform_lables()
 
     class Meta(BaseConfigAPIFilter.Meta):

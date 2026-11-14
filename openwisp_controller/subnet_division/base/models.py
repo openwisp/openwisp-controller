@@ -1,7 +1,7 @@
 from ipaddress import ip_network
 
 import swapper
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.core.validators import MinValueValidator
 from django.db import models, transaction
 from django.utils.module_loading import import_string
@@ -88,7 +88,13 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
             )
 
     def _validate_master_subnet_validity(self):
-        if not self.master_subnet.subnet:
+        try:
+            master_subnet = self.master_subnet
+        except ObjectDoesNotExist:
+            raise ValidationError(
+                {"master_subnet": _("Invalid master subnet.")}
+            ) from None
+        if not master_subnet.subnet:
             raise ValidationError({"master_subnet": _("Invalid master subnet.")})
 
     def _validate_existing_fields(self):
@@ -233,23 +239,50 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
         SubnetDivisionIndex = swapper.load_model(
             "subnet_division", "SubnetDivisionIndex"
         )
+        SubnetDivisionRule = swapper.load_model("subnet_division", "SubnetDivisionRule")
 
-        # A subnet can be referenced by indexes of more than one rule, so
-        # only the ones which are not referenced by any surviving rule are
-        # removed, otherwise subnets still in use would be deleted too.
+        # Protect every subnet referenced by a surviving rule, including the
+        # ancestors whose deletion would cascade to a protected subnet.
+        protected_subnet_ids = set(
+            SubnetDivisionIndex.objects.filter(
+                rule_id__isnull=False, subnet_id__isnull=False
+            ).values_list("subnet_id", flat=True)
+        )
+        protected_subnet_ids.update(
+            SubnetDivisionIndex.objects.filter(
+                rule_id__isnull=False, ip__subnet_id__isnull=False
+            ).values_list("ip__subnet_id", flat=True)
+        )
+        protected_subnet_ids.update(
+            SubnetDivisionRule.objects.filter(
+                master_subnet_id__isnull=False
+            ).values_list("master_subnet_id", flat=True)
+        )
+        ancestors_to_check = protected_subnet_ids.copy()
+        while ancestors_to_check:
+            parent_ids = set(
+                Subnet.objects.filter(
+                    pk__in=ancestors_to_check,
+                    master_subnet_id__isnull=False,
+                ).values_list("master_subnet_id", flat=True)
+            )
+            ancestors_to_check = parent_ids - protected_subnet_ids
+            protected_subnet_ids.update(parent_ids)
+
         Subnet.objects.filter(
             id__in=SubnetDivisionIndex.objects.filter(rule_id=None).values("subnet_id")
-        ).exclude(
-            # "subnet_id__isnull=False" is required because a NULL in the
-            # subquery would make the SQL "NOT IN" match no rows at all,
-            # leaving the provisioned subnets behind.
-            id__in=SubnetDivisionIndex.objects.filter(
-                rule_id__isnull=False, subnet_id__isnull=False
-            ).values("subnet_id")
-        ).delete()
+        ).exclude(id__in=protected_subnet_ids).delete()
 
-    def _check_in_use(self):
-        if self.subnetdivisionindex_set.filter(config_id__isnull=False).exists():
+    @classmethod
+    def filter_in_use(cls, queryset=None):
+        """Returns rules referenced by at least one device configuration."""
+        if queryset is None:
+            queryset = cls.objects.all()
+        return queryset.filter(subnetdivisionindex__config_id__isnull=False).distinct()
+
+    def validate_deletion(self):
+        """Raises a validation error when this rule cannot be deleted."""
+        if self.filter_in_use(self.__class__.objects.filter(pk=self.pk)).exists():
             raise ValidationError(
                 _(
                     "This subnet division rule is used by device configurations "

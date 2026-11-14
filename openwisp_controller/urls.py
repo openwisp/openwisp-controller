@@ -1,5 +1,16 @@
+from django.apps import apps
 from django.conf import settings
 from django.urls import include, path
+
+
+def get_ipam_urls_module():
+    subnet_division_app = "openwisp_controller.subnet_division"
+    if apps.is_installed(subnet_division_app) or subnet_division_app in getattr(
+        settings, "EXTENDED_APPS", ()
+    ):
+        return "openwisp_controller.subnet_division.ipam_urls"
+    return "openwisp_ipam.urls"
+
 
 url_metadata = [
     # allauth proxy
@@ -21,17 +32,7 @@ url_metadata = [
     {
         "regexp": "",
         "app": "openwisp_ipam",
-        "include": {
-            "module": (
-                "openwisp_controller.subnet_division.ipam_urls"
-                if (
-                    "openwisp_controller.subnet_division" in settings.INSTALLED_APPS
-                    or "openwisp_controller.subnet_division"
-                    in getattr(settings, "EXTENDED_APPS", ())
-                )
-                else "openwisp_ipam.urls"
-            )
-        },
+        "include": {"module": get_ipam_urls_module()},
     },
     # openwisp_controller.pki (CRL view)
     {

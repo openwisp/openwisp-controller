@@ -1,5 +1,7 @@
+from unittest.mock import patch
+
 from django.contrib.auth.models import Permission
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
 
 from openwisp_controller.config.tests.utils import TestWireguardVpnMixin
@@ -16,12 +18,7 @@ class TestDeviceSubnetDivisionRuleApiFilter(
 ):
     def setUp(self):
         super().setUp()
-        self.org = self._get_org()
-        self.master_subnet = self._get_master_subnet()
-        self.config = self._create_config(organization=self.org)
-        self.rule = self._get_vpn_subdivision_rule(number_of_ips=1, number_of_subnets=1)
-        self._mock_subnet_division_rule(self.config, self.master_subnet, self.rule)
-        self._login()
+        self._setup_subnet_division_api_fixture()
 
     def test_device_list_filter_by_subnet_division_rule(self):
         config2 = self._create_config(
@@ -60,6 +57,16 @@ class TestDeviceSubnetDivisionRuleApiFilter(
             )
         )
         self._mock_subnet_division_rule(config2, self.master_subnet, self.rule)
+        config3 = self._create_config(
+            device=self._create_device(
+                name="device-other-rule", mac_address="00:11:22:33:44:78"
+            )
+        )
+        config3.templates.add(template)
+        rule2 = self._get_vpn_subdivision_rule(
+            number_of_ips=1, number_of_subnets=1, label="VPN2"
+        )
+        self._mock_subnet_division_rule(config3, self.master_subnet, rule2)
 
         path = reverse("config_api:device_list")
         response = self.client.get(
@@ -79,13 +86,32 @@ class TestDeviceSubnetDivisionRuleApiFilter(
         """An operator cannot see devices of another organization.
 
         Filtering by a rule which belongs to an organization the user does
-        not manage must not disclose the related devices. Explicit model
-        permissions let the request reach the organization-scope check.
+        not manage must not disclose the related devices. The shipped Operator
+        group lacks ``view_device``, so that permission is granted directly to
+        let this test reach the organization-scope check.
         """
         other_org = self._create_org(name="other-org", slug="other-org")
+        other_master_subnet = self._get_master_subnet(
+            subnet="172.20.0.0/16", organization=other_org
+        )
+        other_config = self._create_config(
+            device=self._create_device(
+                name="other-org-device",
+                mac_address="00:11:22:33:44:88",
+                organization=other_org,
+            )
+        )
+        other_rule = self._get_vpn_subdivision_rule(
+            number_of_ips=1,
+            number_of_subnets=1,
+            label="OtherOrgVPN",
+            organization=other_org,
+            master_subnet=other_master_subnet,
+        )
+        self._mock_subnet_division_rule(other_config, other_master_subnet, other_rule)
         operator = self._create_operator(organizations=[other_org])
         operator.user_permissions.add(
-            *Permission.objects.filter(codename__in=["view_device", "change_device"])
+            *Permission.objects.filter(codename="view_device")
         )
         self.client.force_login(operator)
 
@@ -94,3 +120,24 @@ class TestDeviceSubnetDivisionRuleApiFilter(
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["count"], 0)
+
+        response = self.client.get(path, {"subnet_division_rule": other_rule.id})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["results"][0]["id"], str(other_config.device_id))
+
+
+class TestIPAMURLSelection(SimpleTestCase):
+    def test_explicit_subnet_division_app_config(self):
+        from openwisp_controller.urls import get_ipam_urls_module
+
+        # Django's app registry resolves both a package entry and an explicit
+        # ``SubnetDivisionConfig`` entry to this application name.
+        with patch(
+            "openwisp_controller.urls.apps.is_installed", return_value=True
+        ) as is_installed:
+            self.assertEqual(
+                get_ipam_urls_module(),
+                "openwisp_controller.subnet_division.ipam_urls",
+            )
+        is_installed.assert_called_once_with("openwisp_controller.subnet_division")

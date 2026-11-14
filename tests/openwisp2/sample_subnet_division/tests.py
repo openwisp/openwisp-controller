@@ -12,6 +12,12 @@ from openwisp_controller.subnet_division.tests.test_admin import (
 from openwisp_controller.subnet_division.tests.test_admin import (
     TestSubnetAdmin as BaseTestSubnetAdmin,
 )
+from openwisp_controller.subnet_division.tests.test_admin import (
+    TestSubnetDivisionRuleAdmin as BaseTestSubnetDivisionRuleAdmin,
+)
+from openwisp_controller.subnet_division.tests.test_api import (
+    TestDeviceSubnetDivisionRuleApiFilter as BaseTestDeviceSubnetDivisionRuleApiFilter,
+)
 from openwisp_controller.subnet_division.tests.test_models import (
     TestSubnetDivisionRule as BaseTestSubnetDivisionRule,
 )
@@ -30,6 +36,15 @@ class TestSubnetDivsionRule(BaseTestSubnetDivisionRule):
     config_label = "sample_config"
 
 
+class TestSubnetDivisionRuleAdmin(BaseTestSubnetDivisionRuleAdmin):
+    config_label = "sample_config"
+    rule_label = "sample_subnet_division"
+
+
+class TestDeviceSubnetDivisionRuleApiFilter(BaseTestDeviceSubnetDivisionRuleApiFilter):
+    pass
+
+
 class TestIPAdmin(BaseTestIPAdmin):
     pass
 
@@ -42,12 +57,7 @@ class TestSampleSubnetDeletionApi(
 ):
     def setUp(self):
         super().setUp()
-        self.org = self._get_org()
-        self.master_subnet = self._get_master_subnet()
-        self.config = self._create_config(organization=self.org)
-        self.rule = self._get_vpn_subdivision_rule(number_of_ips=1, number_of_subnets=1)
-        self._mock_subnet_division_rule(self.config, self.master_subnet, self.rule)
-        self._login()
+        self._setup_subnet_division_api_fixture()
 
     def test_delete_in_use_subnet_returns_validation_error(self):
         url = reverse("ipam:subnet", args=[self.master_subnet.pk])
@@ -60,4 +70,6 @@ class TestSampleSubnetDeletionApi(
 del BaseTestDeviceAdmin
 del BaseTestSubnetAdmin
 del BaseTestSubnetDivisionRule
+del BaseTestSubnetDivisionRuleAdmin
+del BaseTestDeviceSubnetDivisionRuleApiFilter
 del BaseTestIPAdmin

@@ -67,7 +67,7 @@ class SubnetDivisionConfig(AppConfig):
         origin_model = getattr(origin, "model", None) or type(origin)
         if isinstance(origin_model, type) and issubclass(origin_model, Organization):
             return
-        instance._check_in_use()
+        instance.validate_deletion()
 
     def _load_models(self):
         self.subnetdivisionrule_model_ = load_model(

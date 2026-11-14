@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from django.core.exceptions import ValidationError
 from django.test import TestCase, TransactionTestCase
@@ -13,6 +13,8 @@ from openwisp_controller.config.tests.utils import (
 from openwisp_users.tests.utils import TestMultitenantAdminMixin
 from openwisp_utils.tests import AdminActionPermTestMixin
 
+from ..admin import SubnetDivisionRuleInlineFormSet
+from ..filters import DeviceSubnetDivisionRuleFilter
 from .helpers import SubnetDivisionAdminTestMixin, SubnetDivisionTestMixin
 
 Subnet = load_model("openwisp_ipam", "Subnet")
@@ -423,6 +425,74 @@ class TestSubnetDivisionRuleAdmin(
             + f"?subnet_division_rule={self.rule.pk}"
         )
 
+    def test_master_subnet_choices_are_organization_scoped(self):
+        other_org = self._create_org(name="other-org", slug="other-org")
+        other_subnet = self._get_master_subnet(
+            subnet="172.20.0.0/16", organization=other_org
+        )
+        administrator = self._create_administrator([self.rule.organization])
+        self.client.force_login(administrator)
+        response = self.client.get(
+            reverse(f"admin:{self.rule_label}_subnetdivisionrule_add")
+        )
+        queryset = response.context["adminform"].form.fields["master_subnet"].queryset
+        self.assertTrue(queryset.filter(pk=self.master_subnet.pk).exists())
+        self.assertFalse(queryset.filter(pk=other_subnet.pk).exists())
+
+        response = self.client.get(
+            reverse(
+                f"admin:{self.rule_label}_subnetdivisionrule_change",
+                args=[self.rule.pk],
+            )
+        )
+        self.assertNotIn("master_subnet", response.context["adminform"].form.fields)
+
+    def test_add_rule_with_invalid_master_subnet_shows_form_error(self):
+        add_url = reverse(f"admin:{self.rule_label}_subnetdivisionrule_add")
+        response = self.client.post(
+            add_url,
+            {
+                "organization": self.rule.organization_id,
+                "label": "InvalidMasterSubnet",
+                "type": self.rule.type,
+                "master_subnet": "8bbc4b0e-0a3a-4f5e-9d9f-1a2b3c4d5e6f",
+                "size": self.rule.size,
+                "number_of_ips": self.rule.number_of_ips,
+                "number_of_subnets": self.rule.number_of_subnets,
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(
+            "Invalid master subnet.",
+            response.context["adminform"].form.errors["master_subnet"],
+        )
+
+    def test_inline_delete_in_use_rule_adds_formset_error(self):
+        form = Mock(
+            cleaned_data={"DELETE": True},
+            instance=self.rule,
+        )
+        formset = object.__new__(SubnetDivisionRuleInlineFormSet)
+        formset.__dict__["forms"] = [form]
+        with patch("django.forms.models.BaseInlineFormSet.clean"):
+            with self.assertRaises(ValidationError) as error:
+                formset.clean()
+        self.assertIn("used by device configurations", str(error.exception))
+        self.assertIn(self._affected_devices_url(), str(error.exception))
+
+    def test_late_inline_delete_error_redirects_to_subnet_change(self):
+        change_url = reverse(
+            f"admin:{self.ipam_label}_subnet_change", args=[self.master_subnet.pk]
+        )
+        with patch(
+            "openwisp_ipam.admin.SubnetAdmin.changeform_view",
+            side_effect=ValidationError(
+                "Rule is in use", code="subnet_division_rule_in_use"
+            ),
+        ):
+            response = self.client.get(change_url)
+        self.assertRedirects(response, change_url, fetch_redirect_response=False)
+
     def test_delete_in_use_rule_shows_error_with_link(self):
         delete_url = reverse(
             f"admin:{self.rule_label}_subnetdivisionrule_delete", args=[self.rule.pk]
@@ -638,6 +708,22 @@ class TestDeviceSubnetDivisionRuleFilter(
         self.assertContains(response, self.config.device.name)
         self.assertNotContains(response, config2.device.name)
 
+    def test_filter_with_uuid_object(self):
+        other_config = self._create_config(
+            device=self._create_device(
+                name="device-without-rule", mac_address="00:11:22:33:44:99"
+            )
+        )
+        list_filter = object.__new__(DeviceSubnetDivisionRuleFilter)
+        list_filter.used_parameters = {"subnet_division_rule": self.rule.pk}
+        with patch(
+            "openwisp_controller.subnet_division.filters.messages.error"
+        ) as error:
+            queryset = list_filter.queryset(Mock(), Device.objects.all())
+        error.assert_not_called()
+        self.assertEqual(list(queryset), [self.config.device])
+        self.assertNotIn(other_config.device, queryset)
+
     def test_filter_invalid_uuid_shows_error(self):
         device_changelist = reverse(f"admin:{self.config_label}_device_changelist")
         response = self.client.get(
@@ -645,6 +731,17 @@ class TestDeviceSubnetDivisionRuleFilter(
         )
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Invalid subnet division rule ID")
+
+    def test_filter_with_no_available_rules_returns_no_devices(self):
+        self.config.subnetdivisionindex_set.all().delete()
+        self.rule.delete()
+        device_changelist = reverse(f"admin:{self.config_label}_device_changelist")
+        response = self.client.get(
+            device_changelist,
+            {"subnet_division_rule": "8bbc4b0e-0a3a-4f5e-9d9f-1a2b3c4d5e6f"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["cl"].result_count, 0)
 
     def test_filter_does_not_return_devices_for_unavailable_rules(self):
         device_changelist = reverse(f"admin:{self.config_label}_device_changelist")

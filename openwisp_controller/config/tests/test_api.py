@@ -117,8 +117,8 @@ class TestConfigApi(
     def test_subnet_division_filter_requires_optional_app(self):
         filterset = DeviceListFilter(queryset=Device.objects.none())
         with patch(
-            "openwisp_controller.config.api.filters.apps.is_installed",
-            side_effect=lambda app: app != "openwisp_controller.subnet_division",
+            "openwisp_controller.config.api.filters.apps.get_model",
+            side_effect=LookupError,
         ):
             with self.assertRaises(ValidationError) as error:
                 filterset.filter_subnet_division_rule(
@@ -382,6 +382,14 @@ class TestConfigApi(
             self.assertEqual(r2.status_code, 400)
             self.assertIn("Invalid UUID format", str(r2.content))
 
+        with self.subTest("Valid unmatched template UUID returns no devices"):
+            response = self.client.get(
+                path,
+                {"config__templates": "8bbc4b0e-0a3a-4f5e-9d9f-1a2b3c4d5e6f"},
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data["count"], 0)
+
         with self.subTest("Test filtering using device groups"):
             r2 = self.client.get(f"{path}?group={dg2.pk}")
             _assert_device_list_filter(response=r2, device=d2)
@@ -399,7 +407,7 @@ class TestConfigApi(
         org2 = self._create_org(name="org2")
         test_user = self._create_operator(organizations=[org1])
         self.client.force_login(test_user)
-        self._create_template(name="t0", organization=None)
+        shared_template = self._create_template(name="t0", organization=None)
         self._create_template(name="t1", organization=org1)
         self._create_template(name="t11", organization=org1)
         self._create_template(name="t2", organization=org2)
@@ -410,6 +418,14 @@ class TestConfigApi(
         self.assertContains(r, "t1</option>")
         self.assertContains(r, "t11</option>")
         self.assertNotContains(r, "t2</option>")
+
+        device = self._create_device(name="shared-template-device", organization=org1)
+        config = self._create_config(device=device)
+        config.templates.add(shared_template)
+        r = self.client.get(path, {"config__templates": shared_template.pk})
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.data["count"], 1)
+        self.assertEqual(r.data["results"][0]["id"], str(device.pk))
 
     # Device detail having no config
     def test_device_detail_api(self):
