@@ -366,8 +366,10 @@ class AbstractDevice(OrgMixin, BaseModel):
             return
 
         if self._initial_group_id != self.group_id:
+            old_group_id = self._initial_group_id
+            self._initial_group_id = self.group_id
             self._send_device_group_changed_signal(
-                self, self.group_id, self._initial_group_id
+                self, self.group_id, old_group_id
             )
 
     def _check_management_ip_changed(self):
