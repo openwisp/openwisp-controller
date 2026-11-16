@@ -157,7 +157,7 @@ backends
 
 Available VPN backends for VPN Server objects. For more information, see
 `netjsonconfig VPN backends
-<https://netjsonconfig.openwisp.org/en/latest/backends/vpn-backends.html>`_.
+<https://netjsonconfig.openwisp.org/en/latest/backends/vpn.html>`_.
 
 A VPN backend must follow some basic rules in order to be compatible with
 *openwisp-controller*:
