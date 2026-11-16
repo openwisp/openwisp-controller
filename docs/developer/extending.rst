@@ -721,8 +721,6 @@ defined in the base classes to test your own behavior.
 
 See the tests in sample_app to find out how to do this.
 
-- `project common tests.py
-  <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2/tests.py>`_
 - `sample_config tests.py
   <https://github.com/openwisp/openwisp-controller/tree/master/tests/openwisp2/sample_config/tests.py>`_
 - `sample_geo tests.py
