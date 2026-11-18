@@ -422,22 +422,7 @@ class OrganizationConfigSettingsSerializer(BaseSerializer):
         return value
 
     def update(self, instance, validated_data):
-        """Writes only the fields submitted in the request.
-
-        Avoids overwriting fields which were changed by another request
-        after this one has loaded the instance, eg: a shared secret
-        rotation being undone by a concurrent context update.
-        """
-        if instance._state.adding:
-            return super().update(instance, validated_data)
-        update_fields = list(validated_data.keys())
-        if not update_fields:
-            return instance
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-        instance.save(update_fields=update_fields)
-        instance.refresh_from_db()
-        return instance
+        return instance.update(**validated_data)
 
     class Meta:
         model = OrganizationConfigSettings

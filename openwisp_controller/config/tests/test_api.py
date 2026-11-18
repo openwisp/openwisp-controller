@@ -1,20 +1,29 @@
 from datetime import timedelta
+from threading import Event, Thread
 from unittest.mock import patch
 
+from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
 from django.core.cache import cache
+from django.db import DatabaseError, close_old_connections
+from django.db.models import QuerySet
 from django.http.response import Http404
-from django.test import TestCase
+from django.test import Client, TestCase, skipUnlessDBFeature
 from django.test.client import BOUNDARY, MULTIPART_CONTENT, encode_multipart
 from django.test.testcases import TransactionTestCase
-from django.urls import reverse
+from django.urls import path, reverse
 from django.utils import timezone
+from drf_yasg import openapi
+from drf_yasg.generators import OpenAPISchemaGenerator
+from rest_framework.request import Request
+from rest_framework.test import APIRequestFactory, force_authenticate
 from swapper import load_model
 
 from openwisp_controller.config.api.serializers import (
     BaseConfigSerializer,
     OrganizationConfigSettingsSerializer,
 )
+from openwisp_controller.config.api.views import OrganizationConfigSettingsView
 from openwisp_controller.tests.utils import TestAdminMixin
 from openwisp_users.tests.test_api import AuthenticationMixin
 from openwisp_utils.tests import capture_any_output, catch_signal
@@ -1501,9 +1510,10 @@ class TestConfigApi(
             )
         self.assertEqual(response.status_code, 400)
         self.assertIn("shared_secret", response.data)
-        config_settings = OrganizationConfigSettings.objects.get(organization=org1)
-        self.assertTrue(config_settings.registration_enabled)
-        self.assertNotEqual(config_settings.shared_secret, "retrysharedsecret")
+        # The simulated competing writes share the request transaction and roll back.
+        self.assertFalse(
+            OrganizationConfigSettings.objects.filter(organization=org1).exists()
+        )
 
     def test_organization_config_settings_deleted_during_update(self):
         org = self._create_org(name="org-deleted", slug="org-deleted")
@@ -1527,7 +1537,8 @@ class TestConfigApi(
                 content_type="application/json",
             )
         self.assertEqual(response.status_code, 404)
-        self.assertFalse(
+        # The simulated deletion shares the request transaction and rolls back.
+        self.assertTrue(
             OrganizationConfigSettings.objects.filter(organization=org).exists()
         )
 
@@ -1863,6 +1874,188 @@ class TestConfigApi(
                 HTTP_AUTHORIZATION=f"Bearer {token}",
             )
             self.assertEqual(response.status_code, 200)
+
+    def test_organization_settings_locks_before_update(self):
+        org = self._get_org()
+        OrganizationConfigSettings.objects.create(organization=org)
+        path = reverse("config_api:organization_config_settings", args=[org.pk])
+        with patch.object(
+            QuerySet,
+            "select_for_update",
+            autospec=True,
+            side_effect=QuerySet.select_for_update,
+        ) as lock:
+            response = self.client.patch(
+                path,
+                data={"context": {"name": "value"}},
+                content_type="application/json",
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(
+            any(
+                call.args[0].model == OrganizationConfigSettings
+                for call in lock.call_args_list
+            )
+        )
+        self.assertTrue(
+            any(call.args[0].model == type(org) for call in lock.call_args_list)
+        )
+
+    def test_organization_settings_concurrent_shared_secret(self):
+        org = self._get_org()
+        settings = OrganizationConfigSettings.objects.create(organization=org)
+        other_org = self._create_org(name="other-secret", slug="other-secret")
+        path = reverse("config_api:organization_config_settings", args=[org.pk])
+        original_validate = OrganizationConfigSettingsSerializer.validate
+
+        def insert_conflict(serializer, data):
+            result = original_validate(serializer, data)
+            OrganizationConfigSettings.objects.create(
+                organization=other_org, shared_secret="concurrent-secret"
+            )
+            return result
+
+        with patch.object(
+            OrganizationConfigSettingsSerializer, "validate", insert_conflict
+        ):
+            response = self.client.patch(
+                path,
+                data={"shared_secret": "concurrent-secret"},
+                content_type="application/json",
+            )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("shared_secret", response.data)
+        settings.refresh_from_db()
+        self.assertNotEqual(settings.shared_secret, "concurrent-secret")
+
+    def test_organization_settings_put_schema_responses(self):
+        generator = OpenAPISchemaGenerator(
+            info=openapi.Info(title="test", default_version="v1"),
+            patterns=[
+                path(
+                    "organization/<uuid:pk>/config-settings/",
+                    OrganizationConfigSettingsView.as_view(),
+                )
+            ],
+        )
+        request = APIRequestFactory().get("/schema/")
+        force_authenticate(request, user=get_user_model().objects.get(username="admin"))
+        schema = generator.get_schema(request=Request(request), public=True)
+        operation = schema.paths["/organization/{id}/config-settings/"].put
+        self.assertIn("200", operation.responses)
+        self.assertIn("201", operation.responses)
+
+    def test_organization_settings_secret_conflict_disappears_before_handling(self):
+        org = self._get_org()
+        settings = OrganizationConfigSettings.objects.create(organization=org)
+        other = self._create_org(name="secret-race", slug="secret-race")
+        path = reverse("config_api:organization_config_settings", args=[org.pk])
+        original_validate = OrganizationConfigSettingsSerializer.validate
+        original_check = OrganizationConfigSettingsView._assert_shared_secret_available
+
+        def insert_conflict(serializer, data):
+            result = original_validate(serializer, data)
+            OrganizationConfigSettings.objects.create(
+                organization=other, shared_secret="concurrent-secret"
+            )
+            return result
+
+        def rotate_conflict(view, *args):
+            OrganizationConfigSettings.objects.filter(organization=other).update(
+                shared_secret="different-secret"
+            )
+            return original_check(view, *args)
+
+        with patch.object(
+            OrganizationConfigSettingsSerializer, "validate", insert_conflict
+        ), patch.object(
+            OrganizationConfigSettingsView,
+            "_assert_shared_secret_available",
+            rotate_conflict,
+        ):
+            response = self.client.patch(
+                path,
+                data={"shared_secret": "concurrent-secret"},
+                content_type="application/json",
+            )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("shared_secret", response.data)
+        settings.refresh_from_db()
+        self.assertNotEqual(settings.shared_secret, "concurrent-secret")
+
+    def test_organization_settings_secret_conflict_on_creation_retry(self):
+        org = self._get_org()
+        other = self._create_org(name="retry-secret", slug="retry-secret")
+        path = reverse("config_api:organization_config_settings", args=[org.pk])
+        original_validate = OrganizationConfigSettingsSerializer.validate
+        original_check = OrganizationConfigSettingsView._assert_shared_secret_available
+        winner_secrets = []
+
+        def insert_conflicts(serializer, data):
+            result = original_validate(serializer, data)
+            OrganizationConfigSettings.objects.create(
+                organization=org, shared_secret="winning-secret"
+            )
+            OrganizationConfigSettings.objects.create(
+                organization=other, shared_secret="concurrent-secret"
+            )
+            return result
+
+        def check_conflict(view, *args):
+            winner_secrets.append(
+                OrganizationConfigSettings.objects.get(organization=org).shared_secret
+            )
+            return original_check(view, *args)
+
+        with patch.object(
+            OrganizationConfigSettingsSerializer, "validate", insert_conflicts
+        ), patch.object(
+            OrganizationConfigSettingsView,
+            "_assert_shared_secret_available",
+            check_conflict,
+        ):
+            response = self.client.patch(
+                path,
+                data={"shared_secret": "concurrent-secret"},
+                content_type="application/json",
+            )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("shared_secret", response.data)
+        self.assertEqual(winner_secrets, ["winning-secret"])
+
+    def test_organization_settings_deleted_during_update(self):
+        org = self._get_org()
+        settings = OrganizationConfigSettings.objects.create(organization=org)
+        path = reverse("config_api:organization_config_settings", args=[org.pk])
+        original_validate = OrganizationConfigSettingsSerializer.validate
+
+        def delete_settings(serializer, data):
+            result = original_validate(serializer, data)
+            OrganizationConfigSettings.objects.filter(pk=settings.pk).delete()
+            return result
+
+        with patch.object(
+            OrganizationConfigSettingsSerializer, "validate", delete_settings
+        ):
+            response = self.client.patch(
+                path,
+                data={"context": {"name": "value"}},
+                content_type="application/json",
+            )
+        self.assertEqual(response.status_code, 404)
+
+    def test_organization_settings_unrelated_database_error(self):
+        org = self._get_org()
+        OrganizationConfigSettings.objects.create(organization=org)
+        path = reverse("config_api:organization_config_settings", args=[org.pk])
+        with patch.object(
+            OrganizationConfigSettings, "update", side_effect=DatabaseError("unrelated")
+        ), self.assertRaisesMessage(DatabaseError, "unrelated"):
+            self.client.patch(
+                path,
+                data={"context": {"name": "value"}},
+                content_type="application/json",
+            )
 
 
 class TestConfigApiTransaction(
@@ -2348,3 +2541,84 @@ class TestConfigApiTransaction(
                 template2.refresh_from_db()
                 self.assertEqual(template2.default_values["ifname"], "eth3")
                 mocked_signal.assert_called_once()
+
+    def test_creating_settings_with_context_updates_existing_config(self):
+        org = self._get_org()
+        config = self._create_config(organization=org)
+        template = self._create_template(
+            config={"interfaces": [{"name": "eth0", "type": "{{ interface_type }}"}]},
+            default_values={"interface_type": "ethernet"},
+        )
+        config.templates.add(template)
+        old_checksum = config.get_cached_checksum()
+        response = self.client.patch(
+            reverse("config_api:organization_config_settings", args=[org.pk]),
+            data={"context": {"interface_type": "virtual"}},
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        config.refresh_from_db()
+        self.assertNotEqual(config.checksum_db, old_checksum)
+        self.assertEqual(config.get_cached_checksum(), config.checksum_db)
+
+    @skipUnlessDBFeature("has_select_for_update")
+    def test_organization_settings_serializes_overlapping_updates(self):
+        org = self._get_org()
+        settings = OrganizationConfigSettings.objects.create(organization=org)
+        path = reverse("config_api:organization_config_settings", args=[org.pk])
+        first_validating = Event()
+        release_first = Event()
+        second_started = Event()
+        second_done = Event()
+        responses = []
+        errors = []
+        original_validate = OrganizationConfigSettingsSerializer.validate
+
+        def validate(serializer, data):
+            if "context" in data:
+                first_validating.set()
+                if not release_first.wait(10):
+                    raise AssertionError(
+                        "Timed out waiting to release the first request"
+                    )
+            return original_validate(serializer, data)
+
+        def request(data, done=None):
+            try:
+                client = Client()
+                client.force_login(get_user_model().objects.get(username="admin"))
+                if done:
+                    second_started.set()
+                responses.append(
+                    client.patch(path, data, content_type="application/json")
+                )
+            except Exception as exc:
+                errors.append(exc)
+            finally:
+                close_old_connections()
+                if done:
+                    done.set()
+
+        with patch.object(OrganizationConfigSettingsSerializer, "validate", validate):
+            first = Thread(target=request, args=({"context": {"name": "value"}},))
+            second = Thread(
+                target=request, args=({"shared_secret": "rotated-secret"}, second_done)
+            )
+            first.start()
+            try:
+                self.assertTrue(first_validating.wait(10))
+                second.start()
+                self.assertTrue(second_started.wait(10))
+                self.assertFalse(second_done.wait(1))
+            finally:
+                release_first.set()
+                first.join(10)
+                if second.ident is not None:
+                    second.join(10)
+        self.assertFalse(first.is_alive())
+        self.assertFalse(second.is_alive())
+        self.assertEqual(errors, [])
+        self.assertEqual([response.status_code for response in responses], [200, 200])
+        settings.refresh_from_db()
+        self.assertEqual(settings.shared_secret, "rotated-secret")
+        self.assertEqual(settings.context, {"name": "value"})

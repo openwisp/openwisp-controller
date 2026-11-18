@@ -497,3 +497,13 @@ in a CI check that the wiring has not silently drifted):
     change. You still need to run ``clear_cache`` manually after editing
     the :ref:`OPENWISP_CONTROLLER_CONTEXT <context_setting>` setting,
     because those system-wide variables are not tied to any model change.
+
+Updating Organization Configuration Settings
+--------------------------------------------
+
+``OrganizationConfigSettings.update(**changes)`` saves the supplied fields
+and returns the refreshed instance. For existing settings, it writes only
+those fields so an unrelated concurrent change is not overwritten. For a
+new instance, it creates the settings. Callers must validate changes
+before calling this method. Concurrent changes to the same field still
+require coordination by the caller.

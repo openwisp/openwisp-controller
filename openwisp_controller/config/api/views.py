@@ -1,11 +1,19 @@
 from cache_memoize import cache_memoize
 from django.core.exceptions import ObjectDoesNotExist
-from django.db import DatabaseError, IntegrityError, transaction
+from django.db import (
+    DEFAULT_DB_ALIAS,
+    DatabaseError,
+    IntegrityError,
+    connections,
+    transaction,
+)
 from django.db.models import F, Q
 from django.http import Http404
+from django.shortcuts import get_object_or_404
 from django.urls.base import reverse
 from django.utils.translation import gettext_lazy as _
 from django_filters.rest_framework import DjangoFilterBackend
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework import serializers, status
 from rest_framework.generics import (
     GenericAPIView,
@@ -186,12 +194,19 @@ class OrganizationConfigSettingsView(
 
     def get_object(self):
         queryset = self.filter_queryset(self.get_queryset())
+        organization = None
+        if self.request.method in ("PUT", "PATCH"):
+            # Lock the parent even when settings do not exist yet, and lock an
+            # existing row so other writers cannot overwrite a rotated secret.
+            organization = get_object_or_404(
+                self.get_parent_queryset().select_for_update()
+            )
+            queryset = queryset.select_for_update(of=("self",))
         try:
             obj = queryset.get(organization_id=self.kwargs["pk"])
         except OrganizationConfigSettings.DoesNotExist:
             if self.request.method in ("GET", "HEAD"):
                 raise Http404
-            organization = self.get_parent_queryset().get()
             add_permission = (
                 f"{OrganizationConfigSettings._meta.app_label}."
                 f"add_{OrganizationConfigSettings._meta.model_name}"
@@ -207,45 +222,65 @@ class OrganizationConfigSettingsView(
         try:
             with transaction.atomic():
                 serializer.save()
-        except IntegrityError:
+        except IntegrityError as error:
             # another request created the settings concurrently
             instance = OrganizationConfigSettings.objects.filter(
                 organization_id=self.kwargs["pk"]
             ).first()
             if instance is None or not created:
-                self._assert_shared_secret_available(serializer)
+                self._assert_shared_secret_available(serializer, error)
                 raise
             created = False
             serializer.instance = instance
             try:
                 with transaction.atomic():
                     serializer.save()
-            except IntegrityError:
-                self._assert_shared_secret_available(serializer)
+            except IntegrityError as error:
+                self._assert_shared_secret_available(serializer, error)
                 raise
-        except DatabaseError:
-            # the settings were deleted while this request was updating them
-            exists = OrganizationConfigSettings.objects.filter(
-                organization_id=self.kwargs["pk"]
-            ).exists()
-            if not exists:
+            except DatabaseError as error:
+                self._raise_if_deleted(serializer.instance, error)
+                raise
+            except OrganizationConfigSettings.DoesNotExist:
                 raise Http404
+        except DatabaseError as error:
+            self._raise_if_deleted(serializer.instance, error)
             raise
+        except OrganizationConfigSettings.DoesNotExist:
+            raise Http404
         self._object_created = created
 
-    def _assert_shared_secret_available(self, serializer):
+    def _assert_shared_secret_available(self, serializer, error):
         """Raises a validation error if the submitted shared secret was
         taken by another organization concurrently.
         """
         shared_secret = serializer.validated_data.get("shared_secret")
         if not shared_secret:
             return
+        connection = connections[serializer.instance._state.db or DEFAULT_DB_ALIAS]
+        field = OrganizationConfigSettings._meta.get_field("shared_secret")
+        table = OrganizationConfigSettings._meta.db_table
+        cause = error.__cause__
+        constraint_name = getattr(getattr(cause, "diag", None), "constraint_name", None)
+        constraint_matches = False
+        # The conflicting secret may change again before it can be queried.
+        if connection.vendor == "postgresql" and constraint_name:
+            with connection.cursor() as cursor:
+                constraints = connection.introspection.get_constraints(cursor, table)
+            constraint = constraints.get(constraint_name, {})
+            constraint_matches = constraint.get("unique") and constraint.get(
+                "columns"
+            ) == [field.column]
+        elif connection.vendor == "sqlite":
+            constraint_matches = str(cause) == (
+                f"UNIQUE constraint failed: {table}.{field.column}"
+            )
         taken = (
             OrganizationConfigSettings.objects.filter(shared_secret=shared_secret)
             .exclude(organization_id=self.kwargs["pk"])
             .exists()
         )
-        if taken:
+        if constraint_matches or taken:
             raise serializers.ValidationError(
                 {
                     "shared_secret": _(
@@ -254,11 +289,33 @@ class OrganizationConfigSettingsView(
                 }
             )
 
+    @transaction.atomic
     def update(self, request, *args, **kwargs):
         response = super().update(request, *args, **kwargs)
         if request.method == "PUT" and getattr(self, "_object_created", False):
             response.status_code = status.HTTP_201_CREATED
         return response
+
+    @swagger_auto_schema(
+        responses={
+            200: OrganizationConfigSettingsSerializer,
+            201: OrganizationConfigSettingsSerializer,
+        }
+    )
+    def put(self, request, *args, **kwargs):
+        return super().put(request, *args, **kwargs)
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return self.queryset.none()
+        return super().get_queryset()
+
+    def _raise_if_deleted(self, instance, error):
+        if (
+            str(error) == "Save with update_fields did not affect any rows."
+            and not OrganizationConfigSettings.objects.filter(pk=instance.pk).exists()
+        ):
+            raise Http404
 
 
 def get_cached_devicegroup_args_rewrite(cls, org_slugs, common_name):
