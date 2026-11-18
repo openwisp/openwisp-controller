@@ -1444,3 +1444,11 @@ Patch Organization Configuration Settings
     Configuration settings are not created automatically with the
     organization. ``GET`` returns ``HTTP 404 Not Found`` if they do not
     exist yet; ``PUT`` and ``PATCH`` will create them.
+
+    Creating the settings requires the ``add_organizationconfigsettings``
+    permission, which is not granted to the default permission groups:
+    administrators can view and change the settings of the organizations
+    they manage, while operators can only view them.
+
+    ``PUT`` returns ``HTTP 201 Created`` when it creates the settings and
+    ``HTTP 200 OK`` when it updates existing ones.
