@@ -1,6 +1,6 @@
 from cache_memoize import cache_memoize
 from django.core.exceptions import ObjectDoesNotExist
-from django.db import IntegrityError, transaction
+from django.db import DatabaseError, IntegrityError, transaction
 from django.db.models import F, Q
 from django.http import Http404
 from django.urls.base import reverse
@@ -223,6 +223,14 @@ class OrganizationConfigSettingsView(
             except IntegrityError:
                 self._assert_shared_secret_available(serializer)
                 raise
+        except DatabaseError:
+            # the settings were deleted while this request was updating them
+            exists = OrganizationConfigSettings.objects.filter(
+                organization_id=self.kwargs["pk"]
+            ).exists()
+            if not exists:
+                raise Http404
+            raise
         self._object_created = created
 
     def _assert_shared_secret_available(self, serializer):

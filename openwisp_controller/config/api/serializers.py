@@ -430,9 +430,13 @@ class OrganizationConfigSettingsSerializer(BaseSerializer):
         """
         if instance._state.adding:
             return super().update(instance, validated_data)
+        update_fields = list(validated_data.keys())
+        if not update_fields:
+            return instance
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
-        instance.save(update_fields=list(validated_data.keys()))
+        instance.save(update_fields=update_fields)
+        instance.refresh_from_db()
         return instance
 
     class Meta:

@@ -1431,6 +1431,7 @@ class TestConfigApi(
                 content_type="application/json",
             )
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["shared_secret"], "rotatedsharedsecret")
         config_settings.refresh_from_db()
         self.assertEqual(config_settings.shared_secret, "rotatedsharedsecret")
         self.assertDictEqual(config_settings.context, {"foo": "bar"})
@@ -1465,6 +1466,70 @@ class TestConfigApi(
             )
         self.assertEqual(response.status_code, 400)
         self.assertIn("shared_secret", response.data)
+
+    def test_organization_config_settings_conflict_on_retry(self):
+        org1 = self._create_org(name="org-retry1", slug="org-retry1")
+        org2 = self._create_org(name="org-retry2", slug="org-retry2")
+        path = reverse("config_api:organization_config_settings", args=[org1.pk])
+        original_validate = OrganizationConfigSettingsSerializer.validate
+
+        def _create_winner_and_take_secret(serializer, data):
+            data = original_validate(serializer, data)
+            # a concurrent request creates the settings of this
+            # organization while another one takes the submitted secret
+            OrganizationConfigSettings.objects.bulk_create(
+                [
+                    OrganizationConfigSettings(
+                        organization=org1, registration_enabled=True
+                    ),
+                    OrganizationConfigSettings(
+                        organization=org2, shared_secret="retrysharedsecret"
+                    ),
+                ]
+            )
+            return data
+
+        with patch.object(
+            OrganizationConfigSettingsSerializer,
+            "validate",
+            _create_winner_and_take_secret,
+        ):
+            response = self.client.patch(
+                path,
+                data={"shared_secret": "retrysharedsecret"},
+                content_type="application/json",
+            )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("shared_secret", response.data)
+        config_settings = OrganizationConfigSettings.objects.get(organization=org1)
+        self.assertTrue(config_settings.registration_enabled)
+        self.assertNotEqual(config_settings.shared_secret, "retrysharedsecret")
+
+    def test_organization_config_settings_deleted_during_update(self):
+        org = self._create_org(name="org-deleted", slug="org-deleted")
+        config_settings = OrganizationConfigSettings.objects.create(organization=org)
+        path = reverse("config_api:organization_config_settings", args=[org.pk])
+        original_validate = OrganizationConfigSettingsSerializer.validate
+
+        def _delete_settings(serializer, data):
+            data = original_validate(serializer, data)
+            # simulates the settings being deleted after this request
+            # has loaded them
+            OrganizationConfigSettings.objects.filter(pk=config_settings.pk).delete()
+            return data
+
+        with patch.object(
+            OrganizationConfigSettingsSerializer, "validate", _delete_settings
+        ):
+            response = self.client.patch(
+                path,
+                data={"context": {"foo": "bar"}},
+                content_type="application/json",
+            )
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(
+            OrganizationConfigSettings.objects.filter(organization=org).exists()
+        )
 
     def test_organization_config_settings_multitenancy(self):
         org1 = self._create_org(name="org1", slug="org1")
