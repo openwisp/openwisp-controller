@@ -546,6 +546,26 @@ class TestSubnetDivisionRule(
             ).exists()
         )
 
+    def test_cleanup_multiple_candidate_batches(self):
+        subnets = [
+            self._create_subnet(
+                subnet=f"10.0.{number}.0/24",
+                organization=self.org,
+                master_subnet=self.master_subnet,
+            )
+            for number in range(101)
+        ]
+        SubnetDivisionIndex.objects.bulk_create(
+            [
+                SubnetDivisionIndex(subnet=subnet, keyword=f"orphan_{number}")
+                for number, subnet in enumerate(subnets)
+            ]
+        )
+        SubnetDivisionRule().delete_provisioned_subnets()
+        self.assertFalse(
+            Subnet.objects.filter(pk__in=[subnet.pk for subnet in subnets]).exists()
+        )
+
     def test_cleanup_not_blocked_by_ip_only_index_of_other_rule(self):
         """An IP-only index of another rule must not block the cleanup.
 

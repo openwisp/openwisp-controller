@@ -47,7 +47,7 @@ class SubnetDivisionRuleInlineFormSet(BaseInlineFormSet):
             try:
                 form.instance.validate_deletion()
             except ValidationError as error:
-                if getattr(error, "code", None) != "subnet_division_rule_in_use":
+                if not SubnetDivisionRule.is_in_use_error(error):
                     raise
                 raise ValidationError(
                     format_html(
@@ -56,7 +56,7 @@ class SubnetDivisionRuleInlineFormSet(BaseInlineFormSet):
                         affected_devices_url(form.instance),
                         _("View affected devices"),
                     ),
-                    code="subnet_division_rule_in_use",
+                    code=SubnetDivisionRule.in_use_error_code,
                 ) from None
 
 
@@ -100,9 +100,6 @@ class SubnetDivisionRuleAdmin(
             readonly_fields.append("master_subnet")
         return readonly_fields
 
-    def _affected_devices_url(self, obj):
-        return affected_devices_url(obj)
-
     def _in_use_error(self, request, obj):
         messages.error(
             request,
@@ -112,7 +109,7 @@ class SubnetDivisionRuleAdmin(
                     "configurations and cannot be deleted. "
                     '<a href="{}">View affected devices</a>'
                 ),
-                self._affected_devices_url(obj),
+                affected_devices_url(obj),
             ),
         )
 
@@ -132,7 +129,7 @@ class SubnetDivisionRuleAdmin(
         links = format_html_join(
             ", ",
             '<a href="{}">{}</a>',
-            ((self._affected_devices_url(rule), rule.label) for rule in rules),
+            ((affected_devices_url(rule), rule.label) for rule in rules),
         )
         message = format_html(
             _(
@@ -159,7 +156,7 @@ class SubnetDivisionRuleAdmin(
                     request, object_id, extra_context=extra_context
                 )
         except ValidationError as e:
-            if getattr(e, "code", None) != "subnet_division_rule_in_use":
+            if not SubnetDivisionRule.is_in_use_error(e):
                 raise
             obj = self.get_object(request, object_id)
             if obj is not None:
@@ -178,7 +175,7 @@ class SubnetDivisionRuleAdmin(
             with transaction.atomic():
                 return django_delete_selected(self, request, queryset)
         except ValidationError as e:
-            if getattr(e, "code", None) != "subnet_division_rule_in_use":
+            if not SubnetDivisionRule.is_in_use_error(e):
                 raise
             self._bulk_in_use_error(request, queryset)
 
@@ -216,7 +213,7 @@ class SubnetAdmin(BaseSubnetAdmin):
                     extra_context=extra_context,
                 )
         except ValidationError as error:
-            if getattr(error, "code", None) != "subnet_division_rule_in_use":
+            if not SubnetDivisionRule.is_in_use_error(error):
                 raise
             rule = SubnetDivisionRule.filter_in_use(
                 SubnetDivisionRule.objects.filter(master_subnet_id=object_id)
@@ -246,7 +243,7 @@ class SubnetAdmin(BaseSubnetAdmin):
             with transaction.atomic():
                 return django_delete_selected(self, request, queryset)
         except ValidationError as e:
-            if getattr(e, "code", None) != "subnet_division_rule_in_use":
+            if not SubnetDivisionRule.is_in_use_error(e):
                 raise
             messages.error(
                 request,
@@ -267,7 +264,7 @@ class SubnetAdmin(BaseSubnetAdmin):
                     request, object_id, extra_context=extra_context
                 )
         except ValidationError as e:
-            if getattr(e, "code", None) != "subnet_division_rule_in_use":
+            if not SubnetDivisionRule.is_in_use_error(e):
                 raise
             messages.error(
                 request,

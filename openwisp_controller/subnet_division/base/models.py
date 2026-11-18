@@ -14,6 +14,7 @@ from .. import settings as app_settings
 
 
 class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
+    in_use_error_code = "subnet_division_rule_in_use"
     _subnet_division_rule_update_queue = dict()
     # It is used to monitor changes in fields of a SubnetDivisionRule object
     # An entry is added to the queue from pre_save signal in the following format
@@ -244,38 +245,46 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
         cleanup_candidates = Subnet.objects.filter(
             id__in=SubnetDivisionIndex.objects.filter(rule_id=None).values("subnet_id")
         )
-        if not cleanup_candidates.exists():
-            return
 
-        # Protect every subnet referenced by a surviving rule, including the
-        # ancestors whose deletion would cascade to a protected subnet.
-        protected_subnet_ids = set(
-            SubnetDivisionIndex.objects.filter(
-                rule_id__isnull=False, subnet_id__isnull=False
-            ).values_list("subnet_id", flat=True)
-        )
-        protected_subnet_ids.update(
-            SubnetDivisionIndex.objects.filter(
-                rule_id__isnull=False, ip__subnet_id__isnull=False
-            ).values_list("ip__subnet_id", flat=True)
-        )
-        protected_subnet_ids.update(
-            SubnetDivisionRule.objects.filter(
-                master_subnet_id__isnull=False
-            ).values_list("master_subnet_id", flat=True)
-        )
-        ancestors_to_check = protected_subnet_ids.copy()
-        while ancestors_to_check:
-            parent_ids = set(
-                Subnet.objects.filter(
-                    pk__in=ancestors_to_check,
-                    master_subnet_id__isnull=False,
-                ).values_list("master_subnet_id", flat=True)
-            )
-            ancestors_to_check = parent_ids - protected_subnet_ids
-            protected_subnet_ids.update(parent_ids)
+        def is_protected(candidate_id):
+            pending = [candidate_id]
+            visited = set()
+            while pending:
+                subnet_id = pending.pop()
+                if subnet_id in visited:
+                    continue
+                visited.add(subnet_id)
+                index_protected = SubnetDivisionIndex.objects.filter(
+                    rule_id__isnull=False
+                ).filter(
+                    models.Q(subnet_id=subnet_id) | models.Q(ip__subnet_id=subnet_id)
+                )
+                if (
+                    index_protected.exists()
+                    or SubnetDivisionRule.objects.filter(
+                        master_subnet_id=subnet_id
+                    ).exists()
+                ):
+                    return True
+                pending.extend(
+                    Subnet.objects.filter(master_subnet_id=subnet_id).values_list(
+                        "pk", flat=True
+                    )
+                )
+            return False
 
-        cleanup_candidates.exclude(id__in=protected_subnet_ids).delete()
+        last_id = None
+        while True:
+            batch = cleanup_candidates.order_by("pk")
+            if last_id is not None:
+                batch = batch.filter(pk__gt=last_id)
+            candidate_ids = list(batch.values_list("pk", flat=True)[:100])
+            if not candidate_ids:
+                return
+            for candidate_id in candidate_ids:
+                if not is_protected(candidate_id):
+                    Subnet.objects.filter(pk=candidate_id).delete()
+            last_id = candidate_ids[-1]
 
     @classmethod
     def filter_in_use(cls, queryset=None):
@@ -283,6 +292,10 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
         if queryset is None:
             queryset = cls.objects.all()
         return queryset.filter(subnetdivisionindex__config_id__isnull=False).distinct()
+
+    @classmethod
+    def is_in_use_error(cls, error):
+        return getattr(error, "code", None) == cls.in_use_error_code
 
     def validate_deletion(self):
         """Raises a validation error when this rule cannot be deleted."""
@@ -292,7 +305,7 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
                     "This subnet division rule is used by device configurations "
                     "and cannot be deleted."
                 ),
-                code="subnet_division_rule_in_use",
+                code=self.in_use_error_code,
             )
 
     @classmethod

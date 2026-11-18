@@ -2,6 +2,9 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from openwisp_ipam.api import views as ipam_views
 from rest_framework.exceptions import ValidationError as DRFValidationError
+from swapper import load_model
+
+SubnetDivisionRule = load_model("subnet_division", "SubnetDivisionRule")
 
 
 class SubnetView(ipam_views.SubnetView):
@@ -20,7 +23,7 @@ class SubnetView(ipam_views.SubnetView):
             with transaction.atomic():
                 super().perform_destroy(instance)
         except DjangoValidationError as error:
-            if getattr(error, "code", None) != "subnet_division_rule_in_use":
+            if not SubnetDivisionRule.is_in_use_error(error):
                 raise
             raise DRFValidationError({"detail": error.messages})
 
