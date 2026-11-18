@@ -409,6 +409,11 @@ class DeviceGroupSerializer(BaseSerializer):
 
 
 class OrganizationConfigSettingsSerializer(BaseSerializer):
+    # The organization is set by the view and cannot be supplied by the
+    # API client, its uniqueness is enforced by the database and handled
+    # in OrganizationConfigSettingsView.perform_update(), so that both
+    # sides of the creation race are handled in a single place.
+    exclude_validation = ["organization"]
     context = serializers.JSONField(required=False, initial={})
 
     def validate_context(self, value):

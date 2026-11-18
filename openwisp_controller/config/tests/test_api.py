@@ -1327,41 +1327,59 @@ class TestConfigApi(
             self.assertFalse(config_settings.registration_enabled)
 
     def test_organization_config_settings_concurrent_creation(self):
-        org = self._create_org(name="org-concurrent", slug="org-concurrent")
-        path = reverse("config_api:organization_config_settings", args=[org.pk])
         original_validate = OrganizationConfigSettingsSerializer.validate
 
-        def validate_then_insert(serializer, data):
-            data = original_validate(serializer, data)
-            # simulates a concurrent request which inserts the settings
-            # after this request has validated its own instance
-            exists = OrganizationConfigSettings.objects.filter(
-                organization=org
-            ).exists()
-            if not exists:
-                OrganizationConfigSettings.objects.bulk_create(
-                    [
-                        OrganizationConfigSettings(
-                            organization=org, registration_enabled=True
-                        )
-                    ]
-                )
-            return data
+        def _create_competing_settings(org):
+            OrganizationConfigSettings.objects.bulk_create(
+                [
+                    OrganizationConfigSettings(
+                        organization=org, registration_enabled=True
+                    )
+                ]
+            )
 
-        with patch.object(
-            OrganizationConfigSettingsSerializer, "validate", validate_then_insert
-        ):
-            response = self.client.patch(
+        def _patch(org):
+            path = reverse("config_api:organization_config_settings", args=[org.pk])
+            return self.client.patch(
                 path,
                 data={"registration_enabled": False},
                 content_type="application/json",
             )
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(
-            OrganizationConfigSettings.objects.filter(organization=org).count(), 1
-        )
-        config_settings = OrganizationConfigSettings.objects.get(organization=org)
-        self.assertFalse(config_settings.registration_enabled)
+
+        def _assert_updated(org, response):
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(
+                OrganizationConfigSettings.objects.filter(organization=org).count(), 1
+            )
+            config_settings = OrganizationConfigSettings.objects.get(organization=org)
+            self.assertFalse(config_settings.registration_enabled)
+
+        with self.subTest("Test competing settings created before validation"):
+            org1 = self._create_org(name="org-race1", slug="org-race1")
+
+            def _insert_first(serializer, data):
+                _create_competing_settings(org1)
+                return original_validate(serializer, data)
+
+            with patch.object(
+                OrganizationConfigSettingsSerializer, "validate", _insert_first
+            ):
+                response = _patch(org1)
+            _assert_updated(org1, response)
+
+        with self.subTest("Test competing settings created after validation"):
+            org2 = self._create_org(name="org-race2", slug="org-race2")
+
+            def _insert_later(serializer, data):
+                data = original_validate(serializer, data)
+                _create_competing_settings(org2)
+                return data
+
+            with patch.object(
+                OrganizationConfigSettingsSerializer, "validate", _insert_later
+            ):
+                response = _patch(org2)
+            _assert_updated(org2, response)
 
     def test_organization_config_settings_put_creation(self):
         org = self._create_org(name="org-put", slug="org-put")
