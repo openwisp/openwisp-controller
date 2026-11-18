@@ -4,6 +4,7 @@ from django.db import IntegrityError, transaction
 from django.db.models import F, Q
 from django.http import Http404
 from django.urls.base import reverse
+from django.utils.translation import gettext_lazy as _
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import serializers, status
 from rest_framework.generics import (
@@ -212,11 +213,38 @@ class OrganizationConfigSettingsView(
                 organization_id=self.kwargs["pk"]
             ).first()
             if instance is None or not created:
+                self._assert_shared_secret_available(serializer)
                 raise
             created = False
             serializer.instance = instance
-            serializer.save()
+            try:
+                with transaction.atomic():
+                    serializer.save()
+            except IntegrityError:
+                self._assert_shared_secret_available(serializer)
+                raise
         self._object_created = created
+
+    def _assert_shared_secret_available(self, serializer):
+        """Raises a validation error if the submitted shared secret was
+        taken by another organization concurrently.
+        """
+        shared_secret = serializer.validated_data.get("shared_secret")
+        if not shared_secret:
+            return
+        taken = (
+            OrganizationConfigSettings.objects.filter(shared_secret=shared_secret)
+            .exclude(organization_id=self.kwargs["pk"])
+            .exists()
+        )
+        if taken:
+            raise serializers.ValidationError(
+                {
+                    "shared_secret": _(
+                        "This shared secret is already used by another organization."
+                    )
+                }
+            )
 
     def update(self, request, *args, **kwargs):
         response = super().update(request, *args, **kwargs)

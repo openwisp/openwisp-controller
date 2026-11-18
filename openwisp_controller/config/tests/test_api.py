@@ -1407,6 +1407,65 @@ class TestConfigApi(
             )
             self.assertEqual(response.status_code, 200)
 
+    def test_organization_config_settings_concurrent_secret_rotation(self):
+        org = self._create_org(name="org-rotation", slug="org-rotation")
+        config_settings = OrganizationConfigSettings.objects.create(organization=org)
+        path = reverse("config_api:organization_config_settings", args=[org.pk])
+        original_validate = OrganizationConfigSettingsSerializer.validate
+
+        def _rotate_shared_secret(serializer, data):
+            data = original_validate(serializer, data)
+            # simulates a concurrent request which rotates the shared
+            # secret after this request has loaded the settings
+            OrganizationConfigSettings.objects.filter(pk=config_settings.pk).update(
+                shared_secret="rotatedsharedsecret"
+            )
+            return data
+
+        with patch.object(
+            OrganizationConfigSettingsSerializer, "validate", _rotate_shared_secret
+        ):
+            response = self.client.patch(
+                path,
+                data={"context": {"foo": "bar"}},
+                content_type="application/json",
+            )
+        self.assertEqual(response.status_code, 200)
+        config_settings.refresh_from_db()
+        self.assertEqual(config_settings.shared_secret, "rotatedsharedsecret")
+        self.assertDictEqual(config_settings.context, {"foo": "bar"})
+
+    def test_organization_config_settings_shared_secret_conflict(self):
+        org1 = self._create_org(name="org-secret1", slug="org-secret1")
+        org2 = self._create_org(name="org-secret2", slug="org-secret2")
+        OrganizationConfigSettings.objects.create(organization=org1)
+        path = reverse("config_api:organization_config_settings", args=[org1.pk])
+        original_validate = OrganizationConfigSettingsSerializer.validate
+
+        def _take_shared_secret(serializer, data):
+            data = original_validate(serializer, data)
+            # simulates a concurrent request which takes the submitted
+            # shared secret for another organization
+            OrganizationConfigSettings.objects.bulk_create(
+                [
+                    OrganizationConfigSettings(
+                        organization=org2, shared_secret="takensharedsecret"
+                    )
+                ]
+            )
+            return data
+
+        with patch.object(
+            OrganizationConfigSettingsSerializer, "validate", _take_shared_secret
+        ):
+            response = self.client.patch(
+                path,
+                data={"shared_secret": "takensharedsecret"},
+                content_type="application/json",
+            )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("shared_secret", response.data)
+
     def test_organization_config_settings_multitenancy(self):
         org1 = self._create_org(name="org1", slug="org1")
         org2 = self._create_org(name="org2", slug="org2")
