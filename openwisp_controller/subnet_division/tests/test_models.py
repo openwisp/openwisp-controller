@@ -624,6 +624,9 @@ class TestSubnetDivisionRule(
         surviving_rule = self._get_vpn_subdivision_rule(
             label="VPNsurviving", master_subnet=surviving_master
         )
+        surviving_ip = IpAddress.objects.create(
+            subnet=surviving_subnet, ip_address="10.0.6.1"
+        )
         surviving_index = SubnetDivisionIndex.objects.create(
             rule=surviving_rule,
             config=self.config,
@@ -642,6 +645,7 @@ class TestSubnetDivisionRule(
         self.assertTrue(
             SubnetDivisionIndex.objects.filter(pk=surviving_index.pk).exists()
         )
+        self.assertTrue(IpAddress.objects.filter(pk=surviving_ip.pk).exists())
 
     def test_cleanup_preserves_subnet_of_surviving_ip_only_index(self):
         deleted_rule = self._get_vpn_subdivision_rule(label="VPNcleanup")

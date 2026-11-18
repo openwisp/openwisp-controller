@@ -241,6 +241,12 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
         )
         SubnetDivisionRule = swapper.load_model("subnet_division", "SubnetDivisionRule")
 
+        cleanup_candidates = Subnet.objects.filter(
+            id__in=SubnetDivisionIndex.objects.filter(rule_id=None).values("subnet_id")
+        )
+        if not cleanup_candidates.exists():
+            return
+
         # Protect every subnet referenced by a surviving rule, including the
         # ancestors whose deletion would cascade to a protected subnet.
         protected_subnet_ids = set(
@@ -269,9 +275,7 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
             ancestors_to_check = parent_ids - protected_subnet_ids
             protected_subnet_ids.update(parent_ids)
 
-        Subnet.objects.filter(
-            id__in=SubnetDivisionIndex.objects.filter(rule_id=None).values("subnet_id")
-        ).exclude(id__in=protected_subnet_ids).delete()
+        cleanup_candidates.exclude(id__in=protected_subnet_ids).delete()
 
     @classmethod
     def filter_in_use(cls, queryset=None):

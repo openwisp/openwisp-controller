@@ -1,5 +1,7 @@
+from importlib import import_module
 from unittest.mock import patch
 
+from django.apps.registry import Apps
 from django.contrib.auth.models import Permission
 from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
@@ -7,6 +9,7 @@ from django.urls import reverse
 from openwisp_controller.config.tests.utils import TestWireguardVpnMixin
 from openwisp_controller.tests.utils import TestAdminMixin
 
+from ..apps import SubnetDivisionConfig
 from .helpers import SubnetDivisionTestMixin
 
 
@@ -131,13 +134,17 @@ class TestIPAMURLSelection(SimpleTestCase):
     def test_explicit_subnet_division_app_config(self):
         from openwisp_controller.urls import get_ipam_urls_module
 
-        # Django's app registry resolves both a package entry and an explicit
-        # ``SubnetDivisionConfig`` entry to this application name.
-        with patch(
-            "openwisp_controller.urls.apps.is_installed", return_value=True
-        ) as is_installed:
+        app_name = "openwisp_controller.subnet_division"
+        registry = Apps(installed_apps=[])
+        app_config = SubnetDivisionConfig(app_name, import_module(app_name))
+        app_config.apps = registry
+        registry.app_configs[app_config.label] = app_config
+
+        with (
+            patch("openwisp_controller.urls.apps", registry),
+            self.settings(EXTENDED_APPS=()),
+        ):
             self.assertEqual(
                 get_ipam_urls_module(),
                 "openwisp_controller.subnet_division.ipam_urls",
             )
-        is_installed.assert_called_once_with("openwisp_controller.subnet_division")
