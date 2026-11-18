@@ -3,7 +3,9 @@ from unittest import TestCase
 from unittest.mock import patch
 
 from django.core.exceptions import ValidationError
+from django.db import connection
 from django.test import TransactionTestCase
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from swapper import load_model
 
@@ -545,6 +547,27 @@ class TestSubnetDivisionRule(
                 rule=surviving_rule, subnet=shared_subnet
             ).exists()
         )
+
+    def test_cleanup_batches_descendant_protection_queries(self):
+        candidate = self._create_subnet(subnet="10.5.0.0/16", organization=self.org)
+        children = [
+            self._create_subnet(
+                subnet=f"10.5.{number}.0/24",
+                organization=self.org,
+                master_subnet=candidate,
+            )
+            for number in range(101)
+        ]
+        rule = self._get_vpn_subdivision_rule(label="VPNsurviving")
+        SubnetDivisionIndex.objects.create(subnet=candidate, keyword="orphan")
+        SubnetDivisionIndex.objects.create(
+            rule=rule, subnet=children[0], keyword="surviving"
+        )
+        with CaptureQueriesContext(connection) as queries:
+            rule.delete_provisioned_subnets()
+        self.assertLessEqual(len(queries), 11)
+        self.assertTrue(Subnet.objects.filter(pk=candidate.pk).exists())
+        self.assertEqual(Subnet.objects.filter(master_subnet=candidate).count(), 101)
 
     def test_cleanup_multiple_candidate_batches(self):
         subnets = [

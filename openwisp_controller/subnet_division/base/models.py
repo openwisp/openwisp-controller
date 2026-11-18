@@ -250,24 +250,26 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
             pending = [candidate_id]
             visited = set()
             while pending:
-                subnet_id = pending.pop()
-                if subnet_id in visited:
+                subnet_ids = set(pending[-100:]) - visited
+                del pending[-100:]
+                if not subnet_ids:
                     continue
-                visited.add(subnet_id)
+                visited.update(subnet_ids)
                 index_protected = SubnetDivisionIndex.objects.filter(
                     rule_id__isnull=False
                 ).filter(
-                    models.Q(subnet_id=subnet_id) | models.Q(ip__subnet_id=subnet_id)
+                    models.Q(subnet_id__in=subnet_ids)
+                    | models.Q(ip__subnet_id__in=subnet_ids)
                 )
                 if (
                     index_protected.exists()
                     or SubnetDivisionRule.objects.filter(
-                        master_subnet_id=subnet_id
+                        master_subnet_id__in=subnet_ids
                     ).exists()
                 ):
                     return True
                 pending.extend(
-                    Subnet.objects.filter(master_subnet_id=subnet_id).values_list(
+                    Subnet.objects.filter(master_subnet_id__in=subnet_ids).values_list(
                         "pk", flat=True
                     )
                 )
