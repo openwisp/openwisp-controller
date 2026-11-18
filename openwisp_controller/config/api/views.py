@@ -211,7 +211,7 @@ class OrganizationConfigSettingsView(
             instance = OrganizationConfigSettings.objects.filter(
                 organization_id=self.kwargs["pk"]
             ).first()
-            if instance is None:
+            if instance is None or not created:
                 raise
             created = False
             serializer.instance = instance
