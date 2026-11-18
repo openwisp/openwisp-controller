@@ -1,5 +1,6 @@
 from cache_memoize import cache_memoize
 from django.core.exceptions import ObjectDoesNotExist
+from django.db import IntegrityError, transaction
 from django.db.models import F, Q
 from django.http import Http404
 from django.urls.base import reverse
@@ -199,6 +200,29 @@ class OrganizationConfigSettingsView(
             obj = OrganizationConfigSettings(organization=organization)
         self.check_object_permissions(self.request, obj)
         return obj
+
+    def perform_update(self, serializer):
+        created = serializer.instance._state.adding
+        try:
+            with transaction.atomic():
+                serializer.save()
+        except IntegrityError:
+            # another request created the settings concurrently
+            instance = OrganizationConfigSettings.objects.filter(
+                organization_id=self.kwargs["pk"]
+            ).first()
+            if instance is None:
+                raise
+            created = False
+            serializer.instance = instance
+            serializer.save()
+        self._object_created = created
+
+    def update(self, request, *args, **kwargs):
+        response = super().update(request, *args, **kwargs)
+        if request.method == "PUT" and getattr(self, "_object_created", False):
+            response.status_code = status.HTTP_201_CREATED
+        return response
 
 
 def get_cached_devicegroup_args_rewrite(cls, org_slugs, common_name):

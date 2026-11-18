@@ -11,7 +11,10 @@ from django.urls import reverse
 from django.utils import timezone
 from swapper import load_model
 
-from openwisp_controller.config.api.serializers import BaseConfigSerializer
+from openwisp_controller.config.api.serializers import (
+    BaseConfigSerializer,
+    OrganizationConfigSettingsSerializer,
+)
 from openwisp_controller.tests.utils import TestAdminMixin
 from openwisp_users.tests.test_api import AuthenticationMixin
 from openwisp_utils.tests import capture_any_output, catch_signal
@@ -1323,6 +1326,69 @@ class TestConfigApi(
             config_settings = OrganizationConfigSettings.objects.get(organization=org)
             self.assertFalse(config_settings.registration_enabled)
 
+    def test_organization_config_settings_concurrent_creation(self):
+        org = self._create_org(name="org-concurrent", slug="org-concurrent")
+        path = reverse("config_api:organization_config_settings", args=[org.pk])
+        original_validate = OrganizationConfigSettingsSerializer.validate
+
+        def validate_then_insert(serializer, data):
+            data = original_validate(serializer, data)
+            # simulates a concurrent request which inserts the settings
+            # after this request has validated its own instance
+            exists = OrganizationConfigSettings.objects.filter(
+                organization=org
+            ).exists()
+            if not exists:
+                OrganizationConfigSettings.objects.bulk_create(
+                    [
+                        OrganizationConfigSettings(
+                            organization=org, registration_enabled=True
+                        )
+                    ]
+                )
+            return data
+
+        with patch.object(
+            OrganizationConfigSettingsSerializer, "validate", validate_then_insert
+        ):
+            response = self.client.patch(
+                path,
+                data={"registration_enabled": False},
+                content_type="application/json",
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            OrganizationConfigSettings.objects.filter(organization=org).count(), 1
+        )
+        config_settings = OrganizationConfigSettings.objects.get(organization=org)
+        self.assertFalse(config_settings.registration_enabled)
+
+    def test_organization_config_settings_put_creation(self):
+        org = self._create_org(name="org-put", slug="org-put")
+        path = reverse("config_api:organization_config_settings", args=[org.pk])
+        response = self.client.put(
+            path,
+            data={"shared_secret": "testputsecret", "registration_enabled": True},
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 201)
+
+        with self.subTest("Test GET returns the secret submitted with PUT"):
+            response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data["shared_secret"], "testputsecret")
+
+        with self.subTest("Test PUT on existing settings returns 200"):
+            response = self.client.put(
+                path,
+                data={
+                    "shared_secret": "testputsecret",
+                    "registration_enabled": False,
+                },
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 200)
+
     def test_organization_config_settings_multitenancy(self):
         org1 = self._create_org(name="org1", slug="org1")
         org2 = self._create_org(name="org2", slug="org2")
@@ -1367,6 +1433,70 @@ class TestConfigApi(
             path4 = reverse("config_api:organization_config_settings", args=[org4.pk])
             response = self.client.get(path4)
             self.assertEqual(response.status_code, 403)
+
+        with self.subTest("Test non-admin member of org with settings"):
+            org5 = self._create_org(name="org5", slug="org5")
+            settings5 = OrganizationConfigSettings.objects.create(
+                organization=org5, registration_enabled=True
+            )
+            member = self._create_administrator(
+                organizations=[org1],
+                username="administrator2",
+                email="administrator2@test.com",
+            )
+            self._create_org_user(user=member, organization=org5, is_admin=False)
+            self.client.force_login(member)
+            path5 = reverse("config_api:organization_config_settings", args=[org5.pk])
+            response = self.client.get(path5)
+            self.assertEqual(response.status_code, 404)
+            self.assertNotContains(response, settings5.shared_secret, status_code=404)
+            for method in ("put", "patch"):
+                response = getattr(self.client, method)(
+                    path5,
+                    data={"registration_enabled": False},
+                    content_type="application/json",
+                )
+                self.assertEqual(response.status_code, 404)
+            settings5.refresh_from_db()
+            self.assertTrue(settings5.registration_enabled)
+
+        with self.subTest("Test non-admin member of org without settings"):
+            org6 = self._create_org(name="org6", slug="org6")
+            self._create_org_user(user=member, organization=org6, is_admin=False)
+            path6 = reverse("config_api:organization_config_settings", args=[org6.pk])
+            response = self.client.patch(
+                path6,
+                data={"registration_enabled": False},
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 404)
+            self.assertFalse(
+                OrganizationConfigSettings.objects.filter(organization=org6).exists()
+            )
+
+        with self.subTest("Test operator manager with view only permission"):
+            org7 = self._create_org(name="org7", slug="org7")
+            settings7 = OrganizationConfigSettings.objects.create(
+                organization=org7, registration_enabled=True
+            )
+            operator = self._create_operator(
+                organizations=[org7],
+                username="operator3",
+                email="operator3@test.com",
+            )
+            self.client.force_login(operator)
+            path7 = reverse("config_api:organization_config_settings", args=[org7.pk])
+            response = self.client.get(path7)
+            self.assertEqual(response.status_code, 200)
+            for method in ("put", "patch"):
+                response = getattr(self.client, method)(
+                    path7,
+                    data={"registration_enabled": False},
+                    content_type="application/json",
+                )
+                self.assertEqual(response.status_code, 403)
+            settings7.refresh_from_db()
+            self.assertTrue(settings7.registration_enabled)
 
     def test_organization_config_settings_manager_access(self):
         org = self._get_org()
