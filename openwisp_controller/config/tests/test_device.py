@@ -735,3 +735,19 @@ class TestTransactionDevice(
         device.refresh_from_db()
         self.assertEqual(device._has_config(), False)
         self.assertEqual(device.is_deactivated(), False)
+
+    def test_creating_org_variables_invalidates_existing_config(self):
+        org = self._get_org()
+        config = self._create_config(organization=org)
+        template = self._create_template(
+            config={"interfaces": [{"name": "eth0", "type": "{{ interface_type }}"}]},
+            default_values={"interface_type": "ethernet"},
+        )
+        config.templates.add(template)
+        old_checksum = config.get_cached_checksum()
+        OrganizationConfigSettings.objects.create(
+            organization=org, context={"interface_type": "virtual"}
+        )
+        config.refresh_from_db()
+        self.assertNotEqual(config.checksum_db, old_checksum)
+        self.assertEqual(config.get_cached_checksum(), config.checksum_db)
