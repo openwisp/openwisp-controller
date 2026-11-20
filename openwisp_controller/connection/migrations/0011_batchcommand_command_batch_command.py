@@ -7,6 +7,7 @@ import django.db.migrations.operations.special
 import django.db.models.deletion
 import django.utils.timezone
 import model_utils.fields
+import swapper
 from django.conf import settings
 from django.db import migrations, models
 
@@ -19,7 +20,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("connection", "0010_replace_jsonfield_with_django_builtin"),
-        ("openwisp_users", "0024_apikey"),
+        swapper.dependency("openwisp_users", "Organization"),
         migrations.swappable_dependency(settings.CONFIG_DEVICEGROUP_MODEL),
         migrations.swappable_dependency(settings.CONFIG_DEVICE_MODEL),
         migrations.swappable_dependency(settings.GEO_LOCATION_MODEL),
@@ -148,7 +149,7 @@ class Migration(migrations.Migration):
                         blank=True,
                         null=True,
                         on_delete=django.db.models.deletion.CASCADE,
-                        to="openwisp_users.organization",
+                        to=swapper.get_model_name("openwisp_users", "Organization"),
                     ),
                 ),
             ],

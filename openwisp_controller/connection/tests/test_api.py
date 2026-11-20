@@ -1609,7 +1609,9 @@ class TestBatchCommandsAPI(
     def test_batch_command_endpoints_on_non_managed_org(self):
         org1 = self._get_org()
         org2 = self._create_org(name="org2", slug="org2")
-        device = self._create_device(organization=org1)
+        device = self._create_device(
+            organization=org2, name="org2-device", mac_address="00:11:22:33:44:66"
+        )
         self._create_config(device=device)
         self._create_device_connection(device=device)
         url = reverse("connection_api:batch_command_execute")
@@ -1630,16 +1632,19 @@ class TestBatchCommandsAPI(
                     content_type="application/json",
                 )
                 self.assertEqual(response.status_code, 400)
+                self.assertIn("organization", response.data)
 
             with self.subTest(f"{role} runs a dry run"):
                 response = self.client.get(url, data={"organization": str(org2.pk)})
                 self.assertEqual(response.status_code, 400)
+                self.assertIn("organization", response.data)
 
             with self.subTest(f"{role} executes on the organization"):
                 response = self.client.post(
                     url, data=json.dumps(payload), content_type="application/json"
                 )
                 self.assertEqual(response.status_code, 400)
+                self.assertIn("organization", response.data)
 
     def test_batch_command_endpoints_organization_scoped(self):
         org = self._get_org()

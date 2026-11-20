@@ -743,7 +743,7 @@ class AbstractCommand(TimeStampedEditableModel):
         if self.is_custom:
             return self.custom_command
         else:
-            return ", ".join(self.arguments)
+            return ", ".join(str(argument) for argument in self.arguments)
 
     @property
     def _schema(self):
