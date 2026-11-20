@@ -1,10 +1,13 @@
 from uuid import UUID
 
+from django import forms
+from django.apps import apps
+from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 from django_filters import rest_framework as filters
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.exceptions import ValidationError
-from swapper import load_model
+from swapper import get_model_name, load_model
 
 from openwisp_users.api.filters import OrganizationManagedFilter
 
@@ -12,6 +15,18 @@ Template = load_model("config", "Template")
 Vpn = load_model("config", "Vpn")
 Device = load_model("config", "Device")
 DeviceGroup = load_model("config", "DeviceGroup")
+
+
+def template_filter_queryset(request):
+    queryset = Template.objects.all()
+    if request is None or request.user.is_superuser:
+        return queryset
+    if request.user.is_anonymous:
+        return queryset.none()
+    organizations = request.user.organizations_managed
+    return queryset.filter(
+        Q(organization__in=organizations) | Q(organization__isnull=True)
+    )
 
 
 class BaseConfigAPIFilter(OrganizationManagedFilter):
@@ -75,15 +90,19 @@ class DeviceListFilterBackend(DjangoFilterBackend):
         if config_template_uuid:
             try:
                 # Attempt to convert the uuid string to a UUID object
-                config_template_uuid_obj = UUID(config_template_uuid)
+                UUID(config_template_uuid)
             except ValueError:
                 raise ValidationError({"config__templates": _("Invalid UUID format")})
-            # Add the config__templates filter to the queryset
-            return queryset.filter(config__templates=config_template_uuid_obj)
+        # The filtering itself is left to DeviceListFilter: filtering the
+        # "config__templates" relationship here as well would add a second
+        # join to the paginated device query, and would also bypass the
+        # other filters, which used to be ignored whenever a template was
+        # supplied.
         return super().filter_queryset(request, queryset, view)
 
 
 class DeviceListFilter(BaseConfigAPIFilter):
+    config__templates = filters.UUIDFilter(field_name="config__templates")
     mac_address = filters.CharFilter(
         field_name="mac_address",
         lookup_expr="icontains",
@@ -100,15 +119,48 @@ class DeviceListFilter(BaseConfigAPIFilter):
         field_name="created",
         lookup_expr="lt",
     )
+    subnet_division_rule = filters.UUIDFilter(
+        method="filter_subnet_division_rule",
+    )
+
+    def filter_subnet_division_rule(self, queryset, name, value):
+        try:
+            apps.get_model(get_model_name("subnet_division", "SubnetDivisionRule"))
+        except LookupError:
+            raise ValidationError(
+                {
+                    name: _(
+                        "Subnet division filtering is unavailable because the "
+                        "subnet division app is not installed."
+                    )
+                }
+            ) from None
+        from openwisp_controller.subnet_division.filters import (
+            filter_devices_by_subnet_division_rule,
+        )
+
+        return filter_devices_by_subnet_division_rule(queryset, value)
 
     def _set_valid_filterform_lables(self):
         self.filters["group"].label = _("Device group")
         self.filters["config__templates"].label = _("Config template")
         self.filters["config__status"].label = _("Config status")
         self.filters["config__backend"].label = _("Config backend")
+        self.filters["subnet_division_rule"].label = _("Subnet division rule")
 
     def __init__(self, *args, **kwargs):
         super(DeviceListFilter, self).__init__(*args, **kwargs)
+
+        def template_choices():
+            yield "", "---------"
+            yield from (
+                (str(template.pk), str(template))
+                for template in template_filter_queryset(self.request)
+            )
+
+        self.filters["config__templates"].field.widget = forms.Select(
+            choices=template_choices
+        )
         self._set_valid_filterform_lables()
 
     class Meta(BaseConfigAPIFilter.Meta):
@@ -120,6 +172,7 @@ class DeviceListFilter(BaseConfigAPIFilter):
             "config__backend",
             "config__templates",
             "group",
+            "subnet_division_rule",
             "created",
         ]
 

@@ -18,6 +18,14 @@ Subnet = load_model("openwisp_ipam", "Subnet")
 
 
 class SubnetDivisionTestMixin(CreateConfigTemplateMixin, SubnetIpamMixin):
+    def _setup_subnet_division_api_fixture(self):
+        self.org = self._get_org()
+        self.master_subnet = self._get_master_subnet()
+        self.config = self._create_config(organization=self.org)
+        self.rule = self._get_vpn_subdivision_rule(number_of_ips=1, number_of_subnets=1)
+        self._mock_subnet_division_rule(self.config, self.master_subnet, self.rule)
+        self._login()
+
     @property
     def subnet_query(self):
         return Subnet.objects.exclude(name__contains="Reserved")

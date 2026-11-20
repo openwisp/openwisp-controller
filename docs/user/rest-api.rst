@@ -101,6 +101,13 @@ using the ``backend`` (e.g ``netjsonconfig.OpenWrt`` or
 
     GET /api/v1/controller/device/?config__backend={backend}
 
+You can filter a list of devices that use a specific subnet division rule
+using the ``subnet_division_rule`` parameter.
+
+.. code-block:: text
+
+    GET /api/v1/controller/device/?subnet_division_rule={rule_id}
+
 You can filter a list of devices based on their organization using the
 ``organization_id`` or ``organization_slug``.
 

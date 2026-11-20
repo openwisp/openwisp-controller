@@ -1,6 +1,11 @@
-from django.contrib import admin
+from django.contrib import admin, messages
+from django.contrib.admin.actions import delete_selected as django_delete_selected
+from django.core.exceptions import ValidationError
+from django.db import transaction
+from django.forms.models import BaseInlineFormSet
+from django.http import HttpResponseRedirect
 from django.urls import reverse
-from django.utils.html import format_html
+from django.utils.html import format_html, format_html_join
 from django.utils.translation import gettext_lazy as _
 from openwisp_ipam.admin import IpAddressAdmin as BaseIpAddressAdmin
 from openwisp_ipam.admin import SubnetAdmin as BaseSubnetAdmin
@@ -11,7 +16,13 @@ from openwisp_users.multitenancy import MultitenantAdminMixin
 from openwisp_utils.admin import HelpTextStackedInline, TimeReadonlyAdminMixin
 
 from . import settings as app_settings
-from .filters import DeviceFilter, SubnetDivisionRuleFilter, SubnetFilter, VpnFilter
+from .filters import (
+    DeviceFilter,
+    DeviceSubnetDivisionRuleFilter,
+    SubnetDivisionRuleFilter,
+    SubnetFilter,
+    VpnFilter,
+)
 
 SubnetDivisionRule = load_model("subnet_division", "SubnetDivisionRule")
 SubnetDivisionIndex = load_model("subnet_division", "SubnetDivisionIndex")
@@ -20,10 +31,40 @@ IpAddress = load_model("openwisp_ipam", "IpAddress")
 Device = load_model("config", "Device")
 
 
+def affected_devices_url(rule):
+    return (
+        reverse(f"admin:{Device._meta.app_label}_{Device._meta.model_name}_changelist")
+        + f"?subnet_division_rule={rule.pk}"
+    )
+
+
+class SubnetDivisionRuleInlineFormSet(BaseInlineFormSet):
+    def clean(self):
+        super().clean()
+        for form in self.forms:
+            if not form.cleaned_data.get("DELETE") or not form.instance.pk:
+                continue
+            try:
+                form.instance.validate_deletion()
+            except ValidationError as error:
+                if not SubnetDivisionRule.is_in_use_error(error):
+                    raise
+                raise ValidationError(
+                    format_html(
+                        '{} <a href="{}">{}</a>',
+                        error.message,
+                        affected_devices_url(form.instance),
+                        _("View affected devices"),
+                    ),
+                    code=SubnetDivisionRule.in_use_error_code,
+                ) from None
+
+
 class SubnetDivisionRuleInlineAdmin(
     MultitenantAdminMixin, TimeReadonlyAdminMixin, HelpTextStackedInline
 ):
     model = SubnetDivisionRule
+    formset = SubnetDivisionRuleInlineFormSet
     extra = 0
     help_text = {
         "text": _(
@@ -41,8 +82,107 @@ class SubnetDivisionRuleInlineAdmin(
         js = ["admin/js/jquery.init.js", "subnet-division/js/subnet-division.js"]
 
 
+@admin.register(SubnetDivisionRule)
+class SubnetDivisionRuleAdmin(
+    MultitenantAdminMixin, TimeReadonlyAdminMixin, admin.ModelAdmin
+):
+    list_display = ["label", "organization", "type", "master_subnet"]
+    list_filter = ["type"]
+    search_fields = ["label"]
+    actions = ["delete_selected"]
+    multitenant_shared_relations = ("master_subnet",)
+    # caps how many affected-device links are listed in the bulk error message
+    in_use_links_limit = 10
+
+    def get_readonly_fields(self, request, obj=None):
+        readonly_fields = list(super().get_readonly_fields(request, obj=obj))
+        if obj is not None and "master_subnet" not in readonly_fields:
+            readonly_fields.append("master_subnet")
+        return readonly_fields
+
+    def _in_use_error(self, request, obj):
+        messages.error(
+            request,
+            format_html(
+                _(
+                    "This subnet division rule is used by device "
+                    "configurations and cannot be deleted. "
+                    '<a href="{}">View affected devices</a>'
+                ),
+                affected_devices_url(obj),
+            ),
+        )
+
+    def _bulk_in_use_error(self, request, queryset):
+        """Reports in-use rules with a link to their affected devices.
+
+        The list of rules is bounded by the user's selection and further
+        capped, so the message never embeds an unbounded device list.
+        """
+        rules = list(
+            SubnetDivisionRule.filter_in_use(queryset).order_by("label")[
+                : self.in_use_links_limit + 1
+            ]
+        )
+        truncated = len(rules) > self.in_use_links_limit
+        rules = rules[: self.in_use_links_limit]
+        links = format_html_join(
+            ", ",
+            '<a href="{}">{}</a>',
+            ((affected_devices_url(rule), rule.label) for rule in rules),
+        )
+        message = format_html(
+            _(
+                "The following subnet division rules are used by device "
+                "configurations and cannot be deleted: {}"
+            ),
+            links,
+        )
+        if truncated:
+            message = format_html(
+                "{} {}",
+                message,
+                _("Only the first %(limit)s rules are listed.")
+                % {"limit": self.in_use_links_limit},
+            )
+        messages.error(request, message)
+
+    def delete_view(self, request, object_id, extra_context=None):
+        try:
+            # The deletion and its log entry are wrapped in a transaction so
+            # that a refusal rolls back both before the error is reported.
+            with transaction.atomic():
+                return super().delete_view(
+                    request, object_id, extra_context=extra_context
+                )
+        except ValidationError as e:
+            if not SubnetDivisionRule.is_in_use_error(e):
+                raise
+            obj = self.get_object(request, object_id)
+            if obj is not None:
+                self._in_use_error(request, obj)
+            return HttpResponseRedirect(
+                reverse(
+                    f"admin:{self.opts.app_label}_{self.opts.model_name}_changelist"
+                )
+            )
+
+    @admin.action(
+        description=django_delete_selected.short_description, permissions=["delete"]
+    )
+    def delete_selected(self, request, queryset):
+        try:
+            with transaction.atomic():
+                return django_delete_selected(self, request, queryset)
+        except ValidationError as e:
+            if not SubnetDivisionRule.is_in_use_error(e):
+                raise
+            self._bulk_in_use_error(request, queryset)
+
+
 # Monkey patching DeviceAdmin to allow filtering using subnet
 DeviceAdmin.list_filter.append(SubnetFilter)
+DeviceAdmin.list_filter.append(DeviceSubnetDivisionRuleFilter)
 
 # NOTE: Monkey patching SubnetAdmin didn't work for adding readonly_field
 # to change_view because of TimeReadonlyAdminMixin.
@@ -61,6 +201,83 @@ class SubnetAdmin(BaseSubnetAdmin):
     inlines = [SubnetDivisionRuleInlineAdmin] + list(BaseSubnetAdmin.inlines)
     list_display = BaseSubnetAdmin.list_display
     list_display.insert(list_display.index("created"), "related_device")
+    actions = ["delete_selected"]
+
+    def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
+        try:
+            with transaction.atomic():
+                return super().changeform_view(
+                    request,
+                    object_id=object_id,
+                    form_url=form_url,
+                    extra_context=extra_context,
+                )
+        except ValidationError as error:
+            if not SubnetDivisionRule.is_in_use_error(error):
+                raise
+            rule = SubnetDivisionRule.filter_in_use(
+                SubnetDivisionRule.objects.filter(master_subnet_id=object_id)
+            ).first()
+            if rule is not None:
+                messages.error(
+                    request,
+                    format_html(
+                        '{} <a href="{}">{}</a>',
+                        error.message,
+                        affected_devices_url(rule),
+                        _("View affected devices"),
+                    ),
+                )
+            return HttpResponseRedirect(
+                reverse(
+                    f"admin:{self.opts.app_label}_{self.opts.model_name}_change",
+                    args=[object_id],
+                )
+            )
+
+    @admin.action(
+        description=django_delete_selected.short_description, permissions=["delete"]
+    )
+    def delete_selected(self, request, queryset):
+        try:
+            with transaction.atomic():
+                return django_delete_selected(self, request, queryset)
+        except ValidationError as e:
+            if not SubnetDivisionRule.is_in_use_error(e):
+                raise
+            messages.error(
+                request,
+                _(
+                    "Some selected subnets cannot be deleted because one of their "
+                    "subnet division rules is used by device configurations."
+                ),
+            )
+
+    def delete_view(self, request, object_id, extra_context=None):
+        # Deleting a subnet cascades to its subnet division rules, which
+        # refuse the deletion when they are in use. Without this the
+        # ValidationError would propagate out of the request as a server
+        # error instead of being reported to the user.
+        try:
+            with transaction.atomic():
+                return super().delete_view(
+                    request, object_id, extra_context=extra_context
+                )
+        except ValidationError as e:
+            if not SubnetDivisionRule.is_in_use_error(e):
+                raise
+            messages.error(
+                request,
+                _(
+                    "This subnet cannot be deleted because one of its subnet "
+                    "division rules is used by device configurations."
+                ),
+            )
+            return HttpResponseRedirect(
+                reverse(
+                    f"admin:{Subnet._meta.app_label}_subnet_change", args=[object_id]
+                )
+            )
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)

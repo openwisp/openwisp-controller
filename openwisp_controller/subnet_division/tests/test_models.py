@@ -3,7 +3,9 @@ from unittest import TestCase
 from unittest.mock import patch
 
 from django.core.exceptions import ValidationError
+from django.db import connection
 from django.test import TransactionTestCase
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from swapper import load_model
 
@@ -454,7 +456,7 @@ class TestSubnetDivisionRule(
             index_queryset.count(), new_number_of_ips * rule.number_of_subnets
         )
 
-    def test_rule_deleted(self):
+    def test_rule_delete_blocked_when_in_use(self):
         rule = self._get_vpn_subdivision_rule()
         self.config.templates.add(self.template)
         subnet_query = self.subnet_query.exclude(id=self.master_subnet.id).filter(
@@ -471,11 +473,332 @@ class TestSubnetDivisionRule(
             rule.number_of_subnets + (rule.number_of_subnets * rule.number_of_ips),
         )
 
-        rule.delete()
+        with self.assertRaises(ValidationError) as error:
+            rule.delete()
+        self.assertEqual(error.exception.code, "subnet_division_rule_in_use")
+        self.assertTrue(SubnetDivisionRule.objects.filter(pk=rule.pk).exists())
 
+        # Deleting the dependent config removes the indexes; afterwards the
+        # rule can be deleted and the provisioned subnets are cleaned up.
+        self.config.delete()
+        rule.delete()
         self.assertEqual(subnet_query.count(), 0)
         self.assertEqual(ip_query.count(), 0)
         self.assertEqual(SubnetDivisionIndex.objects.count(), 0)
+
+    def test_rule_delete_blocked_via_queryset(self):
+        rule = self._get_vpn_subdivision_rule()
+        self.config.templates.add(self.template)
+        with self.assertRaises(ValidationError) as error:
+            SubnetDivisionRule.objects.filter(pk=rule.pk).delete()
+        self.assertEqual(error.exception.code, "subnet_division_rule_in_use")
+        self.assertTrue(SubnetDivisionRule.objects.filter(pk=rule.pk).exists())
+
+    def test_organization_delete_cascades_in_use_rule(self):
+        """Deleting an organization is not blocked by the deletion guard.
+
+        The dependent device configurations are removed by the same
+        cascade, so the rule must not keep the organization alive.
+        """
+        rule = self._get_vpn_subdivision_rule()
+        self.config.templates.add(self.template)
+        self.assertTrue(
+            SubnetDivisionIndex.objects.filter(rule=rule, config__isnull=False).exists()
+        )
+
+        self.org.delete()
+
+        self.assertFalse(SubnetDivisionRule.objects.filter(pk=rule.pk).exists())
+
+    def test_delete_rule_preserves_subnets_of_surviving_rules(self):
+        """Cleanup must not delete subnets another rule still references.
+
+        ``delete_provisioned_subnets()`` looks up indexes whose ``rule_id``
+        was set to ``None`` by the cascade. A subnet referenced by both a
+        deleted and a surviving rule must be kept.
+        """
+        deleted_rule = self._get_vpn_subdivision_rule(label="VPNdeleted")
+        second_master_subnet = self._create_subnet(
+            subnet="10.2.0.0/16", organization=self.org
+        )
+        surviving_rule = self._get_vpn_subdivision_rule(
+            label="VPNsurviving", master_subnet=second_master_subnet
+        )
+        shared_subnet = self._create_subnet(
+            subnet="10.0.5.0/24",
+            organization=self.org,
+            master_subnet=self.master_subnet,
+        )
+        SubnetDivisionIndex.objects.create(
+            rule=deleted_rule, keyword="shared_deleted", subnet=shared_subnet
+        )
+        SubnetDivisionIndex.objects.create(
+            rule=surviving_rule, keyword="shared_surviving", subnet=shared_subnet
+        )
+
+        deleted_rule.delete()
+
+        self.assertTrue(
+            Subnet.objects.filter(pk=shared_subnet.pk).exists(),
+            "subnet still referenced by a surviving rule must not be deleted",
+        )
+        self.assertTrue(
+            SubnetDivisionIndex.objects.filter(
+                rule=surviving_rule, subnet=shared_subnet
+            ).exists()
+        )
+
+    def test_cleanup_batches_descendant_protection_queries(self):
+        candidate = self._create_subnet(subnet="10.5.0.0/16", organization=self.org)
+        children = [
+            self._create_subnet(
+                subnet=f"10.5.{number}.0/24",
+                organization=self.org,
+                master_subnet=candidate,
+            )
+            for number in range(101)
+        ]
+        rule = self._get_vpn_subdivision_rule(label="VPNsurviving")
+        SubnetDivisionIndex.objects.create(subnet=candidate, keyword="orphan")
+        SubnetDivisionIndex.objects.create(
+            rule=rule, subnet=children[0], keyword="surviving"
+        )
+        with CaptureQueriesContext(connection) as queries:
+            rule.delete_provisioned_subnets()
+        self.assertLessEqual(len(queries), 11)
+        self.assertTrue(Subnet.objects.filter(pk=candidate.pk).exists())
+        self.assertEqual(Subnet.objects.filter(master_subnet=candidate).count(), 101)
+
+    def test_cleanup_multiple_candidate_batches(self):
+        subnets = [
+            self._create_subnet(
+                subnet=f"10.0.{number}.0/24",
+                organization=self.org,
+                master_subnet=self.master_subnet,
+            )
+            for number in range(101)
+        ]
+        SubnetDivisionIndex.objects.bulk_create(
+            [
+                SubnetDivisionIndex(subnet=subnet, keyword=f"orphan_{number}")
+                for number, subnet in enumerate(subnets)
+            ]
+        )
+        SubnetDivisionRule().delete_provisioned_subnets()
+        self.assertFalse(
+            Subnet.objects.filter(pk__in=[subnet.pk for subnet in subnets]).exists()
+        )
+
+    def test_cleanup_not_blocked_by_ip_only_index_of_other_rule(self):
+        """An IP-only index of another rule must not block the cleanup.
+
+        ``SubnetDivisionIndex.subnet`` is nullable, and SQL ``NOT IN``
+        yields no rows when the subquery contains a NULL, which would
+        leave the provisioned subnets of the deleted rule behind.
+        """
+        deleted_rule = self._get_vpn_subdivision_rule(label="VPNcleanup")
+        second_master_subnet = self._create_subnet(
+            subnet="10.3.0.0/16", organization=self.org
+        )
+        other_rule = self._get_vpn_subdivision_rule(
+            label="VPNiponly", master_subnet=second_master_subnet
+        )
+        provisioned_subnet = self._create_subnet(
+            subnet="10.0.6.0/24",
+            organization=self.org,
+            master_subnet=self.master_subnet,
+        )
+        SubnetDivisionIndex.objects.create(
+            rule=deleted_rule, keyword="to_cleanup", subnet=provisioned_subnet
+        )
+        # an index of a surviving rule which has no subnet (IP-only)
+        SubnetDivisionIndex.objects.create(
+            rule=other_rule, keyword="ip_only", subnet=None
+        )
+
+        deleted_rule.delete()
+
+        self.assertFalse(
+            Subnet.objects.filter(pk=provisioned_subnet.pk).exists(),
+            "provisioned subnet should have been cleaned up",
+        )
+
+    def test_cleanup_preserves_master_subnet_of_surviving_rule(self):
+        deleted_rule = self._get_vpn_subdivision_rule(label="VPNcleanup")
+        provisioned_subnet = self._create_subnet(
+            subnet="10.0.6.0/24",
+            organization=self.org,
+            master_subnet=self.master_subnet,
+        )
+        SubnetDivisionIndex.objects.create(
+            rule=deleted_rule, keyword="to_cleanup", subnet=provisioned_subnet
+        )
+        surviving_rule = self._get_vpn_subdivision_rule(
+            label="VPNsurviving", master_subnet=provisioned_subnet
+        )
+
+        deleted_rule.delete()
+
+        self.assertTrue(Subnet.objects.filter(pk=provisioned_subnet.pk).exists())
+        self.assertTrue(
+            SubnetDivisionRule.objects.filter(pk=surviving_rule.pk).exists()
+        )
+
+    def test_cleanup_preserves_ancestor_of_surviving_rule_subnets(self):
+        deleted_rule = self._get_vpn_subdivision_rule(label="VPNcleanup")
+        candidate_parent = self._create_subnet(
+            subnet="10.0.6.0/24",
+            organization=self.org,
+            master_subnet=self.master_subnet,
+        )
+        surviving_master = self._create_subnet(
+            subnet="10.0.6.0/25",
+            organization=self.org,
+            master_subnet=candidate_parent,
+        )
+        surviving_subnet = self._create_subnet(
+            subnet="10.0.6.0/26",
+            organization=self.org,
+            master_subnet=surviving_master,
+        )
+        SubnetDivisionIndex.objects.create(
+            rule=deleted_rule, keyword="to_cleanup", subnet=candidate_parent
+        )
+        surviving_rule = self._get_vpn_subdivision_rule(
+            label="VPNsurviving", master_subnet=surviving_master
+        )
+        surviving_ip = IpAddress.objects.create(
+            subnet=surviving_subnet, ip_address="10.0.6.1"
+        )
+        surviving_index = SubnetDivisionIndex.objects.create(
+            rule=surviving_rule,
+            config=self.config,
+            keyword="surviving",
+            subnet=surviving_subnet,
+        )
+
+        deleted_rule.delete()
+
+        self.assertTrue(Subnet.objects.filter(pk=candidate_parent.pk).exists())
+        self.assertTrue(Subnet.objects.filter(pk=surviving_master.pk).exists())
+        self.assertTrue(Subnet.objects.filter(pk=surviving_subnet.pk).exists())
+        self.assertTrue(
+            SubnetDivisionRule.objects.filter(pk=surviving_rule.pk).exists()
+        )
+        self.assertTrue(
+            SubnetDivisionIndex.objects.filter(pk=surviving_index.pk).exists()
+        )
+        self.assertTrue(IpAddress.objects.filter(pk=surviving_ip.pk).exists())
+
+    def test_cleanup_preserves_subnet_of_surviving_ip_only_index(self):
+        deleted_rule = self._get_vpn_subdivision_rule(label="VPNcleanup")
+        surviving_rule = self._get_vpn_subdivision_rule(label="VPNsurviving")
+        provisioned_subnet = self._create_subnet(
+            subnet="10.0.6.0/24",
+            organization=self.org,
+            master_subnet=self.master_subnet,
+        )
+        ip = IpAddress.objects.create(subnet=provisioned_subnet, ip_address="10.0.6.1")
+        SubnetDivisionIndex.objects.create(
+            rule=deleted_rule, keyword="to_cleanup", subnet=provisioned_subnet
+        )
+        surviving_index = SubnetDivisionIndex.objects.create(
+            rule=surviving_rule, keyword="ip_only", ip=ip
+        )
+
+        deleted_rule.delete()
+
+        self.assertTrue(Subnet.objects.filter(pk=provisioned_subnet.pk).exists())
+        self.assertTrue(IpAddress.objects.filter(pk=ip.pk).exists())
+        self.assertTrue(
+            SubnetDivisionIndex.objects.filter(pk=surviving_index.pk).exists()
+        )
+
+    def test_master_subnet_delete_blocked_when_rule_in_use(self):
+        """A master subnet cascade must not bypass the deletion guard.
+
+        ``SubnetDivisionRule.master_subnet`` cascades, but the device
+        configurations survive that deletion, so the rule is still in use.
+        """
+        rule = self._get_vpn_subdivision_rule()
+        self.config.templates.add(self.template)
+
+        with self.assertRaises(ValidationError) as error:
+            self.master_subnet.delete()
+        self.assertEqual(error.exception.code, "subnet_division_rule_in_use")
+        self.assertTrue(SubnetDivisionRule.objects.filter(pk=rule.pk).exists())
+        self.assertTrue(Subnet.objects.filter(pk=self.master_subnet.pk).exists())
+
+    def test_unused_rule_with_orphan_indexes_can_be_deleted(self):
+        rule = self._get_vpn_subdivision_rule()
+        child_subnet = self._create_subnet(
+            subnet="10.0.1.0/24",
+            organization=self.org,
+            master_subnet=self.master_subnet,
+        )
+        SubnetDivisionIndex.objects.create(
+            rule=rule,
+            keyword="orphan_subnet",
+            subnet=child_subnet,
+        )
+        rule.delete()
+        self.assertFalse(SubnetDivisionRule.objects.filter(pk=rule.pk).exists())
+        self.assertTrue(Subnet.objects.filter(pk=self.master_subnet.pk).exists())
+        self.assertFalse(Subnet.objects.filter(pk=child_subnet.pk).exists())
+
+    def test_unused_rule_deleted_while_other_rule_in_use(self):
+        """A rule with only config-less indexes is deletable.
+
+        Deleting it must not affect a different rule which is still used
+        by device configurations.
+        """
+        in_use_rule = self._get_vpn_subdivision_rule()
+        self.config.templates.add(self.template)
+        self.assertTrue(
+            SubnetDivisionIndex.objects.filter(
+                rule=in_use_rule, config__isnull=False
+            ).exists()
+        )
+
+        # Created in a separate organization with its own master subnet so
+        # that it is not provisioned for the existing configuration.
+        other_org = self._create_org(name="unused-rule-org", slug="unused-rule-org")
+        other_master_subnet = self._create_subnet(
+            subnet="10.1.0.0/16", organization=other_org
+        )
+        unused_rule = self._get_vpn_subdivision_rule(
+            number_of_ips=1,
+            number_of_subnets=1,
+            label="VPN2",
+            organization=other_org,
+            master_subnet=other_master_subnet,
+        )
+        child_subnet = self._create_subnet(
+            subnet="10.1.1.0/24",
+            organization=other_org,
+            master_subnet=other_master_subnet,
+        )
+        SubnetDivisionIndex.objects.create(
+            rule=unused_rule,
+            keyword="unused_subnet",
+            subnet=child_subnet,
+        )
+        self.assertFalse(
+            SubnetDivisionIndex.objects.filter(
+                rule=unused_rule, config__isnull=False
+            ).exists()
+        )
+
+        unused_rule.delete()
+
+        self.assertFalse(SubnetDivisionRule.objects.filter(pk=unused_rule.pk).exists())
+        self.assertTrue(SubnetDivisionRule.objects.filter(pk=in_use_rule.pk).exists())
+        self.assertFalse(Subnet.objects.filter(pk=child_subnet.pk).exists())
+        self.assertTrue(
+            SubnetDivisionIndex.objects.filter(
+                rule=in_use_rule, config__isnull=False
+            ).exists()
+        )
 
     def test_vpnclient_deleted(self):
         rule = self._get_vpn_subdivision_rule()
@@ -1045,10 +1368,14 @@ class TestSubnetDivisionRule(
             self.subnet_query.exclude(id=self.master_subnet.id).count(),
             rule1.number_of_subnets + rule2.number_of_subnets,
         )
-        rule2.delete()
+        # Deleting a rule that is still in use is blocked.
+        with self.assertRaises(ValidationError) as error:
+            rule2.delete()
+        self.assertEqual(error.exception.code, "subnet_division_rule_in_use")
+        self.assertTrue(SubnetDivisionRule.objects.filter(pk=rule2.pk).exists())
         self.assertEqual(
             self.subnet_query.exclude(id=self.master_subnet.id).count(),
-            rule1.number_of_subnets,
+            rule1.number_of_subnets + rule2.number_of_subnets,
         )
 
     def test_single_subnet_multiple_device_rule(self):
@@ -1058,11 +1385,21 @@ class TestSubnetDivisionRule(
             self.subnet_query.exclude(id=self.master_subnet.id).count(),
             rule1.number_of_subnets + rule2.number_of_subnets,
         )
-        rule2.delete()
+        # Deleting a rule that is still in use is blocked.
+        with self.assertRaises(ValidationError) as error:
+            rule2.delete()
+        self.assertEqual(error.exception.code, "subnet_division_rule_in_use")
+        self.assertTrue(SubnetDivisionRule.objects.filter(pk=rule2.pk).exists())
         self.assertEqual(
             self.subnet_query.exclude(id=self.master_subnet.id).count(),
-            rule1.number_of_subnets,
+            rule1.number_of_subnets + rule2.number_of_subnets,
         )
+
+        # After the dependent config is removed, rule2 can be deleted.
+        self.config.delete()
+        rule2.delete()
+        self.assertFalse(SubnetDivisionRule.objects.filter(pk=rule2.pk).exists())
+        self.assertTrue(SubnetDivisionRule.objects.filter(pk=rule1.pk).exists())
 
     def test_single_subnet_vpn_device_rule(self):
         device_rule = self._get_device_subdivision_rule(label="LAN")
