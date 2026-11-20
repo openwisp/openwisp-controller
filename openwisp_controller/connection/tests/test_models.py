@@ -1,3 +1,4 @@
+import importlib
 import socket
 from unittest import mock
 from unittest.mock import PropertyMock
@@ -8,7 +9,7 @@ import paramiko
 from django.contrib.auth.models import ContentType
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.test import TestCase, TransactionTestCase, tag
+from django.test import TestCase, TransactionTestCase, override_settings, tag
 from django.utils import timezone
 from django.utils.module_loading import import_string
 from swapper import load_model
@@ -2201,6 +2202,75 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
         batch.refresh_from_db()
         self.assertEqual(batch.status, "success")
         self.assertGreater(batch.modified, modified)
+
+    def test_batch_command_migration_uses_swapped_organization(self):
+        """The default connection app must follow a swapped organization model."""
+        module = importlib.import_module(
+            "openwisp_controller.connection.migrations."
+            "0011_batchcommand_command_batch_command"
+        )
+        self.addCleanup(importlib.reload, module)
+        with override_settings(
+            OPENWISP_USERS_ORGANIZATION_MODEL="sample_users.Organization"
+        ):
+            migration = importlib.reload(module).Migration
+        self.assertIn(("sample_users", "__first__"), migration.dependencies)
+        self.assertNotIn("openwisp_users", [app for app, _ in migration.dependencies])
+        fields = dict(migration.operations[0].fields)
+        self.assertEqual(
+            fields["organization"].remote_field.model, "sample_users.Organization"
+        )
+
+    @mock.patch.dict(COMMANDS, {})
+    @mock.patch.dict(ORGANIZATION_ENABLED_COMMANDS, {"__all__": ("blink",)})
+    @mock.patch.object(Command, "_schedule_command")
+    def test_batch_command_with_non_string_input(self, schedule_command):
+        register_command(
+            "blink",
+            {
+                "label": "Blink",
+                "schema": {
+                    "title": "Blink",
+                    "type": "object",
+                    "required": ["count"],
+                    "properties": {"count": {"type": "integer", "title": "Count"}},
+                    "additionalProperties": False,
+                },
+                "callable": "openwisp_controller.connection.tests.utils"
+                "._restart_network_command_callable",
+            },
+        )
+        org = self._get_org()
+        device = self._create_device(organization=org)
+        self._create_config(device=device)
+        dc = self._create_device_connection(device=device)
+        batch = self._create_batch_command(
+            organization=org, type="blink", input={"count": 3}
+        )
+        command_opts = dict(
+            batch_command=batch,
+            device=device,
+            connection=dc,
+            type="blink",
+            input={"count": 3},
+        )
+
+        with self.subTest("the input is shown as text"):
+            command = Command.objects.create(**command_opts)
+            self.assertEqual(command.input_data, "3")
+            schedule_command.assert_called_once()
+
+        with self.subTest("a failing update does not stop the command"):
+            schedule_command.reset_mock()
+            with mock.patch(
+                "openwisp_controller.connection.api.serializers."
+                "CommandSerializer.to_representation",
+                side_effect=TypeError,
+            ):
+                with mock.patch.object(handlers.logger, "exception") as log:
+                    Command.objects.create(**command_opts)
+            log.assert_called_once()
+            schedule_command.assert_called_once()
 
     def test_batch_command_device_transferred_to_another_org(self):
         org = self._get_org()

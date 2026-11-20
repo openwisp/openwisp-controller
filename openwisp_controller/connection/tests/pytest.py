@@ -141,6 +141,10 @@ class TestBatchCommandConsumer(BaseTestModels, CreateCommandMixin):
 
     @database_sync_to_async
     def _create_staff(self, username, org=None, codenames=(), is_staff=True):
+        """Creates a user with only the given permissions.
+
+        No default group grants these partial permission sets.
+        """
         user = self._create_user(
             username=username, email=f"{username}@test.com", is_staff=is_staff
         )

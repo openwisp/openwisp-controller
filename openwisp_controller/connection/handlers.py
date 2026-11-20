@@ -35,7 +35,11 @@ def command_save_handler(sender, created, instance, **kwargs):
 
     if created and not instance.batch_command_id:
         return
-    serialized_data = CommandSerializer(instance).data
+    try:
+        serialized_data = CommandSerializer(instance).data
+    except Exception:
+        logger.exception("Failed to serialize command %s", instance.pk)
+        return
     if not created:
         send_websocket_event(
             f"config.device-{instance.device_id}",

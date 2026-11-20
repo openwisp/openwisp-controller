@@ -275,6 +275,18 @@ class TestBatchCommandAdmin(
             for app_config in django_apps.get_app_configs():
                 app_config.models_module = models_modules[app_config.label]
 
+    def _create_user_with_permissions(self, org, username, codenames):
+        """Creates an operator with only the given permissions.
+
+        No default group grants these partial permission sets.
+        """
+        user = self._create_operator(
+            organizations=[org], username=username, email=f"{username}@test.com"
+        )
+        user.groups.clear()
+        user.user_permissions.set(Permission.objects.filter(codename__in=codenames))
+        return user
+
     def _create_devices(self, organization, count, credentials=None):
         if credentials is None:
             credentials = self._create_credentials(
@@ -950,14 +962,8 @@ class TestBatchCommandAdmin(
             self.assertEqual(batch.organization_id, org1.pk)
 
         with self.subTest("the batch command add permission is enforced"):
-            restricted = self._create_operator(
-                organizations=[org1],
-                username="restricted",
-                email="restricted@test.com",
-            )
-            restricted.groups.clear()
-            restricted.user_permissions.set(
-                Permission.objects.filter(codename__in=["view_device", "change_device"])
+            restricted = self._create_user_with_permissions(
+                org1, "restricted", ["view_device", "change_device"]
             )
             self.web_driver.delete_all_cookies()
             self.login(username=restricted.username, password="tester")
@@ -977,14 +983,8 @@ class TestBatchCommandAdmin(
             )
 
         with self.subTest("the view permission does not offer the action"):
-            viewer = self._create_operator(
-                organizations=[org1], username="viewer", email="viewer@test.com"
-            )
-            viewer.groups.clear()
-            viewer.user_permissions.set(
-                Permission.objects.filter(
-                    codename__in=["view_device", "view_batchcommand"]
-                )
+            viewer = self._create_user_with_permissions(
+                org1, "viewer", ["view_device", "view_batchcommand"]
             )
             self.web_driver.delete_all_cookies()
             self.login(username=viewer.username, password="tester")
@@ -1414,12 +1414,8 @@ class TestBatchCommandAdmin(
             )
 
         with self.subTest("the view permission is not enough to execute"):
-            viewer = self._create_operator(
-                organizations=[org1], username="viewer", email="viewer@test.com"
-            )
-            viewer.groups.clear()
-            viewer.user_permissions.set(
-                Permission.objects.filter(codename="view_batchcommand")
+            viewer = self._create_user_with_permissions(
+                org1, "viewer", ["view_batchcommand"]
             )
             self.web_driver.delete_all_cookies()
             self.login(username=viewer.username, password="tester")
