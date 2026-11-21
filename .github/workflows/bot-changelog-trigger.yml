@@ -19,15 +19,22 @@ jobs:
       group: changelog-trigger-${{ github.repository }}-${{ github.event.pull_request.number }}
       cancel-in-progress: true
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
+      - name: Checkout pinned changelog scripts
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: openwisp/openwisp-actions
+          ref: d6cc603701fe96a84115b060d34e8844a969cc41 # 0.3.0
+          path: openwisp-actions
+          persist-credentials: false
+
       - name: Check for noteworthy PR
         id: check
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
-        run: |
-          if echo "$PR_TITLE" | grep -qiE '^\[(feature|fix|change!?)\]'; then
-            echo "has_noteworthy=true" >> "$GITHUB_OUTPUT"
-          fi
+        run: bash openwisp-actions/.github/actions/bot-changelog-generator/caller/check_title.sh
 
       - name: Save PR metadata
         if: steps.check.outputs.has_noteworthy == 'true'
