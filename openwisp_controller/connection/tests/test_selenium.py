@@ -4,11 +4,11 @@ from uuid import UUID, uuid4
 
 from channels.testing import ChannelsLiveServerTestCase
 from django.apps import apps as django_apps
-from django.conf import settings as django_settings
 from django.contrib.auth.models import Permission
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
-from django.test import override_settings, tag
+from django.test import tag
 from django.urls import reverse
+from selenium.common.exceptions import StaleElementReferenceException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
@@ -164,21 +164,11 @@ class TestDeviceAdmin(
         )
 
 
-@tag("selenium_tests")
-@override_settings(
-    CHANNEL_LAYERS={
-        "default": {
-            "BACKEND": "channels_redis.core.RedisChannelLayer",
-            "CONFIG": {"hosts": [f"{django_settings.REDIS_URL}/7"]},
-        }
-    }
-)
-class TestBatchCommandAdmin(
+class BatchCommandAdminMixin(
     TestGeoMixin,
     CreateDeviceGroupMixin,
     CreateConnectionsMixin,
     SeleniumTestMixin,
-    ChannelsLiveServerTestCase,
 ):
     app_label = "connection"
     config_app_label = "config"
@@ -188,50 +178,6 @@ class TestBatchCommandAdmin(
 
     @classmethod
     def setUpClass(cls):
-        if "uci_show" not in COMMANDS:
-            register_command(
-                "uci_show",
-                {
-                    "label": "UCI show",
-                    "schema": {
-                        "title": "UCI show",
-                        "type": "object",
-                        "required": ["config"],
-                        "properties": {
-                            "config": {
-                                "type": "string",
-                                "title": "Config",
-                                "minLength": 1,
-                                "pattern": ".",
-                            }
-                        },
-                        "message": "Config cannot be empty.",
-                        "additionalProperties": False,
-                    },
-                    "callable": _uci_show_command_callable,
-                },
-            )
-            cls.addClassCleanup(unregister_command, "uci_show")
-        ORGANIZATION_ENABLED_COMMANDS[SCOPED_ORGANIZATION_ID] = (
-            "custom",
-            "reboot",
-            "change_password",
-            "uci_show",
-        )
-        ORGANIZATION_ENABLED_COMMANDS[DEFAULT_ORGANIZATION_ID] = (
-            "custom",
-            "reboot",
-            "change_password",
-        )
-        for organization_id in (SCOPED_ORGANIZATION_ID, DEFAULT_ORGANIZATION_ID):
-            ORGANIZATION_COMMAND_SCHEMA[organization_id] = {
-                command: COMMANDS[command]["schema"]
-                for command in ORGANIZATION_ENABLED_COMMANDS[organization_id]
-            }
-            cls.addClassCleanup(
-                ORGANIZATION_ENABLED_COMMANDS.pop, organization_id, None
-            )
-            cls.addClassCleanup(ORGANIZATION_COMMAND_SCHEMA.pop, organization_id, None)
         super().setUpClass()
         cls.mock_ssh_server = SshServer(
             {"root": cls._TEST_RSA_PRIVATE_KEY_PATH}
@@ -561,6 +507,57 @@ class TestBatchCommandAdmin(
                 By.CSS_SELECTOR, ".readonly"
             ).text.replace("\xa0", " ")
         return summary
+
+
+@tag("selenium_tests")
+class TestBatchCommandAdmin(BatchCommandAdminMixin, StaticLiveServerTestCase):
+    @classmethod
+    def setUpClass(cls):
+        if "uci_show" not in COMMANDS:
+            register_command(
+                "uci_show",
+                {
+                    "label": "UCI show",
+                    "schema": {
+                        "title": "UCI show",
+                        "type": "object",
+                        "required": ["config"],
+                        "properties": {
+                            "config": {
+                                "type": "string",
+                                "title": "Config",
+                                "minLength": 1,
+                                "pattern": ".",
+                            }
+                        },
+                        "message": "Config cannot be empty.",
+                        "additionalProperties": False,
+                    },
+                    "callable": _uci_show_command_callable,
+                },
+            )
+            cls.addClassCleanup(unregister_command, "uci_show")
+        ORGANIZATION_ENABLED_COMMANDS[SCOPED_ORGANIZATION_ID] = (
+            "custom",
+            "reboot",
+            "change_password",
+            "uci_show",
+        )
+        ORGANIZATION_ENABLED_COMMANDS[DEFAULT_ORGANIZATION_ID] = (
+            "custom",
+            "reboot",
+            "change_password",
+        )
+        for organization_id in (SCOPED_ORGANIZATION_ID, DEFAULT_ORGANIZATION_ID):
+            ORGANIZATION_COMMAND_SCHEMA[organization_id] = {
+                command: COMMANDS[command]["schema"]
+                for command in ORGANIZATION_ENABLED_COMMANDS[organization_id]
+            }
+            cls.addClassCleanup(
+                ORGANIZATION_ENABLED_COMMANDS.pop, organization_id, None
+            )
+            cls.addClassCleanup(ORGANIZATION_COMMAND_SCHEMA.pop, organization_id, None)
+        super().setUpClass()
 
     def test_execute_batch_command(self):
         """Walks the whole wizard for every command type and every target.
@@ -1095,344 +1092,6 @@ class TestBatchCommandAdmin(
             self.assertNotIn(excluded_pk, device_pks)
         self.assertEqual(self.get_browser_errors(), [])
 
-    def test_batch_command_live_updates(self):
-        """Rows, counters, output and status update over the websocket.
-
-        The page is opened while the batch is still running and is never
-        reloaded: every assertion below is satisfied only if batch-command.js
-        applies the pushed updates to the DOM.
-        """
-        org = self._get_org()
-        device, second_device = self._create_devices(org, 2)
-        batch = self._create_batch_command(organization=org, label="live-batch")
-        batch.status = "in-progress"
-        batch.save(update_fields=["status"])
-        self.login()
-        self.open(
-            reverse(f"admin:{self.app_label}_batchcommand_change", args=[batch.pk])
-        )
-        self.hide_loading_overlay()
-        self.wait_for_visibility(By.CSS_SELECTOR, "#result_list")
-        self.assertEqual(self._device_rows(), [])
-
-        with patch.object(Command, "_schedule_command"):
-            command = Command.objects.create(
-                batch_command=batch,
-                device=device,
-                type="custom",
-                input={"command": "echo test"},
-            )
-
-        WebDriverWait(self.web_driver, 10).until(
-            lambda driver: self._command_device_names() == [device.name],
-            message="the created command was never pushed to the page",
-        )
-        self.assertEqual(self._command_statuses(), ["in progress"])
-        self.assertEqual(
-            self.find_element(
-                by=By.CSS_SELECTOR, value=".field-affected_devices .readonly"
-            ).text,
-            "1",
-        )
-        command.status = "success"
-        command.output = "live output"
-        command._save_without_resurrecting()
-
-        WebDriverWait(self.web_driver, 10).until(
-            lambda driver: self._command_statuses() == ["success"],
-            message="the completed command was never pushed to the page",
-        )
-        self.assertEqual(
-            self.find_element(
-                by=By.CSS_SELECTOR, value="#result_list .command-output pre"
-            ).text,
-            "live output",
-        )
-        WebDriverWait(self.web_driver, 10).until(
-            lambda driver: self.find_element(
-                by=By.CSS_SELECTOR, value=".field-colored_status .command-status"
-            ).text
-            == "success",
-            message="the batch status was never pushed to the page",
-        )
-
-        with patch.object(Command, "_schedule_command"):
-            Command.objects.create(
-                batch_command=batch,
-                device=second_device,
-                type="custom",
-                input={"command": "echo test"},
-            )
-
-        WebDriverWait(self.web_driver, 10).until(
-            lambda driver: sorted(self._command_device_names())
-            == sorted([device.name, second_device.name]),
-            message="the second command was never pushed to the page",
-        )
-        self.assertEqual(
-            self.find_element(
-                by=By.CSS_SELECTOR, value=".results-container .paginator"
-            ).text,
-            "2 devices",
-        )
-
-        command.refresh_from_db()
-        pushed = self.find_element(
-            by=By.CSS_SELECTOR,
-            value=f"#batch-command-row-{command.device_id} td:last-child",
-        ).text
-        self.assertEqual(pushed, format_localized_datetime(command.modified))
-        self.open(
-            reverse(f"admin:{self.app_label}_batchcommand_change", args=[batch.pk])
-        )
-        self.hide_loading_overlay()
-        self.wait_for_visibility(By.CSS_SELECTOR, "#result_list")
-        self.assertEqual(
-            self.find_element(
-                by=By.CSS_SELECTOR,
-                value=f"#batch-command-row-{command.device_id} td:last-child",
-            ).text,
-            pushed,
-        )
-        self.assertEqual(self.get_browser_errors(), [])
-
-    def test_batch_command_reconnect_on_a_filtered_page(self):
-        org = self._get_org()
-        devices = self._create_devices(org, 3)
-        batch = self._create_batch_command(organization=org, label="filtered-batch")
-        commands = []
-        for index, device in enumerate(devices):
-            command = Command(
-                batch_command=batch,
-                device=device,
-                type="custom",
-                input={"command": "echo test"},
-            )
-            command.full_clean()
-            with patch.object(Command, "_schedule_command"):
-                command.save()
-            command.status = "failed" if index else "success"
-            command._save_without_resurrecting()
-            commands.append(command)
-        self.login()
-        url = "{}?status=failed".format(
-            reverse(f"admin:{self.app_label}_batchcommand_change", args=[batch.pk])
-        )
-        self.open(url)
-        self.hide_loading_overlay()
-        self.wait_for_visibility(By.CSS_SELECTOR, "#result_list tbody tr")
-        failed_names = sorted(command.device.name for command in commands[1:])
-        self.assertEqual(sorted(self._command_device_names()), failed_names)
-        self.assertEqual(
-            self.find_element(by=By.CSS_SELECTOR, value=".paginator").text,
-            "2 devices",
-        )
-        self.web_driver.execute_script(
-            "document.querySelector('#result_list tbody tr').remove();"
-        )
-        self.assertEqual(len(self._rows()), 1)
-        self.web_driver.execute_script("window.batchCommandWebSocket.refresh();")
-        WebDriverWait(self.web_driver, 10).until(
-            lambda driver: len(
-                driver.find_elements(By.CSS_SELECTOR, "#result_list tbody tr")
-            )
-            == 2
-        )
-        self.assertEqual(sorted(self._command_device_names()), failed_names)
-        self.assertEqual(
-            self.find_element(by=By.CSS_SELECTOR, value=".paginator").text,
-            "2 devices",
-        )
-        self.assertEqual(self.get_browser_errors(), [])
-
-    def test_batch_command_live_updates_on_a_filtered_page(self):
-        org = self._get_org()
-        devices = self._create_devices(org, 3)
-        batch = self._create_batch_command(organization=org, label="filtered-live")
-        commands = []
-        for index, device in enumerate(devices):
-            command = Command(
-                batch_command=batch,
-                device=device,
-                type="custom",
-                input={"command": "echo test"},
-            )
-            command.full_clean()
-            with patch.object(Command, "_schedule_command"):
-                command.save()
-            command.status = "failed" if index else "success"
-            command._save_without_resurrecting()
-            commands.append(command)
-        self.login()
-        self.open(
-            "{}?status=failed".format(
-                reverse(f"admin:{self.app_label}_batchcommand_change", args=[batch.pk])
-            )
-        )
-        self.hide_loading_overlay()
-        self.wait_for_visibility(By.CSS_SELECTOR, "#result_list tbody tr")
-        self.assertEqual(
-            sorted(self._command_device_names()),
-            sorted(command.device.name for command in commands[1:]),
-        )
-        commands[0].status = "failed"
-        commands[0]._save_without_resurrecting()
-        WebDriverWait(self.web_driver, 10).until(
-            lambda driver: len(self._device_rows()) == 3,
-            message="the command which started matching the filter was never added",
-        )
-        self.assertEqual(
-            sorted(self._command_device_names()),
-            sorted(command.device.name for command in commands),
-        )
-        commands[1].status = "success"
-        commands[1]._save_without_resurrecting()
-        WebDriverWait(self.web_driver, 10).until(
-            lambda driver: len(self._device_rows()) == 2,
-            message="the command which stopped matching the filter was never removed",
-        )
-        self.assertEqual(
-            sorted(self._command_device_names()),
-            sorted(command.device.name for command in [commands[0], commands[2]]),
-        )
-        self.assertEqual(self.get_browser_errors(), [])
-
-    def test_batch_command_organization_isolation_and_permissions(self):
-        org1 = self._get_org()
-        org2 = self._create_org(name="org2", slug="org2")
-        devices1 = self._create_devices(org1, 2)
-        self._create_devices(org2, 2)
-        group1 = self._create_device_group(name="group1", organization=org1)
-        group2 = self._create_device_group(name="group2", organization=org2)
-        location1 = self._create_location(name="location1", organization=org1)
-        location2 = self._create_location(name="location2", organization=org2)
-        batch1 = self._create_batch_command(organization=org1, label="managed-batch")
-        batch2 = self._create_batch_command(organization=org2, label="unmanaged-batch")
-        operator = self._create_operator(organizations=[org1])
-        self.login(username=operator.username, password="tester")
-
-        with self.subTest("the wizard only offers the managed organization"):
-            self.open(self.execute_url)
-            self._wait_for_url(self.execute_url)
-            self.hide_loading_overlay()
-            organization_options = self._select_options("id_organization")
-            self.assertEqual(organization_options, [org1.name])
-            self.assertNotIn(org2.name, organization_options)
-
-        with self.subTest("targets of other organizations are not offered"):
-            self._select2("id_organization", org1.name)
-            group_options = self._select_options("id_group")
-            location_options = self._select_options("id_location")
-            self.assertEqual(group_options, [group1.name])
-            self.assertEqual(location_options, [location1.name])
-            self.assertNotIn(group2.name, group_options)
-            self.assertNotIn(location2.name, location_options)
-
-        with self.subTest("the changelist hides other organizations"):
-            self.open(self.changelist_url)
-            self._wait_for_url(self.changelist_url)
-            self.hide_loading_overlay()
-            labels = [
-                row.find_element(By.CSS_SELECTOR, "th.field-label").text
-                for row in self._rows()
-            ]
-            self.assertEqual(labels, [batch1.label])
-            self.assertNotIn(batch2.label, labels)
-
-        with self.subTest("a batch of another organization cannot be opened"):
-            self.open(
-                reverse(f"admin:{self.app_label}_batchcommand_change", args=[batch2.pk])
-            )
-            self._wait_for_url(reverse("admin:index"))
-
-        with self.subTest("only the devices of the managed organization are targeted"):
-            self._fill_wizard(type="Reboot", label="isolated-reboot", organization=org1)
-            self.find_element(by=By.ID, value="review-command-btn").click()
-            self._wait_for_review_page()
-            summary = self._summary()
-            self.assertEqual(summary["Targets"], org1.name)
-            self.assertEqual(summary["Will run on"], "2 devices")
-            self.assertEqual(self._device_names(), [device.name for device in devices1])
-            self.find_element(by=By.ID, value="execute-button").click()
-            self._wait_for_batch_result("isolated-reboot", "failed", 2)
-            self.assertEqual(
-                sorted(self._command_device_names()),
-                sorted(device.name for device in devices1),
-            )
-            self.assertEqual(self._command_statuses(), ["failed"] * 2)
-
-        with self.subTest("the batch page of the operator is updated live"):
-            command = Command.objects.filter(
-                batch_command__label="isolated-reboot"
-            ).first()
-            command.status = "success"
-            command.output = "operator output"
-            command._save_without_resurrecting()
-            WebDriverWait(self.web_driver, 10).until(
-                lambda driver: sorted(self._command_statuses())
-                == ["failed", "success"],
-                message="the command update was never pushed to the page",
-            )
-            self.assertEqual(
-                self.find_element(
-                    by=By.CSS_SELECTOR, value="#result_list .command-output pre"
-                ).text,
-                "operator output",
-            )
-
-        with self.subTest("the operator can exclude a device from the run"):
-            self._fill_wizard(type="Reboot", label="excluded-reboot", organization=org1)
-            self.find_element(by=By.ID, value="review-command-btn").click()
-            self._wait_for_review_page()
-            checkbox = self.find_element(
-                by=By.CSS_SELECTOR, value="#result_list tbody .device-checkbox"
-            )
-            excluded_pk = checkbox.get_attribute("value")
-            checkbox.click()
-            self.assertEqual(
-                self.find_element(by=By.ID, value="selected-count").text, "1"
-            )
-            self.find_element(by=By.ID, value="execute-button").click()
-            self._wait_for_batch_result("excluded-reboot", "failed", 1)
-            self.assertNotIn(
-                excluded_pk,
-                [row.get_attribute("data-device-pk") for row in self._rows()],
-            )
-
-        with self.subTest("the add permission is checked again on the review page"):
-            self._fill_wizard(type="Reboot", label="revoked-reboot", organization=org1)
-            self.find_element(by=By.ID, value="review-command-btn").click()
-            self._wait_for_review_page()
-            operator.groups.clear()
-            self.find_element(by=By.ID, value="execute-button").click()
-            self.assertEqual(
-                self.find_element(by=By.TAG_NAME, value="body").text,
-                "403 Forbidden",
-            )
-            self.assertFalse(
-                BatchCommand.objects.filter(label="revoked-reboot").exists()
-            )
-
-        with self.subTest("the view permission is not enough to execute"):
-            viewer = self._create_user_with_permissions(
-                org1, "viewer", ["view_batchcommand"]
-            )
-            self.web_driver.delete_all_cookies()
-            self.login(username=viewer.username, password="tester")
-            self.web_driver.get(f"{self.live_server_url}{self.execute_url}")
-            self.assertEqual(
-                self.find_element(by=By.TAG_NAME, value="body").text,
-                "403 Forbidden",
-            )
-            confirm_url = reverse(
-                f"admin:{self.app_label}_batchcommand_confirm", args=[uuid4().hex]
-            )
-            self.web_driver.get(f"{self.live_server_url}{confirm_url}")
-            self.assertEqual(
-                self.find_element(by=By.TAG_NAME, value="body").text,
-                "403 Forbidden",
-            )
-
     def test_batch_command_menu_search_and_filters(self):
         """Covers reaching the wizard and the changelist from the menu, and
         the searches and filters of both result tables: the batch changelist
@@ -1918,3 +1577,352 @@ class TestBatchCommandAdmin(
             self._wait_for_url(self.changelist_url)
             self.assertEqual(self._changelist_labels(), ["org2-batch"])
             self.assertNotIn("UCI show", self._filter_options("type"))
+
+
+@tag("selenium_tests")
+class TestBatchCommandLiveUpdates(BatchCommandAdminMixin, ChannelsLiveServerTestCase):
+    """Tests the live updates of the mass command page over the websocket."""
+
+    def _wait_for_update(self, condition, message=None):
+        """Waits for a live update, retrying while the page replaces the rows."""
+        return WebDriverWait(
+            self.web_driver, 10, ignored_exceptions=(StaleElementReferenceException,)
+        ).until(condition, message=message)
+
+    def test_batch_command_live_updates(self):
+        """Rows, counters, output and status update over the websocket.
+
+        The page is opened while the batch is still running and is never
+        reloaded: every assertion below is satisfied only if batch-command.js
+        applies the pushed updates to the DOM.
+        """
+        org = self._get_org()
+        device, second_device = self._create_devices(org, 2)
+        batch = self._create_batch_command(organization=org, label="live-batch")
+        batch.status = "in-progress"
+        batch.save(update_fields=["status"])
+        self.login()
+        self.open(
+            reverse(f"admin:{self.app_label}_batchcommand_change", args=[batch.pk])
+        )
+        self.hide_loading_overlay()
+        self.wait_for_visibility(By.CSS_SELECTOR, "#result_list")
+        self.assertEqual(self._device_rows(), [])
+
+        with patch.object(Command, "_schedule_command"):
+            command = Command.objects.create(
+                batch_command=batch,
+                device=device,
+                type="custom",
+                input={"command": "echo test"},
+            )
+
+        self._wait_for_update(
+            lambda driver: self._command_device_names() == [device.name],
+            message="the created command was never pushed to the page",
+        )
+        self.assertEqual(self._command_statuses(), ["in progress"])
+        self.assertEqual(
+            self.find_element(
+                by=By.CSS_SELECTOR, value=".field-affected_devices .readonly"
+            ).text,
+            "1",
+        )
+        command.status = "success"
+        command.output = "live output"
+        command._save_without_resurrecting()
+
+        self._wait_for_update(
+            lambda driver: self._command_statuses() == ["success"],
+            message="the completed command was never pushed to the page",
+        )
+        self.assertEqual(
+            self.find_element(
+                by=By.CSS_SELECTOR, value="#result_list .command-output pre"
+            ).text,
+            "live output",
+        )
+        self._wait_for_update(
+            lambda driver: self.find_element(
+                by=By.CSS_SELECTOR, value=".field-colored_status .command-status"
+            ).text
+            == "success",
+            message="the batch status was never pushed to the page",
+        )
+
+        with patch.object(Command, "_schedule_command"):
+            Command.objects.create(
+                batch_command=batch,
+                device=second_device,
+                type="custom",
+                input={"command": "echo test"},
+            )
+
+        self._wait_for_update(
+            lambda driver: sorted(self._command_device_names())
+            == sorted([device.name, second_device.name]),
+            message="the second command was never pushed to the page",
+        )
+        self.assertEqual(
+            self.find_element(
+                by=By.CSS_SELECTOR, value=".results-container .paginator"
+            ).text,
+            "2 devices",
+        )
+
+        command.refresh_from_db()
+        pushed = self.find_element(
+            by=By.CSS_SELECTOR,
+            value=f"#batch-command-row-{command.device_id} td:last-child",
+        ).text
+        self.assertEqual(pushed, format_localized_datetime(command.modified))
+        self.open(
+            reverse(f"admin:{self.app_label}_batchcommand_change", args=[batch.pk])
+        )
+        self.hide_loading_overlay()
+        self.wait_for_visibility(By.CSS_SELECTOR, "#result_list")
+        self.assertEqual(
+            self.find_element(
+                by=By.CSS_SELECTOR,
+                value=f"#batch-command-row-{command.device_id} td:last-child",
+            ).text,
+            pushed,
+        )
+        self.assertEqual(self.get_browser_errors(), [])
+
+    def test_batch_command_reconnect_on_a_filtered_page(self):
+        org = self._get_org()
+        devices = self._create_devices(org, 3)
+        batch = self._create_batch_command(organization=org, label="filtered-batch")
+        commands = []
+        for index, device in enumerate(devices):
+            command = Command(
+                batch_command=batch,
+                device=device,
+                type="custom",
+                input={"command": "echo test"},
+            )
+            command.full_clean()
+            with patch.object(Command, "_schedule_command"):
+                command.save()
+            command.status = "failed" if index else "success"
+            command._save_without_resurrecting()
+            commands.append(command)
+        self.login()
+        url = "{}?status=failed".format(
+            reverse(f"admin:{self.app_label}_batchcommand_change", args=[batch.pk])
+        )
+        self.open(url)
+        self.hide_loading_overlay()
+        self.wait_for_visibility(By.CSS_SELECTOR, "#result_list tbody tr")
+        failed_names = sorted(command.device.name for command in commands[1:])
+        self.assertEqual(sorted(self._command_device_names()), failed_names)
+        self.assertEqual(
+            self.find_element(by=By.CSS_SELECTOR, value=".paginator").text,
+            "2 devices",
+        )
+        self.web_driver.execute_script(
+            "document.querySelector('#result_list tbody tr').remove();"
+        )
+        self.assertEqual(len(self._rows()), 1)
+        self.web_driver.execute_script("window.batchCommandWebSocket.refresh();")
+        self._wait_for_update(
+            lambda driver: len(
+                driver.find_elements(By.CSS_SELECTOR, "#result_list tbody tr")
+            )
+            == 2
+        )
+        self.assertEqual(sorted(self._command_device_names()), failed_names)
+        self.assertEqual(
+            self.find_element(by=By.CSS_SELECTOR, value=".paginator").text,
+            "2 devices",
+        )
+        self.assertEqual(self.get_browser_errors(), [])
+
+    def test_batch_command_live_updates_on_a_filtered_page(self):
+        org = self._get_org()
+        devices = self._create_devices(org, 3)
+        batch = self._create_batch_command(organization=org, label="filtered-live")
+        commands = []
+        for index, device in enumerate(devices):
+            command = Command(
+                batch_command=batch,
+                device=device,
+                type="custom",
+                input={"command": "echo test"},
+            )
+            command.full_clean()
+            with patch.object(Command, "_schedule_command"):
+                command.save()
+            command.status = "failed" if index else "success"
+            command._save_without_resurrecting()
+            commands.append(command)
+        self.login()
+        self.open(
+            "{}?status=failed".format(
+                reverse(f"admin:{self.app_label}_batchcommand_change", args=[batch.pk])
+            )
+        )
+        self.hide_loading_overlay()
+        self.wait_for_visibility(By.CSS_SELECTOR, "#result_list tbody tr")
+        self.assertEqual(
+            sorted(self._command_device_names()),
+            sorted(command.device.name for command in commands[1:]),
+        )
+        commands[0].status = "failed"
+        commands[0]._save_without_resurrecting()
+        self._wait_for_update(
+            lambda driver: len(self._device_rows()) == 3,
+            message="the command which started matching the filter was never added",
+        )
+        self.assertEqual(
+            sorted(self._command_device_names()),
+            sorted(command.device.name for command in commands),
+        )
+        commands[1].status = "success"
+        commands[1]._save_without_resurrecting()
+        self._wait_for_update(
+            lambda driver: len(self._device_rows()) == 2,
+            message="the command which stopped matching the filter was never removed",
+        )
+        self.assertEqual(
+            sorted(self._command_device_names()),
+            sorted(command.device.name for command in [commands[0], commands[2]]),
+        )
+        self.assertEqual(self.get_browser_errors(), [])
+
+    def test_batch_command_organization_isolation_and_permissions(self):
+        org1 = self._get_org()
+        org2 = self._create_org(name="org2", slug="org2")
+        devices1 = self._create_devices(org1, 2)
+        self._create_devices(org2, 2)
+        group1 = self._create_device_group(name="group1", organization=org1)
+        group2 = self._create_device_group(name="group2", organization=org2)
+        location1 = self._create_location(name="location1", organization=org1)
+        location2 = self._create_location(name="location2", organization=org2)
+        batch1 = self._create_batch_command(organization=org1, label="managed-batch")
+        batch2 = self._create_batch_command(organization=org2, label="unmanaged-batch")
+        operator = self._create_operator(organizations=[org1])
+        self.login(username=operator.username, password="tester")
+
+        with self.subTest("the wizard only offers the managed organization"):
+            self.open(self.execute_url)
+            self._wait_for_url(self.execute_url)
+            self.hide_loading_overlay()
+            organization_options = self._select_options("id_organization")
+            self.assertEqual(organization_options, [org1.name])
+            self.assertNotIn(org2.name, organization_options)
+
+        with self.subTest("targets of other organizations are not offered"):
+            self._select2("id_organization", org1.name)
+            group_options = self._select_options("id_group")
+            location_options = self._select_options("id_location")
+            self.assertEqual(group_options, [group1.name])
+            self.assertEqual(location_options, [location1.name])
+            self.assertNotIn(group2.name, group_options)
+            self.assertNotIn(location2.name, location_options)
+
+        with self.subTest("the changelist hides other organizations"):
+            self.open(self.changelist_url)
+            self._wait_for_url(self.changelist_url)
+            self.hide_loading_overlay()
+            labels = [
+                row.find_element(By.CSS_SELECTOR, "th.field-label").text
+                for row in self._rows()
+            ]
+            self.assertEqual(labels, [batch1.label])
+            self.assertNotIn(batch2.label, labels)
+
+        with self.subTest("a batch of another organization cannot be opened"):
+            self.open(
+                reverse(f"admin:{self.app_label}_batchcommand_change", args=[batch2.pk])
+            )
+            self._wait_for_url(reverse("admin:index"))
+
+        with self.subTest("only the devices of the managed organization are targeted"):
+            self._fill_wizard(type="Reboot", label="isolated-reboot", organization=org1)
+            self.find_element(by=By.ID, value="review-command-btn").click()
+            self._wait_for_review_page()
+            summary = self._summary()
+            self.assertEqual(summary["Targets"], org1.name)
+            self.assertEqual(summary["Will run on"], "2 devices")
+            self.assertEqual(self._device_names(), [device.name for device in devices1])
+            self.find_element(by=By.ID, value="execute-button").click()
+            self._wait_for_batch_result("isolated-reboot", "failed", 2)
+            self.assertEqual(
+                sorted(self._command_device_names()),
+                sorted(device.name for device in devices1),
+            )
+            self.assertEqual(self._command_statuses(), ["failed"] * 2)
+
+        with self.subTest("the batch page of the operator is updated live"):
+            command = Command.objects.filter(
+                batch_command__label="isolated-reboot"
+            ).first()
+            command.status = "success"
+            command.output = "operator output"
+            command._save_without_resurrecting()
+            self._wait_for_update(
+                lambda driver: sorted(self._command_statuses())
+                == ["failed", "success"],
+                message="the command update was never pushed to the page",
+            )
+            self.assertEqual(
+                self.find_element(
+                    by=By.CSS_SELECTOR, value="#result_list .command-output pre"
+                ).text,
+                "operator output",
+            )
+
+        with self.subTest("the operator can exclude a device from the run"):
+            self._fill_wizard(type="Reboot", label="excluded-reboot", organization=org1)
+            self.find_element(by=By.ID, value="review-command-btn").click()
+            self._wait_for_review_page()
+            checkbox = self.find_element(
+                by=By.CSS_SELECTOR, value="#result_list tbody .device-checkbox"
+            )
+            excluded_pk = checkbox.get_attribute("value")
+            checkbox.click()
+            self.assertEqual(
+                self.find_element(by=By.ID, value="selected-count").text, "1"
+            )
+            self.find_element(by=By.ID, value="execute-button").click()
+            self._wait_for_batch_result("excluded-reboot", "failed", 1)
+            self.assertNotIn(
+                excluded_pk,
+                [row.get_attribute("data-device-pk") for row in self._rows()],
+            )
+
+        with self.subTest("the add permission is checked again on the review page"):
+            self._fill_wizard(type="Reboot", label="revoked-reboot", organization=org1)
+            self.find_element(by=By.ID, value="review-command-btn").click()
+            self._wait_for_review_page()
+            operator.groups.clear()
+            self.find_element(by=By.ID, value="execute-button").click()
+            self.assertEqual(
+                self.find_element(by=By.TAG_NAME, value="body").text,
+                "403 Forbidden",
+            )
+            self.assertFalse(
+                BatchCommand.objects.filter(label="revoked-reboot").exists()
+            )
+
+        with self.subTest("the view permission is not enough to execute"):
+            viewer = self._create_user_with_permissions(
+                org1, "viewer", ["view_batchcommand"]
+            )
+            self.web_driver.delete_all_cookies()
+            self.login(username=viewer.username, password="tester")
+            self.web_driver.get(f"{self.live_server_url}{self.execute_url}")
+            self.assertEqual(
+                self.find_element(by=By.TAG_NAME, value="body").text,
+                "403 Forbidden",
+            )
+            confirm_url = reverse(
+                f"admin:{self.app_label}_batchcommand_confirm", args=[uuid4().hex]
+            )
+            self.web_driver.get(f"{self.live_server_url}{confirm_url}")
+            self.assertEqual(
+                self.find_element(by=By.TAG_NAME, value="body").text,
+                "403 Forbidden",
+            )
