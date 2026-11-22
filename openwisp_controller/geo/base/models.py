@@ -73,11 +73,11 @@ class BaseLocation(OrgMixin, AbstractLocation):
 
     def save(
         self,
-        *,
         force_insert=False,
         force_update=False,
         using=None,
         update_fields=None,
+        *,
         _set_estimated=False,
     ):
         changed_fields = set()

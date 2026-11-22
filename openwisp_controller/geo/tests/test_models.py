@@ -94,3 +94,16 @@ class TestModels(TestGeoMixin, BaseTestModels, TestCase):
         floorplan.refresh_from_db()
         self.assertEqual(location.organization_id, original_org)
         self.assertEqual(floorplan.organization_id, original_org)
+
+    def test_location_positional_organization_save(self):
+        location = self._create_location(type="indoor")
+        floorplan = self._create_floorplan(location=location)
+        organization = self._create_organization(name="second")
+        location.organization = organization
+        with patch("django.db.router.db_for_write") as db:
+            location.save(False, False, connection.alias, iter(["organization"]))
+        db.assert_not_called()
+        location.refresh_from_db()
+        floorplan.refresh_from_db()
+        self.assertEqual(location.organization_id, organization.pk)
+        self.assertEqual(floorplan.organization_id, organization.pk)
