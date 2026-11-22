@@ -3,6 +3,7 @@ from unittest import mock
 from unittest.mock import PropertyMock
 from uuid import uuid4
 
+import django
 import paramiko
 from django.contrib.auth.models import ContentType
 from django.core.exceptions import ValidationError
@@ -782,13 +783,56 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
             connect_mocked.assert_called_once()
             mocked_exec_command.assert_called_once()
             mocked_exec_command.assert_called_with(
-                'echo -e "Newpasswd@123\nNewpasswd@123" | passwd root',
+                "printf '%s\\n%s\\n' Newpasswd@123 Newpasswd@123 | passwd root",
                 timeout=app_settings.SSH_COMMAND_TIMEOUT,
             )
         command.refresh_from_db()
         self.assertEqual(command.status, "success")
         self.assertEqual(command.output, "Changed password for user root.\n")
         self.assertEqual(list(command.arguments), ["********"])
+
+    @mock.patch(_connect_path)
+    def test_execute_change_password_shell_metacharacters(self, connect_mocked):
+        dc = self._create_device_connection()
+
+        def _assert_quoted(password, expected):
+            command = Command(
+                device=dc.device,
+                connection=dc,
+                type="change_password",
+                input={"password": password, "confirm_password": password},
+            )
+            command.full_clean()
+            with mock.patch(_exec_command_path) as mocked_exec_command:
+                mocked_exec_command.return_value = self._exec_command_return_value(
+                    stdout="Changed password for user root."
+                )
+                command.save()
+                command.execute()
+                mocked_exec_command.assert_called_once_with(
+                    f"printf '%s\\n%s\\n' {expected} {expected} | passwd root",
+                    timeout=app_settings.SSH_COMMAND_TIMEOUT,
+                )
+            command.refresh_from_db()
+            self.assertEqual(command.status, "success")
+
+        with self.subTest("safe password left unquoted"):
+            _assert_quoted("N3w-p@ss.word", "N3w-p@ss.word")
+
+        with self.subTest("double quote breakout"):
+            _assert_quoted(
+                'x"; touch /tmp/PWNED; echo "',
+                "'x\"; touch /tmp/PWNED; echo \"'",
+            )
+
+        with self.subTest("command substitution"):
+            _assert_quoted("$(touch /tmp/PWNED)", "'$(touch /tmp/PWNED)'")
+
+        with self.subTest("single quote breakout"):
+            _assert_quoted("x'; touch /tmp/PWNED", "'x'\"'\"'; touch /tmp/PWNED'")
+
+        with self.subTest("backslash kept literal"):
+            _assert_quoted("New\\pass123", "'New\\pass123'")
 
     @mock.patch(_connect_path)
     @mock.patch.dict(
@@ -1268,12 +1312,14 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
                 organization=org, name="device3", mac_address="33:33:33:33:33:33"
             )
         )
-        with self.assertNumQueries(32):
+        # for Django <= 5.2, which runs each batch in an extra transaction
+        is_django_5 = django.VERSION < (6, 0)
+        with self.assertNumQueries(32 if is_django_5 else 30):
             credential = self._create_credentials(auto_add=True, organization=org)
         self.assertEqual(credential.deviceconnection_set.count(), 3)
 
         with mock.patch.object(Credentials, "chunk_size", 2):
-            with self.assertNumQueries(35):
+            with self.assertNumQueries(35 if is_django_5 else 31):
                 credential = self._create_credentials(
                     name="Mocked Credential", auto_add=True, organization=org
                 )

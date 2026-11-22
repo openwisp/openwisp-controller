@@ -1,4 +1,5 @@
 import logging
+from shlex import quote
 
 from packaging import version
 
@@ -47,7 +48,8 @@ class OpenWrt(Ssh):
 
     def change_password(self, password, confirm_password, user="root"):
         return self.exec_command(
-            f'echo -e "{password}\n{confirm_password}" | passwd {user}'
+            f"printf '%s\\n%s\\n' {quote(password)} {quote(confirm_password)} "
+            f"| passwd {quote(user)}"
         )
 
 

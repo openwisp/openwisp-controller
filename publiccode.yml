@@ -39,7 +39,7 @@ localisation:
 dependsOn:
   open:
     - name: Python
-      versionMin: "3.10"
+      versionMin: "3.11"
     - name: Django
     - name: OpenSSL
     - name: Redis
