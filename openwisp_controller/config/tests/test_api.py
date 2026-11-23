@@ -1587,15 +1587,16 @@ class TestConfigApi(
             response = self.client.get(path4)
             self.assertEqual(response.status_code, 403)
 
+        member = self._create_administrator(
+            organizations=[org1],
+            username="administrator2",
+            email="administrator2@test.com",
+        )
+
         with self.subTest("Test non-admin member of org with settings"):
             org5 = self._create_org(name="org5", slug="org5")
             settings5 = OrganizationConfigSettings.objects.create(
                 organization=org5, registration_enabled=True
-            )
-            member = self._create_administrator(
-                organizations=[org1],
-                username="administrator2",
-                email="administrator2@test.com",
             )
             self._create_org_user(user=member, organization=org5, is_admin=False)
             self.client.force_login(member)
@@ -1616,6 +1617,7 @@ class TestConfigApi(
         with self.subTest("Test non-admin member of org without settings"):
             org6 = self._create_org(name="org6", slug="org6")
             self._create_org_user(user=member, organization=org6, is_admin=False)
+            self.client.force_login(member)
             path6 = reverse("config_api:organization_config_settings", args=[org6.pk])
             response = self.client.patch(
                 path6,
