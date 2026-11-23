@@ -2346,10 +2346,12 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
             command.refresh_from_db()
             self.assertEqual(command.status, "failed")
             self.assertIn(
-                f'The device was moved out of "{org.name}", the organization of'
-                f' the mass command "{batch.label}", so the command was not run.',
+                "The device was moved to another organization, so the command"
+                " was not run.",
                 command.output,
             )
+            self.assertNotIn(org.name, command.output)
+            self.assertNotIn(batch.label, command.output)
 
     def test_batch_command_permissions(self):
         ct = ContentType.objects.get_by_natural_key(

@@ -200,11 +200,36 @@ class TestCommandInlines(TestAdminMixin, CreateConnectionsMixin, TestCase):
             self.assertContains(
                 response, f'<a href="{batch_url}">nightly reboot</a>', html=True
             )
+        with self.subTest("a mass command of another organization is not shown"):
+            org2 = self._create_org(name="org2", slug="org2")
+            self.device.organization = org2
+            self.device.save(update_fields=["organization"])
+            self.client.force_login(self._create_operator(organizations=[org2]))
+            response = self.client.get(url)
+            self.assertContains(response, "Recent Commands")
+            self.assertNotContains(response, "nightly reboot")
+            self.assertNotContains(response, batch_url)
+            self.client.force_login(self.admin)
         Command.objects.all().delete()
         with self.subTest("a command sent to the device alone has no link"):
             self._create_custom_command()
             response = self.client.get(url)
             self.assertNotContains(response, batch_url)
+
+    def test_command_inline_hides_pending_password(self):
+        url = reverse(
+            f"admin:{self.config_app_label}_device_change", args=(self.device.id,)
+        )
+        with patch.object(Command, "_schedule_command"):
+            Command.objects.create(
+                type="change_password",
+                input={"password": "S3cretPass", "confirm_password": "S3cretPass"},
+                device=self.device,
+                connection=self.device_connection,
+            )
+        response = self.client.get(url)
+        self.assertContains(response, "********")
+        self.assertNotContains(response, "S3cretPass")
 
     def test_command_inline_output_loading_overlay(self):
         url = reverse(

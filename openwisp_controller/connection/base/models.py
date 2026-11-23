@@ -628,16 +628,13 @@ class AbstractCommand(TimeStampedEditableModel):
             and self.batch_command.organization_id != self.device.organization_id
         ):
             self.status = "failed"
+            # the output is shown to the new organization of the device, so
+            # it does not name the previous one or its mass command
             self._add_output(
                 gettext(
-                    'The device was moved out of "%(organization)s", the'
-                    ' organization of the mass command "%(label)s", so the'
+                    "The device was moved to another organization, so the"
                     " command was not run."
                 )
-                % {
-                    "organization": self.batch_command.organization,
-                    "label": self.batch_command.label,
-                }
             )
             logger.warning(
                 "Not executing command %s of batch %s: device %s belongs to"

@@ -11,7 +11,7 @@ from django.contrib import admin, messages
 from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
-from django.db.models import Count
+from django.db.models import Count, Prefetch
 from django.http import (
     HttpResponseForbidden,
     HttpResponseNotAllowed,
@@ -361,12 +361,23 @@ class CommandInline(admin.StackedInline):
                 device_id=resolved.kwargs["object_id"], created__gte=seven_days
             ).order_by("-created")
         if select_related:
+            # a device moved to another organization keeps the commands of
+            # the mass commands of the previous one, which are shown only
+            # to the users who can see them
+            batches = BatchCommand.objects.all()
+            if not request.user.is_superuser:
+                batches = batches.filter(
+                    organization_id__in=request.user.organizations_managed
+                )
             qs = qs.select_related("device__organization").prefetch_related(
-                "batch_command"
+                Prefetch("batch_command", queryset=batches)
             )
         return qs
 
     def input_data(self, obj):
+        # the password stays in the input until the command is executed
+        if obj.type == "change_password":
+            return "********"
         return obj.input_data
 
     def output_data(self, obj):
