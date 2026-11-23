@@ -6,6 +6,33 @@ Version 1.4.0 [unreleased]
 
 Work in progress.
 
+Version 1.3.3 [2026-11-12]
+--------------------------
+
+Changes
+~~~~~~~
+
+Dependencies
+++++++++++++
+
+- Bumped ``django-import-export`` from ``~=4.4.1`` to ``~=4.4.3``.
+- Bumped ``django-x509`` from ``~=1.4.0`` to ``~=1.4.2``.
+
+Bugfixes
+~~~~~~~~
+
+- Prevented renewing revoked X.509 certificates `#1467
+  <https://github.com/openwisp/openwisp-controller/issues/1467>`_
+- Prevented repeated GeoLite quota errors `#1550
+  <https://github.com/openwisp/openwisp-controller/issues/1550>`_
+
+  Cached quota errors for six hours and scheduled retries with bounded
+  delays and jitter. Reused fresh WHOIS data from a device's previous
+  subnet without resetting its refresh age.
+
+  During cooldown, displayed approximate WHOIS data from matching subnets
+  while retrying. Approximate data is excluded from estimated locations.
+
 Version 1.3.2 [2026-10-23]
 --------------------------
 
