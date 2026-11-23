@@ -17,6 +17,11 @@ BatchCommand = load_model("connection", "BatchCommand")
 
 class CommandConsumer(BaseDeviceConsumer):
     def send_update(self, event):
+        # the device can be moved to another organization after the socket
+        # was accepted
+        if not self.scope["user"].is_superuser and not self._user_manages_object():
+            self.close()
+            return
         data = deepcopy(event)
         data.pop("type")
         self.send(json.dumps(data))
@@ -67,12 +72,7 @@ class BatchCommandConsumer(BaseDeviceConsumer):
             for action in ("view", "change")
         ):
             return False
-        organization_id = (
-            self.model.objects.filter(pk=self.scope["url_route"]["kwargs"]["pk"])
-            .values_list("organization_id", flat=True)
-            .first()
-        )
-        return bool(organization_id) and user.is_manager(str(organization_id))
+        return self._user_manages_object()
 
     def receive(self, text_data=None, bytes_data=None):
         if text_data is None:

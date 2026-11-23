@@ -1214,6 +1214,11 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
             )
 
         with self.subTest("counts include skipped devices"):
+            batch.skipped_devices = {
+                str(uuid4()): {"name": f"device{index}", "error": f"error {index}"}
+                for index in range(11)
+            }
+            batch.save(update_fields=["skipped_devices"])
             device = self._create_device(organization=org)
             self._create_config(device=device)
             dc = self._create_device_connection(device=device)
@@ -1355,31 +1360,35 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
         self._create_config(device=device)
         self._create_device_connection(device=device)
 
-        with self.subTest("deactivating device does not block create_commands"):
+        def set_deactivated(status):
             device._is_deactivated = True
             device.save(update_fields=["_is_deactivated"])
-            device.config.set_status_deactivating()
-            device = Device.objects.get(pk=device.pk)
-            batch = self._create_batch_command(organization=org)
-            batch.devices.add(device)
-            batch.create_commands()
-            self.assertEqual(batch.batch_commands.count(), 1)
-            self.assertEqual(batch.skipped_devices, {})
+            getattr(device.config, f"set_status_{status}")()
+            return Device.objects.get(pk=device.pk)
 
-        with self.subTest("fully deactivated device skipped in create_commands"):
-            device.config.set_status_deactivated()
-            device = Device.objects.get(pk=device.pk)
-            batch = self._create_batch_command(organization=org)
-            batch.devices.add(device)
-            with self.assertLogs(LOGGER_NAME, level="WARNING") as logs:
-                batch.create_commands()
-            self.assertIn("Skipping device", logs.output[0])
-            self.assertEqual(batch.batch_commands.count(), 0)
-            self.assertIn(str(device.pk), batch.skipped_devices)
-            self.assertIn(
-                "Device is deactivated",
-                batch.skipped_devices[str(device.pk)]["error"],
-            )
+        with self.subTest("a device deactivated before its command runs"):
+            batch = self._create_batch_command(organization=org, devices=[device])
+            batch.create_commands()
+            command = batch.batch_commands.get()
+            set_deactivated("deactivating")
+            command = Command.objects.get(pk=command.pk)
+            command.execute()
+            command.refresh_from_db()
+            self.assertEqual(command.status, "failed")
+            self.assertIn("Device is deactivated.", command.output)
+
+        for status in ("deactivating", "deactivated"):
+            with self.subTest(f"{status} device skipped in create_commands"):
+                set_deactivated(status)
+                batch = self._create_batch_command(organization=org, devices=[device])
+                with self.assertLogs(LOGGER_NAME, level="WARNING") as logs:
+                    batch.create_commands()
+                self.assertIn("Skipping device", logs.output[0])
+                self.assertEqual(batch.batch_commands.count(), 0)
+                self.assertIn(
+                    "Device is deactivated",
+                    batch.skipped_devices[str(device.pk)]["error"],
+                )
 
     def test_batch_command_create_commands_no_credentials(self):
         org = self._get_org()
@@ -1402,22 +1411,22 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
     def test_batch_command_create_commands_skip_scenarios(self):
         org = self._get_org()
         org2 = self._create_org(name="org2", slug="org2")
+        device_a = self._create_device(
+            name="device-a",
+            mac_address="00:11:22:33:44:aa",
+            organization=org,
+        )
+        self._create_config(device=device_a)
+        self._create_device_connection(device=device_a)
+        device_b = self._create_device(
+            name="device-b",
+            mac_address="00:11:22:33:44:bb",
+            organization=org2,
+        )
+        self._create_config(device=device_b)
+        self._create_device_connection(device=device_b)
 
         with self.subTest("device moved out of the organization"):
-            device_a = self._create_device(
-                name="device-a",
-                mac_address="00:11:22:33:44:aa",
-                organization=org,
-            )
-            self._create_config(device=device_a)
-            self._create_device_connection(device=device_a)
-            device_b = self._create_device(
-                name="device-b",
-                mac_address="00:11:22:33:44:bb",
-                organization=org2,
-            )
-            self._create_config(device=device_b)
-            self._create_device_connection(device=device_b)
             batch = self._create_batch_command(
                 organization=org,
                 devices=[device_a, device_b],
@@ -1543,6 +1552,22 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
             mac_address="00:11:22:33:44:02",
             organization=org,
         )
+        device3 = self._create_device(
+            name="device3",
+            mac_address="00:11:22:33:44:03",
+            organization=org,
+        )
+        group = DeviceGroup.objects.create(name="test-group", organization=org)
+        location = Location.objects.create(
+            name="test-location",
+            type="indoor",
+            organization=org,
+        )
+        for device in (device1, device3):
+            device.group = group
+            device.save()
+        for device in (device2, device3):
+            DeviceLocation.objects.create(content_object=device, location=location)
 
         with self.subTest("explicit devices via M2M"):
             batch = self._create_batch_command(
@@ -1553,41 +1578,19 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
 
         with self.subTest("organization-scoped (no explicit devices)"):
             batch = BatchCommand(organization=org)
-            resolved = list(batch.resolve_devices())
-            self.assertIn(device1, resolved)
-            self.assertIn(device2, resolved)
+            self.assertCountEqual(batch.resolve_devices(), [device1, device2, device3])
 
         with self.subTest("group filtering"):
-            group = DeviceGroup.objects.create(name="test-group", organization=org)
-            device1.group = group
-            device1.save()
             batch = BatchCommand(organization=org, group=group)
-            resolved = list(batch.resolve_devices())
-            self.assertIn(device1, resolved)
-            self.assertNotIn(device2, resolved)
+            self.assertCountEqual(batch.resolve_devices(), [device1, device3])
 
         with self.subTest("location filtering"):
-            location = Location.objects.create(
-                name="test-location",
-                type="indoor",
-                organization=org,
-            )
-            DeviceLocation.objects.create(content_object=device2, location=location)
             batch = BatchCommand(organization=org, location=location)
-            resolved = list(batch.resolve_devices())
-            self.assertIn(device2, resolved)
-            self.assertNotIn(device1, resolved)
+            self.assertCountEqual(batch.resolve_devices(), [device2, device3])
 
         with self.subTest("group and location combined"):
-            DeviceLocation.objects.create(content_object=device1, location=location)
-            batch = BatchCommand(
-                organization=org,
-                group=device1.group,
-                location=location,
-            )
-            resolved = list(batch.resolve_devices())
-            self.assertIn(device1, resolved)
-            self.assertNotIn(device2, resolved)
+            batch = BatchCommand(organization=org, group=group, location=location)
+            self.assertCountEqual(batch.resolve_devices(), [device3])
 
         with self.subTest("no devices match"):
             empty_group = DeviceGroup.objects.create(
@@ -1672,6 +1675,15 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
         org = self._get_org()
         device = self._create_device(organization=org)
         self._create_config(device=device)
+        group = DeviceGroup.objects.create(name="dry-run-group", organization=org)
+        device.group = group
+        device.save()
+        location = Location.objects.create(
+            name="dry-run-loc",
+            type="indoor",
+            organization=org,
+        )
+        DeviceLocation.objects.create(content_object=device, location=location)
 
         with self.subTest("dry_run with type"):
             result = BatchCommand.dry_run(
@@ -1695,9 +1707,6 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
             self.assertEqual(result["devices"], [device])
 
         with self.subTest("dry_run with group"):
-            group = DeviceGroup.objects.create(name="dry-run-group", organization=org)
-            device.group = group
-            device.save()
             result = BatchCommand.dry_run(
                 organization=org,
                 type="custom",
@@ -1708,12 +1717,6 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
             self.assertIn(device, result["devices"])
 
         with self.subTest("dry_run with location"):
-            location = Location.objects.create(
-                name="dry-run-loc",
-                type="indoor",
-                organization=org,
-            )
-            DeviceLocation.objects.create(content_object=device, location=location)
             result = BatchCommand.dry_run(
                 organization=org,
                 type="custom",
@@ -1863,6 +1866,10 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
         )
         self._create_config(device=device_org2)
         self._create_device_connection(device=device_org2)
+        device_org1 = self._create_device(
+            name="exec-mm-dev-org1",
+            mac_address="00:11:22:33:44:97",
+        )
 
         with self.subTest("device org mismatch"):
             with self.assertRaises(ValidationError) as ctx:
@@ -1880,10 +1887,6 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
             )
 
         with self.subTest("devices of different organizations without organization"):
-            device_org1 = self._create_device(
-                name="exec-mm-dev-org1",
-                mac_address="00:11:22:33:44:97",
-            )
             with self.assertRaises(ValidationError) as ctx:
                 BatchCommand.execute(
                     type="custom",
@@ -2271,6 +2274,27 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
                     Command.objects.create(**command_opts)
             log.assert_called_once()
             schedule_command.assert_called_once()
+
+        with self.subTest("a failing mass command update does not stop the command"):
+            schedule_command.reset_mock()
+            with mock.patch.object(
+                BatchCommand, "get_command_row_position", side_effect=KeyError
+            ):
+                with mock.patch.object(handlers.logger, "exception") as log:
+                    Command.objects.create(**command_opts)
+            log.assert_called_once()
+            schedule_command.assert_called_once()
+
+        with self.subTest("a failing mass command update does not stop its save"):
+            batch.status = "success"
+            with mock.patch.object(
+                BatchCommand, "get_skipped_preview", side_effect=KeyError
+            ):
+                with mock.patch.object(handlers.logger, "exception") as log:
+                    batch.save(update_fields=["status"])
+            log.assert_called_once()
+            batch.refresh_from_db()
+            self.assertEqual(batch.status, "success")
 
     def test_batch_command_device_transferred_to_another_org(self):
         org = self._get_org()
@@ -2707,3 +2731,55 @@ class TestModelsTransaction(BaseTestModels, TransactionTestCase):
                         raise ValueError()
                 layer.group_send.assert_not_called()
         self.assertEqual(batch.batch_commands.count(), 1)
+
+        with self.subTest("a rolled back mass command is never broadcast"):
+            layer = channel_layer()
+            with mock.patch.object(
+                handlers.layers, "get_channel_layer", return_value=layer
+            ):
+                with self.assertRaises(ValueError):
+                    with transaction.atomic():
+                        batch.save()
+                        raise ValueError()
+                layer.group_send.assert_not_called()
+
+        with self.subTest("an updated command is broadcast to its device too"):
+            layer = channel_layer()
+            command.status = "success"
+            with mock.patch.object(
+                handlers.layers, "get_channel_layer", return_value=layer
+            ):
+                command.save()
+            sent = [
+                (group, event.get("model", event["data"]["type"]))
+                for group, event in (
+                    call.args for call in layer.group_send.call_args_list
+                )
+            ]
+            self.assertCountEqual(
+                sent,
+                [
+                    (f"config.device-{device.pk}", "Command"),
+                    (f"config.batchcommand-{batch.pk}", "command_update"),
+                    (f"config.batchcommand-{batch.pk}", "batch_status"),
+                ],
+            )
+
+        with self.subTest("a command outside of a mass command"):
+            layer = channel_layer()
+            with mock.patch.object(
+                handlers.layers, "get_channel_layer", return_value=layer
+            ):
+                single = Command.objects.create(
+                    device=device,
+                    connection=dc,
+                    type="custom",
+                    input={"command": "echo test"},
+                )
+                layer.group_send.assert_not_called()
+                single.status = "success"
+                single.save()
+            layer.group_send.assert_called_once()
+            group, event = layer.group_send.call_args.args
+            self.assertEqual(group, f"config.device-{device.pk}")
+            self.assertEqual(event["data"]["id"], str(single.pk))

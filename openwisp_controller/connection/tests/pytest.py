@@ -3,6 +3,7 @@ from uuid import uuid4
 
 import pytest
 from channels.db import database_sync_to_async
+from channels.layers import get_channel_layer
 from channels.testing import WebsocketCommunicator
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -14,7 +15,7 @@ from swapper import load_model
 from openwisp_controller.connection.tests.utils import CreateCommandMixin
 
 from .. import handlers
-from ..channels.consumers import BatchCommandConsumer
+from ..channels.consumers import BatchCommandConsumer, CommandConsumer
 from ..utils import format_localized_datetime
 from .test_models import BaseTestModels
 
@@ -118,6 +119,42 @@ class TestCommandsConsumer(BaseTestModels, CreateCommandMixin):
         await communicator1.disconnect()
         await communicator2.disconnect()
 
+    async def test_device_moved_to_another_organization(self):
+        """The default groups have no permissions in tests without migrations,
+        so the device permissions of the operator role are assigned directly.
+        """
+        org = await database_sync_to_async(self._get_org)()
+        org2 = await database_sync_to_async(self._create_org)(name="org2", slug="org2")
+        device = await database_sync_to_async(self._create_device)(organization=org)
+
+        def create_manager():
+            user = self._create_user(
+                username="manager", email="manager@test.com", is_staff=True
+            )
+            user.user_permissions.set(
+                Permission.objects.filter(
+                    codename__in=["add_device", "change_device", "delete_device"]
+                )
+            )
+            OrganizationUser.objects.create(user=user, organization=org, is_admin=True)
+            return User.objects.get(pk=user.pk)
+
+        manager = await database_sync_to_async(create_manager)()
+        communicator = WebsocketCommunicator(
+            CommandConsumer.as_asgi(), f"ws/controller/device/{device.pk}/command"
+        )
+        communicator.scope["url_route"] = {"kwargs": {"pk": str(device.pk)}}
+        communicator.scope["user"] = manager
+        connected, _ = await communicator.connect()
+        assert connected is True
+        device.organization = org2
+        await database_sync_to_async(device.save)(update_fields=["organization"])
+        await get_channel_layer().group_send(
+            f"config.device-{device.pk}",
+            {"type": "send.update", "model": "Command", "data": {}},
+        )
+        assert await communicator.receive_output() == {"type": "websocket.close"}
+
 
 @pytest.mark.asyncio
 @pytest.mark.django_db(transaction=True)
@@ -217,7 +254,7 @@ class TestBatchCommandConsumer(BaseTestModels, CreateCommandMixin):
         await communicator.disconnect()
         communicator, connected = await self._connect(uuid4(), manager)
         assert connected is False
-        # a rejected connection was never added to a group
+        # disconnecting a rejected connection does not fail
         await communicator.disconnect()
 
     @mock.patch("paramiko.SSHClient.connect")

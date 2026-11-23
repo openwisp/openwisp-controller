@@ -15,7 +15,24 @@ class BaseDeviceConsumer(WebsocketConsumer):
 
     def is_user_authorized(self):
         user = self.scope["user"]
-        return user.is_superuser or (user.is_staff and self._user_has_permissions())
+        if user.is_superuser:
+            return True
+        return (
+            user.is_staff
+            and self._user_has_permissions()
+            and self._user_manages_object()
+        )
+
+    def _user_manages_object(self):
+        """Checks that the user manages the current organization of the object."""
+        organization_id = (
+            self.model.objects.filter(pk=self.scope["url_route"]["kwargs"].get("pk"))
+            .values_list("organization_id", flat=True)
+            .first()
+        )
+        return bool(organization_id) and self.scope["user"].is_manager(
+            str(organization_id)
+        )
 
     def _user_has_permissions(self, add=True, change=True, delete=True):
         permissions = []

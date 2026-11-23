@@ -509,6 +509,11 @@ class BatchCommandAdminMixin(
         return summary
 
 
+# Since Python 3.14, ChannelsLiveServerTestCase starts the live server as a
+# fresh process, which does not see the command type registered in
+# setUpClass. So the tests that need websockets are in
+# TestBatchCommandLiveUpdates, and the rest are here, where
+# StaticLiveServerTestCase runs the live server in the test process.
 @tag("selenium_tests")
 class TestBatchCommandAdmin(BatchCommandAdminMixin, StaticLiveServerTestCase):
     @classmethod

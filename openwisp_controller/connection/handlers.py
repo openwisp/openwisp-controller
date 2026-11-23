@@ -37,8 +37,22 @@ def command_save_handler(sender, created, instance, **kwargs):
         return
     try:
         serialized_data = CommandSerializer(instance).data
+        if instance.batch_command_id:
+            batch_data = dict(serialized_data)
+            batch_data.pop("input", None)
+            batch_data["device_name"] = instance.device.name
+            batch_data["device_organization"] = str(instance.device.organization_id)
+            batch_data["output"] = instance.output_preview
+            batch_data["modified_display"] = format_localized_datetime(
+                instance.modified
+            )
+            batch_data["type"] = "command_update"
+            if created:
+                # a new command: the page adds its row live, so it needs the
+                # position of the row and the new totals
+                batch_data.update(BatchCommand.get_command_row_position(instance))
     except Exception:
-        logger.exception("Failed to serialize command %s", instance.pk)
+        logger.exception("Failed to prepare the update of command %s", instance.pk)
         return
     if not created:
         send_websocket_event(
@@ -46,17 +60,6 @@ def command_save_handler(sender, created, instance, **kwargs):
             {"type": "send.update", "model": "Command", "data": serialized_data},
         )
     if instance.batch_command_id:
-        batch_data = dict(serialized_data)
-        batch_data.pop("input", None)
-        batch_data["device_name"] = instance.device.name
-        batch_data["device_organization"] = str(instance.device.organization_id)
-        batch_data["output"] = instance.output_preview
-        batch_data["modified_display"] = format_localized_datetime(instance.modified)
-        batch_data["type"] = "command_update"
-        if created:
-            # a new command: the page adds its row live, so it needs the
-            # position of the row and the new totals
-            batch_data.update(BatchCommand.get_command_row_position(instance))
         send_batch_command_websocket_event(
             f"config.batchcommand-{instance.batch_command_id}", batch_data
         )
@@ -66,13 +69,17 @@ def command_save_handler(sender, created, instance, **kwargs):
 def batch_command_save_handler(sender, instance, **kwargs):
     from .api.serializers import BatchCommandSerializer
 
-    batch_data = BatchCommandSerializer(instance).data
-    batch_data["type"] = "batch_status"
-    affected_devices = instance.affected_devices
-    batch_data.pop("skipped_devices", None)
-    skipped_count = instance.skipped_count
-    batch_data["affected_devices"] = affected_devices
-    batch_data["total_rows"] = affected_devices + skipped_count
-    batch_data["skipped_count"] = skipped_count
-    batch_data["skipped_preview"] = instance.get_skipped_preview()
+    try:
+        batch_data = BatchCommandSerializer(instance).data
+        batch_data["type"] = "batch_status"
+        affected_devices = instance.affected_devices
+        batch_data.pop("skipped_devices", None)
+        skipped_count = instance.skipped_count
+        batch_data["affected_devices"] = affected_devices
+        batch_data["total_rows"] = affected_devices + skipped_count
+        batch_data["skipped_count"] = skipped_count
+        batch_data["skipped_preview"] = instance.get_skipped_preview()
+    except Exception:
+        logger.exception("Failed to prepare the update of mass command %s", instance.pk)
+        return
     send_batch_command_websocket_event(f"config.batchcommand-{instance.pk}", batch_data)

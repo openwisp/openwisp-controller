@@ -553,6 +553,12 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
             ]
         }
 
+    def lookup_allowed(self, lookup, value, request):
+        # the input can hold a password until the commands are created
+        if lookup == "input" or lookup.startswith("input__"):
+            return False
+        return super().lookup_allowed(lookup, value, request)
+
     def get_urls(self):
         options = self.model._meta
         return [

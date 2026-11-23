@@ -1302,6 +1302,33 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
             self.assertEqual(set(queryset), {batch, batch2})
             self.assertEqual([item._affected_devices for item in queryset], [0, 0])
 
+    def test_changelist_rejects_input_lookups(self):
+        org = self._get_org()
+        batch = BatchCommand.objects.create(
+            organization=org,
+            type="change_password",
+            input={"password": "S3cretPass", "confirm_password": "S3cretPass"},
+            label="pending-password-change",
+        )
+        self.client.force_login(self._create_operator(organizations=[org]))
+
+        with self.subTest("the pending mass command is listed"):
+            response = self.client.get(self.changelist_url)
+            self.assertEqual(list(response.context["cl"].queryset), [batch])
+
+        for lookup in (
+            "input",
+            "input__password",
+            "input__password__startswith",
+            "input__contains",
+        ):
+            with self.subTest(lookup=lookup):
+                with self.assertLogs(
+                    "django.security.DisallowedModelAdminLookup", "ERROR"
+                ):
+                    response = self.client.get(self.changelist_url, {lookup: "S3c"})
+                self.assertEqual(response.status_code, 400)
+
     def test_changelist_is_read_only(self):
         batch = self._create_batch_command(organization=self._get_org())
         self._login()
