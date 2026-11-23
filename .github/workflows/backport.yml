@@ -21,7 +21,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: read # Resolves merged pull requests from pushed commits.
-    uses: openwisp/openwisp-actions/.github/workflows/reusable-backport.yml@61f8fad5c4f6b9b1cf47eb396c2e1c8392aed52f # 0.1.1
+    uses: openwisp/openwisp-actions/.github/workflows/reusable-backport.yml@d6cc603701fe96a84115b060d34e8844a969cc41 # 0.3.0
     with:
       commit_sha: ${{ github.sha }}
     secrets:
@@ -40,7 +40,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: read # Resolves the merge commit before handling a backport command.
-    uses: openwisp/openwisp-actions/.github/workflows/reusable-backport.yml@61f8fad5c4f6b9b1cf47eb396c2e1c8392aed52f # 0.1.1
+    uses: openwisp/openwisp-actions/.github/workflows/reusable-backport.yml@d6cc603701fe96a84115b060d34e8844a969cc41 # 0.3.0
     with:
       pr_number: ${{ github.event.issue.number }}
       comment_body: ${{ github.event.comment.body }}
