@@ -1,4 +1,5 @@
 import time
+from functools import partial
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -12,6 +13,7 @@ from swapper import load_model
 
 from openwisp_utils.tests import SeleniumTestMixin
 
+from ...tests.live import make_server_process
 from ...tests.utils import ControllerLiveServerTestCase
 from .utils import CreateCommandMixin
 
@@ -156,25 +158,31 @@ class CommandSchemaDelayMiddleware:
 
 
 @tag("selenium_tests")
-@override_settings(
-    MIDDLEWARE=[
-        *settings.MIDDLEWARE,
-        f"{__name__}.CommandSchemaDelayMiddleware",
-    ],
-    # Daphne runs in another process, so parent-process updates need Redis.
-    CHANNEL_LAYERS={
-        "default": {
-            "BACKEND": "channels_redis.core.RedisChannelLayer",
-            "CONFIG": {
-                "hosts": [settings.REDIS_URL],
-                "prefix": f"controller-selenium-{uuid4().hex}",
-            },
-        }
-    },
-)
 class TestCommandUpdates(
     CreateCommandMixin, CommandSeleniumMixin, ControllerLiveServerTestCase
 ):
+    @classmethod
+    def setUpClass(cls):
+        overrides = {
+            "MIDDLEWARE": [
+                *settings.MIDDLEWARE,
+                f"{__name__}.CommandSchemaDelayMiddleware",
+            ],
+            # Both processes must use the same Redis layer for worker updates.
+            "CHANNEL_LAYERS": {
+                "default": {
+                    "BACKEND": "channels_redis.core.RedisChannelLayer",
+                    "CONFIG": {
+                        "hosts": [settings.REDIS_URL],
+                        "prefix": f"controller-selenium-{uuid4().hex}",
+                    },
+                }
+            },
+        }
+        cls.enterClassContext(override_settings(**overrides))
+        cls.ProtocolServerProcess = partial(make_server_process, overrides=overrides)
+        super().setUpClass()
+
     @patch("openwisp_controller.connection.base.models.launch_command.delay")
     def test_command_update(self, launch_command):
         """Deliver a worker-side update to an existing row without a page reload."""
