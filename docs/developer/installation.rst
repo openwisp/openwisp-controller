@@ -131,9 +131,9 @@ the browser tests, without ``--parallel``:
 
 Controller browser tests inherit ``ControllerLiveServerTestCase`` from
 ``openwisp_controller.tests.utils`` to restore migration-created data
-consistently between tests. Apply server-side configuration before
-``super().setUpClass()``: method-level patches do not affect the separate
-ASGI server process.
+consistently between tests. Pass server-side overrides explicitly to the
+Daphne process at startup. Patches in the test process are not inherited
+with the ``forkserver`` start method, the Linux default since Python 3.14.
 
 Run quality assurance tests with:
 

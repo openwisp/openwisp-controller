@@ -1,5 +1,6 @@
 import importlib
 from datetime import timedelta
+from functools import partial
 from io import StringIO
 from unittest import mock
 from uuid import uuid4
@@ -36,6 +37,7 @@ from ..tasks import (
     fetch_whois_details,
 )
 from ..utils import get_whois_info, send_whois_task_notification
+from .live import make_whois_server_process
 from .utils import CreateWHOISMixin, WHOISTransactionMixin
 
 Config = load_model("config", "Config")
@@ -1595,7 +1597,10 @@ class WHOISSeleniumMixin(CreateWHOISMixin, SeleniumTestMixin):
 
     @classmethod
     def setUpClass(cls):
-        # Daphne inherits configuration at startup, not method-level patches.
+        # Forkserver does not inherit the parent-side patch used by fixtures.
+        cls.ProtocolServerProcess = partial(
+            make_whois_server_process, configured=cls.whois_configured
+        )
         configured = mock.patch.object(
             app_settings, "WHOIS_CONFIGURED", cls.whois_configured
         )
