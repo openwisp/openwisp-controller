@@ -1727,8 +1727,9 @@ class TestZeroTierTransaction(
         self.assertEqual(IpAddress.objects.count(), 0)
         zt_cmd = ["zerotier-idtool generate"]
         # command not found, timeout error
+        called_process_err = CalledProcessError(returncode=127, cmd=zt_cmd)
         mock_subprocess.run.side_effect = [
-            CalledProcessError(returncode=127, cmd=zt_cmd),
+            called_process_err,
             TimeoutExpired(timeout=5, cmd=zt_cmd),
         ]
         mock_subprocess.stderr.return_value = None
@@ -1749,7 +1750,7 @@ class TestZeroTierTransaction(
         ):
             expected_err = (
                 "Unable to generate zerotier identity secret, "
-                f"Error: Command '{zt_cmd}' returned non-zero exit status 127."
+                f"Error: {called_process_err}"
             )
             with self.assertRaises(ZeroTierIdentityGenerationError) as exc:
                 device.config.templates.add(template)

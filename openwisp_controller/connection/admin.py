@@ -7,6 +7,7 @@ from django.contrib import admin
 from django.http import HttpResponseForbidden, JsonResponse
 from django.urls import path, resolve
 from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 from django.utils.timezone import localtime
 from django.utils.translation import gettext_lazy as _
 
@@ -134,7 +135,7 @@ class CommandInline(admin.StackedInline):
                 device_id=resolved.kwargs["object_id"], created__gte=seven_days
             ).order_by("-created")
         if select_related:
-            qs = qs.select_related()
+            qs = qs.select_related("device__organization")
         return qs
 
     def input_data(self, obj):
@@ -142,9 +143,7 @@ class CommandInline(admin.StackedInline):
 
     def output_data(self, obj):
         if obj.status == "in-progress":
-            return format_html(
-                '<div class="loader recent-commands-loader"></div>',
-            )
+            return mark_safe('<div class="loader recent-commands-loader"></div>')
         return obj.output
 
     def status_display(self, obj):

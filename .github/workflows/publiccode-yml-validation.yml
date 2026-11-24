@@ -14,9 +14,9 @@ jobs:
     name: Validate publiccode.yml
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: italia/publiccode-parser-action@f370d239aa3ec57b819909b467ff77679b6dc721 # v1
+      - uses: italia/publiccode-parser-action@f370d239aa3ec57b819909b467ff77679b6dc721 # v1.7.0
         with:
           publiccode: "publiccode.yml"

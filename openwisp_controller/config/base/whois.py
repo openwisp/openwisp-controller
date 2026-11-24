@@ -51,6 +51,7 @@ class AbstractWHOISInfo(TimeStampedEditableModel):
     cidr = models.CharField(
         max_length=49,
         blank=True,
+        db_index=True,
         help_text=_("CIDR"),
     )
     coordinates = PointField(

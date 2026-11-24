@@ -1,3 +1,11 @@
+from unittest import mock
+
+from django.core.cache import cache
+from django.test import TestCase, override_settings
+from django.urls import reverse
+from django.utils import timezone
+
+from openwisp_controller.config import settings as app_settings
 from openwisp_controller.config.tests.test_admin import TestAdmin as BaseTestAdmin
 from openwisp_controller.config.tests.test_admin import (
     TestDeviceGroupAdmin as BaseTestDeviceGroupAdmin,
@@ -38,6 +46,10 @@ from openwisp_controller.config.tests.test_vpn import (
 )
 from openwisp_controller.config.tests.test_vpn import TestVxlan as BaseTestVxlan
 from openwisp_controller.config.tests.test_vpn import TestWireguard as BaseTestWireguard
+from openwisp_controller.config.whois.service import WHOISService
+from openwisp_controller.config.whois.tests.utils import CreateWHOISMixin
+from openwisp_controller.config.whois.utils import get_whois_info
+from openwisp_controller.tests.utils import LOCAL_MEMORY_CACHE, TestAdminMixin
 
 
 class TestAdmin(BaseTestAdmin):
@@ -119,6 +131,35 @@ class TestWireguard(BaseTestWireguard):
 
 class TestVxlan(BaseTestVxlan):
     pass
+
+
+@override_settings(CACHES=LOCAL_MEMORY_CACHE)
+class TestWHOIS(CreateWHOISMixin, TestAdminMixin, TestCase):
+    @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
+    def test_approximate_whois_excludes_custom_fields(self):
+        source = self._create_whois_info(
+            details="private organization data",
+            address={"country": "United States", "private": "private address data"},
+        )
+        other_org = self._get_org("other")
+        self._create_device(organization=other_org, last_ip=source.ip_address)
+        device = self._create_device(last_ip="172.217.22.15")
+        operator = self._create_operator(organizations=[device.organization])
+        self.client.force_login(operator)
+        cache.set(WHOISService.get_quota_cache_key(), timezone.now().timestamp() + 3600)
+        response = self.client.get(
+            reverse("admin:sample_config_device_change", args=[device.pk])
+        )
+        self.assertContains(response, '"approximate": true')
+        self.assertContains(response, f'"ip_address": "{device.last_ip}"')
+        self.assertNotContains(response, source.ip_address)
+        self.assertNotContains(response, "private organization data")
+        self.assertNotContains(response, "private address data")
+        self.assertNotIn("details", get_whois_info(device.pk))
+        exact_device = self._create_device(
+            name="exact-device", mac_address="00:11:22:33:44:66", last_ip=source.pk
+        )
+        self.assertEqual(get_whois_info(exact_device.pk)["details"], source.details)
 
 
 del BaseTestAdmin

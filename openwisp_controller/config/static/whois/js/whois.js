@@ -27,6 +27,9 @@ django.jQuery(function ($) {
   const tooltipText = gettext(
     "This is the Organization associated with registered ASN",
   );
+  const approximateLabel = deviceWHOISDetails.approximate
+    ? ` (${gettext("approximate")})`
+    : "";
 
   $parentDiv.after(
     `<table class="whois-table">
@@ -48,7 +51,8 @@ django.jQuery(function ($) {
         <summary>
           <span class="whois-globe"></span>
           <div>
-            <span>${gettext("Additional Details")}</span><span class="mg-arrow"></span>
+            <span>${gettext("Additional Details")}${approximateLabel}</span>
+            <span class="mg-arrow"></span>
           </div>
         </summary>
         <div>
