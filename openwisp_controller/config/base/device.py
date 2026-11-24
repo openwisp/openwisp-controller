@@ -370,6 +370,8 @@ class AbstractDevice(OrgMixin, BaseModel):
                 self, self.group_id, self._initial_group_id
             )
 
+        self._initial_group_id = self.group_id
+
     def _check_management_ip_changed(self):
         if self._initial_management_ip == models.DEFERRED:
             return
