@@ -1,8 +1,8 @@
+from functools import partial
 from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
-from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.test import tag
 from django.urls.base import reverse
 from django_loci.tests import TestAdminMixin
@@ -14,6 +14,7 @@ from openwisp_users.tests.utils import TestOrganizationMixin
 from openwisp_utils.tests import SeleniumTestMixin
 
 from ...config import settings as config_app_settings
+from ...config.whois.tests.live import make_whois_server_process
 from ...tests.utils import ControllerLiveServerTestCase
 from .utils import TestGeoMixin
 
@@ -70,15 +71,10 @@ class TestEstimatedLocationSelenium(
     TestAdminMixin,
     TestOrganizationMixin,
     SeleniumTestMixin,
-    StaticLiveServerTestCase,
+    ControllerLiveServerTestCase,
 ):
-    """
-    Keep the WHOIS_CONFIGURED mock visible to the live server.
-
-    Python 3.14 uses forkserver by default on Linux, so a separate server
-    process no longer inherits the mock from the test process.
-    """
-
+    # The parent mock is not inherited by Daphne under forkserver.
+    ProtocolServerProcess = partial(make_whois_server_process, configured=True)
     app_label = "geo"
     object_model = Device
     location_model = Location
