@@ -193,6 +193,26 @@ class TestSubnetAdmin(
         self.assertContains(response, device_subnet.name)
         self.assertNotContains(response, vpn_subnet.name)
 
+    def test_add_subnet_rule_without_organization(self):
+        response = self.client.post(
+            reverse(f"admin:{self.ipam_label}_subnet_add"),
+            {
+                "name": "Subnet",
+                "subnet": "192.168.0.0/16",
+                "organization": str(self._get_org().pk),
+                "subnetdivisionrule_set-TOTAL_FORMS": 1,
+                "subnetdivisionrule_set-INITIAL_FORMS": 0,
+                "subnetdivisionrule_set-0-type": self.rule.type,
+                "subnetdivisionrule_set-0-label": "LAN",
+                "subnetdivisionrule_set-0-size": 24,
+                "subnetdivisionrule_set-0-number_of_subnets": 1,
+                "subnetdivisionrule_set-0-number_of_ips": 2,
+                "subnetdivisionrule_set-0-organization": "",
+            },
+        )
+        self.assertContains(response, "This field is required.")
+        self.assertFalse(Subnet.objects.filter(name="Subnet").exists())
+
 
 class TestIPAdmin(SubnetDivisionAdminTestMixin, TestMultitenantAdminMixin, TestCase):
     ipam_label = "openwisp_ipam"
