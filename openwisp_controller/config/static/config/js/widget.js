@@ -301,7 +301,8 @@
     editor.on("change", handleMaxLengthAttr);
 
     // update raw value before form submit
-    form.submit(function (e) {
+    // Rebuilding this widget must not leave older editors validating the form.
+    form.off("submit.jsoneditor-" + id).on("submit.jsoneditor-" + id, function (e) {
       // only submit form if the editor is clear of all validation errors
       // eliminating vpn because it's UI is not yet using default values
       if (getEditorErrors(editor).length && !$(".model-vpn").length) {

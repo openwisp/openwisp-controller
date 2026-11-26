@@ -1597,6 +1597,25 @@ class TestBatchCommandAdmin(BatchCommandAdminMixin, StaticLiveServerTestCase):
             self.assertEqual(self._changelist_labels(), ["org2-batch"])
             self.assertNotIn("UCI show", self._filter_options("type"))
 
+    def test_switch_from_empty_custom_command_to_reboot(self):
+        organization = self._get_org()
+        self._create_devices(organization, 1)
+        self.login()
+        self._fill_wizard(
+            type="Custom commands",
+            label="reboot-after-custom",
+            organization=organization,
+        )
+        command = self.find_element(
+            by=By.CSS_SELECTOR,
+            value="#id_input_jsoneditor [name='root[command]']",
+        )
+        self.assertEqual(command.get_attribute("value"), "")
+        self._select2("id_type", "Reboot")
+        self.find_element(by=By.ID, value="review-command-btn").click()
+        self._wait_for_review_page()
+        self.assertEqual(self._summary()["Type"], "Reboot")
+
 
 @tag("selenium_tests")
 class TestBatchCommandLiveUpdates(BatchCommandAdminMixin, ChannelsLiveServerTestCase):
