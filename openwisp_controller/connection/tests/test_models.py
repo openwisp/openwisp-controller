@@ -2374,6 +2374,23 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
         with self.subTest("administrator permissions"):
             self.assertEqual(admin_permissions.count(), 4)
 
+    def test_batch_status_calculation_locks_batch_before_aggregation(self):
+        batch = self._create_batch_command(organization=self._get_org())
+        original_compute = BatchCommand._compute_status
+
+        with mock.patch.object(
+            BatchCommand.objects,
+            "select_for_update",
+            wraps=BatchCommand.objects.select_for_update,
+        ) as lock:
+
+            def compute(locked_batch):
+                lock.assert_called_once_with()
+                return original_compute(locked_batch)
+
+            with mock.patch.object(BatchCommand, "_compute_status", compute):
+                batch.calculate_and_update_status()
+
 
 class TestModelsTransaction(BaseTestModels, TransactionTestCase):
     def _prepare_conf_object(self, organization=None):

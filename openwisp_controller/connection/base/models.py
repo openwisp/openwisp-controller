@@ -1285,6 +1285,7 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
             return "success"
         return self.status
 
+    @transaction.atomic
     def calculate_and_update_status(self):
         """
         Calculate batch status based on individual command statuses and update if
@@ -1295,7 +1296,9 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
         - All commands completed successfully: status set to "success".
         - Status unchanged: no database write performed.
         """
-        batch = self.__class__.objects.get(pk=self.pk)
+        # A child can finish between the aggregate and the status update.
+        # Serialize recalculations so the last one sees its completed status.
+        batch = self.__class__.objects.select_for_update().get(pk=self.pk)
         new_status = batch._compute_status()
         if batch.status == new_status:
             return
