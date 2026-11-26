@@ -250,6 +250,10 @@
   gap: 0.5rem;
   justify-content: flex-end;
 }
+#main .execute-form #execute-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 .execute-batch-command .jsoneditor-wrapper > fieldset.module {
   background: none;
   border: none;

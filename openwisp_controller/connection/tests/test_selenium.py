@@ -772,6 +772,20 @@ class TestBatchCommandAdmin(BatchCommandAdminMixin, StaticLiveServerTestCase):
             ).click()
             selected_count = self.find_element(by=By.ID, value="selected-count")
             self.assertEqual(selected_count.text, "0")
+            execute_button = self.find_element(by=By.ID, value="execute-button")
+            self.assertEqual(execute_button.is_enabled(), False)
+            self.assertEqual(
+                execute_button.get_attribute("title"),
+                "Select at least one device to perform this action.",
+            )
+            self.find_element(
+                by=By.CSS_SELECTOR, value="#result_list tbody .device-checkbox"
+            ).click()
+            self.assertEqual(execute_button.is_enabled(), True)
+            self.assertEqual(execute_button.get_attribute("title"), "")
+            self.find_element(
+                by=By.CSS_SELECTOR, value="#result_list tbody .device-checkbox"
+            ).click()
             grouped_device.group = None
             grouped_device.full_clean()
             grouped_device.save()

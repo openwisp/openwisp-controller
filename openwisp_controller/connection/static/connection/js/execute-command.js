@@ -159,6 +159,12 @@ function initDeviceSelection($) {
       ]),
     );
     $button.prop("disabled", selected === 0);
+    $button.attr(
+      "title",
+      selected === 0
+        ? gettext("Select at least one device to perform this action.")
+        : "",
+    );
     updateSelectAllCheckbox();
   }
 
