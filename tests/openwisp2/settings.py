@@ -107,7 +107,9 @@ if not TESTING:
     CHANNEL_LAYERS = {
         "default": {
             "BACKEND": "channels_redis.core.RedisChannelLayer",
-            "CONFIG": {"hosts": [f"{REDIS_URL}/7"]},
+            "CONFIG": {
+                "hosts": [{"address": f"{REDIS_URL}/7", "socket_timeout": None}],
+            },
         }
     }
 else:
