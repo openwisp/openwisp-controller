@@ -75,8 +75,7 @@
   background: var(--darkened-bg);
 }
 .pagination a {
-  color: var(--body-fg);
-  text-decoration: none;
+  color: var(--ow-link-highlighted);
   margin: 0 5px;
 }
 .pagination .current-page {

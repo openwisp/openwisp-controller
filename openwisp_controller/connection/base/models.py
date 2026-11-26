@@ -510,9 +510,12 @@ class AbstractCommand(TimeStampedEditableModel):
         return f'«{command}» {sent} {created.strftime("%d %b %Y at %I:%M %p")}'
 
     def _is_device_deactivated(self):
-        """Mass commands skip a device as soon as its deactivation starts,
-        like the device API and admin do, while other commands are refused
-        only once the device is fully deactivated.
+        """Check whether this command can run during device deactivation.
+
+        Deactivation has a transitional period before the device is fully
+        deactivated. A mass command must not run once that period begins,
+        matching the device API and admin. A single-device command may still
+        run during that period but not after deactivation finishes.
         """
         if self.batch_command_id:
             return self.device.is_deactivated()
@@ -557,13 +560,11 @@ class AbstractCommand(TimeStampedEditableModel):
         lines = (self.output or "").strip().splitlines()
         if not lines:
             return ""
-        max_length = 100
-        line = lines[-1]
-        truncated = len(lines) > 1
-        if len(line) > max_length:
-            line = line[-max_length:]
-            truncated = True
-        return f"… {line}" if truncated else line
+        max_preview_length = 100
+        last_line = lines[-1]
+        output_was_truncated = len(lines) > 1 or len(last_line) > max_preview_length
+        preview = last_line[-max_preview_length:]
+        return f"… {preview}" if output_was_truncated else preview
 
     @property
     def is_custom(self):
@@ -1070,15 +1071,18 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
             raise ValidationError({"input": e.message})
 
     def resolve_devices(self):
-        """Returns a queryset of the devices this batch command runs on.
+        """Return the devices selected for this mass command.
 
-        Until the batch is saved, those are the devices which match its
-        organization, group and location. execute() stores the devices it
-        matched, so a saved batch returns its stored selection as it is:
-        deleting its devices empties the selection, and matching the
-        organization, group and location again would hand back devices
-        which were never selected. Callers which walk the whole result
-        should consume it with iterator().
+        Before the batch is saved, find devices matching its organization,
+        group and location. When execute() creates the batch, it saves that
+        selection. Afterward, use the saved selection, excluding devices that
+        have moved to a different organization.
+
+        Do not repeat the original search for a saved batch. For example, if
+        an operator selects the devices in a group and a device joins the
+        group later, that new device must not receive the command. An empty
+        saved selection must also stay empty if selected devices are deleted.
+        Callers processing all results should use iterator().
         """
         if not self._state.adding:
             qs = self.devices.select_related("config")

@@ -114,9 +114,11 @@ class BatchCommandConsumer(BaseDeviceConsumer):
         filters = BatchCommand.normalize_filters(filters)
         batch_status = BatchCommandSerializer(batch).data
         batch_status["affected_devices"] = batch.affected_devices
+        # The snapshot sends a bounded preview, not the complete map.
         batch_status.pop("skipped_devices", None)
         batch_status["skipped_count"] = batch.skipped_count
         batch_status["skipped_preview"] = batch.get_skipped_preview()
+        # Apply the same access checks and filters as the admin results page.
         commands_qs = batch.filter_commands(
             BatchCommand.scope_commands(
                 batch.batch_commands.select_related("device"), self.scope["user"]
@@ -127,6 +129,8 @@ class BatchCommandConsumer(BaseDeviceConsumer):
         skipped_items = []
         if batch.skipped_count and filters["status"] in ("", "skipped"):
             skipped_items = batch.filter_skipped_items(filters)
+        # Commands come first, followed by skipped devices. Clamp the requested
+        # page before slicing across the two sets.
         try:
             page = max(int(page), 1)
         except (TypeError, ValueError):

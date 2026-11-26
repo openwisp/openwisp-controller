@@ -118,9 +118,8 @@ class BatchCommandExecutionForm(forms.ModelForm):
                 self.fields[field_name].disabled = True
             self.fields["organization"].initial = self._selected_organization_id()
         if request is None or request.user.is_superuser:
-            # without a request there is no user to restrict the fields to,
-            # while superusers are allowed to use every organization, group,
-            # location and command type, so both keep the fields as they are
+            # Only regular users need choices restricted to their managed
+            # organizations. A form without a request has no user to check.
             return
         organization_ids = request.user.organizations_managed
         self.fields["organization"].queryset = self.fields[
@@ -147,8 +146,8 @@ class BatchCommandExecutionForm(forms.ModelForm):
     def _scope_devices(self, device_ids):
         """Keeps only the selected devices that exist and that the user can use.
 
-        Returns the ids which are left. It also notes which organizations
-        those devices belong to, and whether any selected device was dropped
+        Returns the IDs of accessible devices. It also records their
+        organizations and whether any selected device was dropped
         because it was deleted or the user does not manage its organization,
         so that clean() can reject the form in those cases.
         """
@@ -752,10 +751,14 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
         return redirect(f"admin:{self.opts.app_label}_{self.opts.model_name}_execute")
 
     def _resolve_target_queryset(self, request, wizard):
-        """Devices picked one by one, or matched by the organization, group
-        and location chosen. The targeting rule lives on the model so this
-        page and the execution cannot drift apart; the multitenancy scope is
-        an admin concern, applied on top.
+        """Return the devices to show on the wizard's review page.
+
+        Use the devices selected in the device list, if any. Otherwise, use
+        the batch model's dry run to match the chosen organization, group and
+        location. Using the model's targeting rules keeps the preview
+        consistent with batch creation.
+
+        Non-superusers only see devices in organizations they manage.
         """
         device_ids = wizard.get("device_ids")
         if device_ids:
@@ -802,6 +805,8 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
         so only the last "max_wizards" are kept.
         """
         wizards = self._get_wizards(request)
+        # Reinsert the wizard at the end so eviction removes the least
+        # recently saved entry, not the one created earliest.
         wizards.pop(wizard["id"], None)
         wizards[wizard["id"]] = wizard
         for stale in list(wizards)[: -self.max_wizards]:
@@ -812,12 +817,6 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
         wizards = self._get_wizards(request)
         wizards.pop(wizard["id"], None)
         request.session[self.session_key] = wizards
-
-    def _redirect_to_confirm(self, wizard):
-        return redirect(
-            f"admin:{self.opts.app_label}_{self.opts.model_name}_confirm",
-            wizard["id"],
-        )
 
     def _claim_wizard(self, wizard):
         """Claims a wizard for execution, returning False when it was claimed.
@@ -842,6 +841,12 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
         """
         pks = sorted(str(pk) for pk in device_ids)
         return hashlib.sha256(",".join(pks).encode()).hexdigest()
+
+    def _redirect_to_confirm(self, wizard):
+        return redirect(
+            f"admin:{self.opts.app_label}_{self.opts.model_name}_confirm",
+            wizard["id"],
+        )
 
     def _confirm_context(self, request, wizard, devices):
         device_count = devices.count()
@@ -898,8 +903,12 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
     def _execute_batch_command(self, request, wizard_id):
         """Runs the mass command shown on the confirm page.
 
-        The wizard is deleted from the session before the command is
-        created, so it can only run once:
+        A cache claim prevents overlapping submissions from executing the
+        same wizard. The wizard is then removed from the session before
+        creating the command. If validation fails or targets change, the
+        claim is released and the wizard is restored for another review.
+
+        The possible outcomes are:
 
         - the wizard of the page is gone, because it already ran or newer
           wizards replaced it: go back to the first step and say why
@@ -1035,16 +1044,15 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
         qs = Command.objects.filter(batch_command=obj).select_related("device")
         return BatchCommand.scope_commands(qs, request.user)
 
+    @admin.display(description=_("organization"), ordering="organization")
     def organization_display(self, obj):
         if obj.organization:
             return obj.organization.name
-        # Will return Shared systemwide (no organization) after
+        # TODO: Will return Shared systemwide (no organization) after
         # https://github.com/openwisp/openwisp-users/issues/238
         return _("All")
 
-    organization_display.short_description = _("organization")
-    organization_display.admin_order_field = "organization"
-
+    @admin.display(description=_("status"))
     def colored_status(self, obj):
         css_class = f"command-status {obj.status}"
         return format_html(
@@ -1053,8 +1061,7 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
             obj.get_status_display(),
         )
 
-    colored_status.short_description = _("status")
-
+    @admin.display(description=_("input"))
     def formatted_input(self, obj):
         if not obj.input:
             return "-"
@@ -1062,17 +1069,14 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
             return "********"
         return self._describe_input(obj.input) or "-"
 
-    formatted_input.short_description = _("input")
-
+    @admin.display(description=_("affected devices"), ordering="_affected_devices")
     def affected_devices(self, obj):
         count = getattr(obj, "_affected_devices", None)
         if count is None:
             count = obj.affected_devices
         return count
 
-    affected_devices.short_description = _("affected devices")
-    affected_devices.admin_order_field = "_affected_devices"
-
+    @admin.display(description=_("skipped devices"))
     def display_skipped_devices(self, obj):
         if not obj.skipped_count:
             return "-"
@@ -1087,8 +1091,6 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
             '<div class="skipped-devices-list">{}</div>',
             format_html_join(mark_safe("<br>"), "{}", ((line,) for line in lines)),
         )
-
-    display_skipped_devices.short_description = _("skipped devices")
 
     def _build_filter_specs(
         self,
