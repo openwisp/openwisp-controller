@@ -1,3 +1,4 @@
+from django import forms
 from django.contrib import admin
 from django.urls import reverse
 from django.utils.html import format_html
@@ -20,10 +21,20 @@ IpAddress = load_model("openwisp_ipam", "IpAddress")
 Device = load_model("config", "Device")
 
 
+class SubnetDivisionRuleInlineForm(forms.ModelForm):
+    def has_changed(self):
+        # The organization of new rules is set by JavaScript, which
+        # must not stop Django from ignoring an otherwise empty rule
+        if self.instance._state.adding:
+            return bool(set(self.changed_data) - {"organization"})
+        return super().has_changed()
+
+
 class SubnetDivisionRuleInlineAdmin(
     MultitenantAdminMixin, TimeReadonlyAdminMixin, HelpTextStackedInline
 ):
     model = SubnetDivisionRule
+    form = SubnetDivisionRuleInlineForm
     extra = 0
     help_text = {
         "text": _(

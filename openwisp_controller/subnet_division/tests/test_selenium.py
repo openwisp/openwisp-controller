@@ -25,6 +25,14 @@ class TestSubnetAdminSelenium(
         ).click()
         self.wait_for_presence(By.NAME, "subnetdivisionrule_set-0-organization")
 
+    def _save(self):
+        # Hide user tools because it covers the save button
+        self.web_driver.execute_script(
+            'document.querySelector("#ow-user-tools").style.display="none"'
+        )
+        self.find_element(By.NAME, "_save").click()
+        self.wait_for_admin_success_message()
+
     def test_rule_organization_field(self):
         org = self._get_org()
         self.login()
@@ -54,12 +62,7 @@ class TestSubnetAdminSelenium(
                 )
                 element.clear()
                 element.send_keys(value)
-            # Hide user tools because it covers the save button
-            self.web_driver.execute_script(
-                'document.querySelector("#ow-user-tools").style.display="none"'
-            )
-            self.find_element(By.NAME, "_save").click()
-            self.wait_for_admin_success_message()
+            self._save()
             self.assertEqual(
                 SubnetDivisionRule.objects.get(label="LAN").organization, org
             )
@@ -95,3 +98,12 @@ class TestSubnetAdminSelenium(
                 ).get_attribute("value"),
                 str(org2.pk),
             )
+
+    def test_empty_rule_ignored(self):
+        org = self._get_org()
+        subnet = self._create_subnet(subnet="10.0.0.0/16", organization=org)
+        self.login()
+        self.open(reverse(f"admin:{self.ipam_label}_subnet_change", args=[subnet.pk]))
+        self._add_rule()
+        self._save()
+        self.assertEqual(SubnetDivisionRule.objects.count(), 0)
