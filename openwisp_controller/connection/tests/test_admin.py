@@ -888,6 +888,21 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
             self.assertFalse(BatchCommand.objects.exists())
             self.assertIn(BatchCommandAdmin.session_key, self.client.session)
 
+        with self.subTest("a reviewed device starts deactivating"):
+            device = Device.objects.get(name="late-device")
+            wizard = self._start_wizard(organization=str(org.pk))
+            self.client.get(self._confirm_url())
+            device.deactivate()
+            response = self._post_confirm(wizard["token"])
+            self.assertRedirects(response, self._confirm_url(wizard["id"]))
+            self.assertIn(
+                "The targeted devices changed, please review them again.",
+                self._messages(response),
+            )
+            review = self.client.get(self._confirm_url(wizard["id"]))
+            self.assertNotIn(device, review.context["cl"].result_list)
+            self.assertEqual(BatchCommand.objects.count(), 0)
+
     def test_wizard_survives_a_second_tab(self):
         org = self._get_org()
         self._create_device(organization=org)

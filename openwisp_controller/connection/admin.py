@@ -762,7 +762,9 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
         """
         device_ids = wizard.get("device_ids")
         if device_ids:
-            devices = Device.objects.filter(pk__in=device_ids)
+            devices = Device.filter_operational(
+                Device.objects.filter(pk__in=device_ids)
+            )
         else:
             try:
                 devices = BatchCommand.dry_run(
@@ -1309,8 +1311,16 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
         """
         batch_admin = modeladmin.admin_site.get_model_admin(BatchCommand)
         batch_admin._check_add_permission(request)
-        organizations = queryset.order_by().values_list("organization_id", flat=True)
-        if organizations.distinct().count() > 1:
+        eligible = Device.filter_operational(queryset)
+        organization_count = (
+            eligible.order_by().values("organization_id").distinct().count()
+        )
+        if not organization_count:
+            modeladmin.message_user(
+                request, _("No devices match the specified criteria."), messages.ERROR
+            )
+            return HttpResponseRedirect(request.get_full_path())
+        if organization_count > 1:
             if (
                 request.user.is_superuser
                 and not Device.objects.exclude(pk__in=queryset.values("pk")).exists()
@@ -1327,7 +1337,7 @@ class BatchCommandAdmin(MultitenantAdminMixin, ReadOnlyAdmin):
             return HttpResponseRedirect(request.get_full_path())
         form = BatchCommandExecutionForm(
             request=request,
-            device_ids=[str(pk) for pk in queryset.values_list("pk", flat=True)],
+            device_ids=[str(pk) for pk in eligible.values_list("pk", flat=True)],
         )
         return batch_admin._render_execute_page(request, form)
 

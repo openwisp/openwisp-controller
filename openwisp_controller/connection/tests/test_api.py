@@ -1397,7 +1397,8 @@ class TestBatchCommandsAPI(
                 "devices": [str(d.pk) for d in devices],
             }
             url = reverse("connection_api:batch_command_execute")
-            with self.assertNumQueries(15):
+            # Recheck all explicit targets against current device and org state.
+            with self.assertNumQueries(16):
                 response = self.client.post(
                     url,
                     data=json.dumps(payload),
@@ -2602,7 +2603,7 @@ class TestBatchCommandsAPITransaction(
                 detail_response.data["skipped_devices"], batch.skipped_devices
             )
 
-        with self.subTest("skipped: deactivated device"):
+        with self.subTest("rejected: only deactivated devices selected"):
             device = self._create_device(
                 name="skip-dd-dev",
                 mac_address="00:11:22:33:44:a2",
@@ -2617,40 +2618,24 @@ class TestBatchCommandsAPITransaction(
             with patch("openwisp_controller.connection.tasks.update_config.delay"):
                 device.deactivate()
             self.assertTrue(device.is_fully_deactivated())
-            with self.assertLogs(
-                "openwisp_controller.connection.base.models", level="WARNING"
-            ) as logs:
-                response = self.client.post(
-                    execute_url,
-                    data=json.dumps(
-                        {
-                            "organization": str(org.pk),
-                            "type": "custom",
-                            "input": {"command": "echo test"},
-                            "label": "test-label",
-                            "devices": [str(device.pk)],
-                        }
-                    ),
-                    content_type="application/json",
-                )
-            self.assertEqual(response.status_code, 201)
-            batch = BatchCommand.objects.get(pk=response.data["batch"])
-            self.assertIn("Skipping device", "\n".join(logs.output))
-            self.assertEqual(
-                batch.skipped_devices,
-                {
-                    str(device.pk): {
-                        "name": device.name,
-                        "error": "Device is deactivated",
+            batch_count = BatchCommand.objects.count()
+            preview = self.client.get(
+                execute_url, {"organization": org.pk, "devices": [device.pk]}
+            )
+            self.assertEqual(preview.status_code, 200)
+            self.assertEqual(preview.data["results"], [])
+            response = self.client.post(
+                execute_url,
+                data=json.dumps(
+                    {
+                        "organization": str(org.pk),
+                        "type": "custom",
+                        "input": {"command": "echo test"},
+                        "label": "test-label",
+                        "devices": [str(device.pk)],
                     }
-                },
+                ),
+                content_type="application/json",
             )
-            detail_url = reverse(
-                "connection_api:batch_command_detail",
-                args=[batch.pk],
-            )
-            detail_response = self.client.get(detail_url)
-            self.assertEqual(detail_response.status_code, 200)
-            self.assertEqual(
-                detail_response.data["skipped_devices"], batch.skipped_devices
-            )
+            self.assertEqual(response.status_code, 400)
+            self.assertEqual(BatchCommand.objects.count(), batch_count)

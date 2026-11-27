@@ -190,6 +190,11 @@ class AbstractDevice(OrgMixin, BaseModel):
         """Return whether the device and its organization are active."""
         return not self.is_deactivated() and self.organization.is_active
 
+    @staticmethod
+    def filter_operational(queryset):
+        """Keep active devices in enabled organizations within the selection."""
+        return queryset.filter(_is_deactivated=False, organization__is_active=True)
+
     def is_fully_deactivated(self):
         """Return whether the device and its configuration are fully deactivated."""
         return self.is_deactivated() and (
