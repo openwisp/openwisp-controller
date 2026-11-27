@@ -2,7 +2,6 @@ import os
 import time
 
 from django.contrib.auth.models import Group, Permission
-from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.test import tag
 from django.urls.base import reverse
 from selenium import webdriver
@@ -17,6 +16,7 @@ from swapper import load_model
 
 from openwisp_utils.tests import SeleniumTestMixin as BaseSeleniumTestMixin
 
+from ...tests.utils import ControllerLiveServerTestCase
 from .utils import CreateConfigTemplateMixin, TestVpnX509Mixin, TestWireguardVpnMixin
 
 Device = load_model("config", "Device")
@@ -64,7 +64,7 @@ class TestDeviceAdmin(
     SeleniumTestMixin,
     CreateConfigTemplateMixin,
     TestVpnX509Mixin,
-    StaticLiveServerTestCase,
+    ControllerLiveServerTestCase,
 ):
     # helper function for adding/removing templates
     def _update_template(self, device_id, templates, is_enabled=False):
@@ -511,7 +511,7 @@ class TestDeviceAdmin(
 class TestDeviceGroupAdmin(
     SeleniumTestMixin,
     CreateConfigTemplateMixin,
-    StaticLiveServerTestCase,
+    ControllerLiveServerTestCase,
 ):
     def test_show_relevant_templates(self):
         org1 = self._create_org(name="org1", slug="org1")
@@ -614,7 +614,7 @@ class TestDeviceGroupAdmin(
 class TestDeviceAdminUnsavedChanges(
     SeleniumTestMixin,
     CreateConfigTemplateMixin,
-    StaticLiveServerTestCase,
+    ControllerLiveServerTestCase,
 ):
     browser = "chrome"
 
@@ -762,7 +762,7 @@ class TestVpnAdmin(
     SeleniumTestMixin,
     CreateConfigTemplateMixin,
     TestWireguardVpnMixin,
-    StaticLiveServerTestCase,
+    ControllerLiveServerTestCase,
 ):
     def test_vpn_edit(self):
         self.login()

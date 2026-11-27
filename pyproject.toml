@@ -2,6 +2,8 @@
 source = ["openwisp_controller"]
 parallel = true
 concurrency = ["multiprocessing", "thread"]
+# Save coverage when Channels terminates Daphne's live-server process.
+sigterm = true
 omit = [
     "openwisp_controller/__init__.py",
     "*/tests/*",

@@ -1,63 +1,61 @@
+import time
+from functools import partial
 from unittest.mock import patch
 from urllib.parse import quote, urlparse
 from uuid import UUID, uuid4
 
-from channels.testing import ChannelsLiveServerTestCase
-from django.apps import apps as django_apps
+from django.conf import settings
 from django.contrib.auth.models import Permission
-from django.contrib.staticfiles.testing import StaticLiveServerTestCase
-from django.test import tag
+from django.test import override_settings, tag
 from django.urls import reverse
-from selenium.common.exceptions import StaleElementReferenceException
+from selenium.common.exceptions import StaleElementReferenceException, TimeoutException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select, WebDriverWait
 from swapper import load_model
 
-from openwisp_users.migrations import (
-    allow_operator_view_organization,
-    create_default_groups,
-)
 from openwisp_utils.tests import SeleniumTestMixin
 
-from ...config import migrations as config_migrations
 from ...config.tests.utils import CreateDeviceGroupMixin
-from ...geo import migrations as geo_migrations
 from ...geo.tests.utils import TestGeoMixin
-from .. import migrations as connection_migrations
+from ...tests.live import make_server_process
+from ...tests.utils import ControllerLiveServerTestCase
 from .. import settings as app_settings
 from ..admin import BatchCommandAdmin, BatchCommandDeviceAdminMixin
-from ..commands import (
-    COMMANDS,
-    ORGANIZATION_COMMAND_SCHEMA,
-    ORGANIZATION_ENABLED_COMMANDS,
-    register_command,
-    unregister_command,
-)
 from ..utils import format_localized_datetime
-from .utils import (
-    CreateCommandMixin,
-    CreateConnectionsMixin,
-    SshServer,
-    _uci_show_command_callable,
+from .live import (
+    DEFAULT_ORGANIZATION_ID,
+    SCOPED_ORGANIZATION_ID,
+    override_scoped_commands,
+    register_scoped_commands,
 )
+from .utils import CreateCommandMixin, CreateConnectionsMixin, SshServer
 
 BatchCommand = load_model("connection", "BatchCommand")
 Command = load_model("connection", "Command")
 Device = load_model("config", "Device")
 Location = load_model("geo", "Location")
 DeviceLocation = load_model("geo", "DeviceLocation")
-Group = load_model("openwisp_users", "Group")
-SCOPED_ORGANIZATION_ID = "11111111-1111-1111-1111-111111111111"
-DEFAULT_ORGANIZATION_ID = "22222222-2222-2222-2222-222222222222"
+
+
+class CommandSeleniumMixin(SeleniumTestMixin):
+    def wait_for_command_socket(self):
+        try:
+            self.wait_for_script(
+                "const socket = django.jQuery('#device_form').data('commandWebSocket');"
+                "return socket && socket.readyState === WebSocket.OPEN;",
+                timeout=10,
+            )
+        except TimeoutException:
+            self.fail("The page's command WebSocket did not become ready")
 
 
 @tag("selenium_tests")
 class TestDeviceAdmin(
     CreateCommandMixin,
-    SeleniumTestMixin,
-    StaticLiveServerTestCase,
+    CommandSeleniumMixin,
+    ControllerLiveServerTestCase,
 ):
     config_app_label = "config"
 
@@ -87,6 +85,7 @@ class TestDeviceAdmin(
         self.assertEqual(device.deviceconnection_set.count(), 1)
         self.open(path)
         self.hide_loading_overlay()
+        self.wait_for_command_socket()
         # Send reboot command to the device
         self.find_element(
             by=By.CSS_SELECTOR, value="ul.object-tools a#send-command"
@@ -94,14 +93,15 @@ class TestDeviceAdmin(
         self.find_element(
             by=By.CSS_SELECTOR, value='button.ow-command-btn[data-command="reboot"]'
         ).click()
-        page = self.find_element(by=By.TAG_NAME, value="html")
         self.find_element(by=By.CSS_SELECTOR, value="#ow-command-confirm-yes").click()
-        WebDriverWait(self.web_driver, 10).until(EC.staleness_of(page))
+
+        self.wait_until(lambda _: Command.objects.count() == 1, timeout=5)
         self.wait_for_visibility(
             By.CSS_SELECTOR,
             "#tabs-container li.recent.commands",
+            # The first command may use the application's four-second reload fallback.
+            timeout=10,
         )
-        self.assertEqual(Command.objects.count(), 1)
 
     def test_device_form_shows_command_input_as_text(self):
         org = self._get_org()
@@ -164,6 +164,78 @@ class TestDeviceAdmin(
         )
 
 
+class CommandSchemaDelayMiddleware:
+    """Exercise socket startup after a delayed, asynchronous schema response."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if request.path == reverse("admin:connection_command_schema"):
+            time.sleep(3)
+        return self.get_response(request)
+
+
+@tag("selenium_tests")
+class TestCommandUpdates(
+    CreateCommandMixin, CommandSeleniumMixin, ControllerLiveServerTestCase
+):
+    @classmethod
+    def setUpClass(cls):
+        overrides = {
+            "MIDDLEWARE": [
+                *settings.MIDDLEWARE,
+                f"{__name__}.CommandSchemaDelayMiddleware",
+            ],
+            # Both processes must use the same Redis layer for worker updates.
+            "CHANNEL_LAYERS": {
+                "default": {
+                    "BACKEND": "channels_redis.core.RedisChannelLayer",
+                    "CONFIG": {
+                        "hosts": [settings.REDIS_URL],
+                        "prefix": f"controller-selenium-{uuid4().hex}",
+                    },
+                }
+            },
+        }
+        cls.enterClassContext(override_settings(**overrides))
+        cls.ProtocolServerProcess = partial(make_server_process, overrides=overrides)
+        super().setUpClass()
+
+    @patch("openwisp_controller.connection.base.models.launch_command.delay")
+    def test_command_update(self, launch_command):
+        """Deliver a worker-side update to an existing row without a page reload."""
+        command = self._create_command()
+        launch_command.assert_called_once_with(command.pk)
+        self.login()
+        self.open(reverse("admin:config_device_change", args=[command.device_id]))
+        self.hide_loading_overlay()
+        self.find_element(By.CSS_SELECTOR, 'a[href="#command_set-2-group"]').click()
+        row = self.find_element(
+            By.XPATH,
+            f'//input[@value="{command.pk}"]/parent::div/fieldset',
+        )
+        output = row.find_element(By.CSS_SELECTOR, ".field-output_data .readonly")
+        self.assertEqual(output.text, "")
+        self.wait_for_command_socket()
+        self.web_driver.execute_script(
+            "window.commandUpdateMarker = arguments[0];", str(command.pk)
+        )
+        command.status = "success"
+        command.output = "Live command output"
+        command.save()
+        try:
+            self.wait_until(lambda _: output.text == command.output, timeout=5)
+        except TimeoutException:
+            self.fail("The command output was not updated through the WebSocket")
+        self.assertEqual(
+            self.web_driver.execute_script("return window.commandUpdateMarker;"),
+            str(command.pk),
+            "The command update reloaded the page instead of updating its row",
+        )
+        self.assert_no_browser_errors()
+
+
 class BatchCommandAdminMixin(
     TestGeoMixin,
     CreateDeviceGroupMixin,
@@ -187,39 +259,11 @@ class BatchCommandAdminMixin(
 
     def setUp(self):
         super().setUp()
-        self._restore_default_groups()
         self.execute_url = reverse(f"admin:{self.app_label}_batchcommand_execute")
         self.changelist_url = reverse(f"admin:{self.app_label}_batchcommand_changelist")
         self.device_changelist_url = reverse(
             f"admin:{self.config_app_label}_device_changelist"
         )
-
-    # this is a TransactionTestCase: the flush performed after every test
-    # restores what post_migrate creates (permissions, content types) but
-    # not the rows written by data migrations, so the default groups are
-    # lost and _create_operator() would return a user without permissions
-    def _restore_default_groups(self):
-        if Group.objects.filter(name="Operator").exists():
-            return
-        models_modules = {
-            app_config.label: app_config.models_module
-            for app_config in django_apps.get_app_configs()
-        }
-        try:
-            for migration in (
-                create_default_groups,
-                allow_operator_view_organization,
-                config_migrations.assign_permissions_to_groups,
-                config_migrations.assign_devicegroup_permissions_to_groups,
-                geo_migrations.assign_permissions_to_groups,
-                connection_migrations.assign_permissions_to_groups,
-                connection_migrations.assign_command_permissions_to_groups,
-                connection_migrations.assign_batchcommand_permissions_to_groups,
-            ):
-                migration(django_apps, None)
-        finally:
-            for app_config in django_apps.get_app_configs():
-                app_config.models_module = models_modules[app_config.label]
 
     def _create_user_with_permissions(self, org, username, codenames):
         """Creates an operator with only the given permissions.
@@ -509,59 +553,15 @@ class BatchCommandAdminMixin(
         return summary
 
 
-# Since Python 3.14, ChannelsLiveServerTestCase starts the live server as a
-# fresh process, which does not see the command type registered in
-# setUpClass. So the tests that need websockets are in
-# TestBatchCommandLiveUpdates, and the rest are here, where
-# StaticLiveServerTestCase runs the live server in the test process.
 @tag("selenium_tests")
-class TestBatchCommandAdmin(BatchCommandAdminMixin, StaticLiveServerTestCase):
+class TestBatchCommandAdmin(BatchCommandAdminMixin, ControllerLiveServerTestCase):
+    ProtocolServerProcess = partial(
+        make_server_process, initialize=register_scoped_commands
+    )
+
     @classmethod
     def setUpClass(cls):
-        if "uci_show" not in COMMANDS:
-            register_command(
-                "uci_show",
-                {
-                    "label": "UCI show",
-                    "schema": {
-                        "title": "UCI show",
-                        "type": "object",
-                        "required": ["config"],
-                        "properties": {
-                            "config": {
-                                "type": "string",
-                                "title": "Config",
-                                "minLength": 1,
-                                "pattern": ".",
-                            }
-                        },
-                        "message": "Config cannot be empty.",
-                        "additionalProperties": False,
-                    },
-                    "callable": _uci_show_command_callable,
-                },
-            )
-            cls.addClassCleanup(unregister_command, "uci_show")
-        ORGANIZATION_ENABLED_COMMANDS[SCOPED_ORGANIZATION_ID] = (
-            "custom",
-            "reboot",
-            "change_password",
-            "uci_show",
-        )
-        ORGANIZATION_ENABLED_COMMANDS[DEFAULT_ORGANIZATION_ID] = (
-            "custom",
-            "reboot",
-            "change_password",
-        )
-        for organization_id in (SCOPED_ORGANIZATION_ID, DEFAULT_ORGANIZATION_ID):
-            ORGANIZATION_COMMAND_SCHEMA[organization_id] = {
-                command: COMMANDS[command]["schema"]
-                for command in ORGANIZATION_ENABLED_COMMANDS[organization_id]
-            }
-            cls.addClassCleanup(
-                ORGANIZATION_ENABLED_COMMANDS.pop, organization_id, None
-            )
-            cls.addClassCleanup(ORGANIZATION_COMMAND_SCHEMA.pop, organization_id, None)
+        cls.enterClassContext(override_scoped_commands())
         super().setUpClass()
 
     def test_execute_batch_command(self):
@@ -1618,7 +1618,7 @@ class TestBatchCommandAdmin(BatchCommandAdminMixin, StaticLiveServerTestCase):
 
 
 @tag("selenium_tests")
-class TestBatchCommandLiveUpdates(BatchCommandAdminMixin, ChannelsLiveServerTestCase):
+class TestBatchCommandLiveUpdates(BatchCommandAdminMixin, ControllerLiveServerTestCase):
     """Tests the live updates of the mass command page over the websocket."""
 
     def _wait_for_update(self, condition, message=None):

@@ -1,4 +1,5 @@
 from collections import OrderedDict
+from contextlib import ExitStack, contextmanager
 
 from django.core.exceptions import ImproperlyConfigured
 from django.utils.translation import gettext_lazy as _
@@ -78,6 +79,7 @@ COMMANDS = DEFAULT_COMMANDS.copy()
 COMMAND_CHOICES = [
     (command, command_config["label"]) for command, command_config in COMMANDS.items()
 ]
+ORGANIZATION_COMMAND_SCHEMA = {}
 
 
 def get_command_schema(command):
@@ -142,19 +144,38 @@ def _unregister_command_choice(command):
     raise ImproperlyConfigured(f"No such Command choice {command}")
 
 
-# Add USER_COMMANDS
+def configure_organization_commands(commands_by_org):
+    """Update enabled commands and their schemas together during process setup."""
+    enabled = {
+        org: tuple(COMMANDS) if commands == "*" else commands
+        for org, commands in commands_by_org.items()
+    }
+    schemas = {
+        org: OrderedDict((name, COMMANDS[name]["schema"]) for name in commands)
+        for org, commands in enabled.items()
+    }
+    ORGANIZATION_ENABLED_COMMANDS.update(enabled)
+    ORGANIZATION_COMMAND_SCHEMA.update(schemas)
+
+
+@contextmanager
+def override_organization_commands(commands_by_org):
+    """Temporarily configure commands and restore the affected organizations."""
+    with ExitStack() as stack:
+        for registry in (ORGANIZATION_ENABLED_COMMANDS, ORGANIZATION_COMMAND_SCHEMA):
+            for org in commands_by_org:
+                if org in registry:
+                    stack.callback(registry.__setitem__, org, registry[org])
+                else:
+                    stack.callback(registry.pop, org, None)
+        configure_organization_commands(commands_by_org)
+        yield
+
+
 for command_name, command_config in USER_COMMANDS:
     register_command(command_name, command_config)
 
-for org, commands in ORGANIZATION_ENABLED_COMMANDS.items():
-    if commands == "*":
-        ORGANIZATION_ENABLED_COMMANDS[org] = tuple(COMMANDS.keys())
-
-ORGANIZATION_COMMAND_SCHEMA = {}
-for org_id, commands in ORGANIZATION_ENABLED_COMMANDS.items():
-    ORGANIZATION_COMMAND_SCHEMA[org_id] = OrderedDict()
-    for command in commands:
-        ORGANIZATION_COMMAND_SCHEMA[org_id][command] = COMMANDS[command]["schema"]
+configure_organization_commands(ORGANIZATION_ENABLED_COMMANDS)
 
 
 def get_command_choices():

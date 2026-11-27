@@ -1,9 +1,7 @@
-from unittest import mock
+from functools import partial
 
-from channels.testing import ChannelsLiveServerTestCase
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
-from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.test import tag
 from django.urls.base import reverse
 from django_loci.tests import TestAdminMixin
@@ -14,7 +12,11 @@ from swapper import load_model
 from openwisp_users.tests.utils import TestOrganizationMixin
 from openwisp_utils.tests import SeleniumTestMixin
 
-from ...config import settings as config_app_settings
+from ...config.whois.tests.live import (
+    make_whois_server_process,
+    override_whois_configured,
+)
+from ...tests.utils import ControllerLiveServerTestCase
 from .utils import TestGeoMixin
 
 Device = load_model("config", "Device")
@@ -29,7 +31,7 @@ class TestDeviceAdminGeoSelenium(
     TestGeoMixin,
     BaseTestDeviceAdminSelenium,
     TestOrganizationMixin,
-    ChannelsLiveServerTestCase,
+    ControllerLiveServerTestCase,
 ):
     app_label = "geo"
     object_model = Device
@@ -70,22 +72,21 @@ class TestEstimatedLocationSelenium(
     TestAdminMixin,
     TestOrganizationMixin,
     SeleniumTestMixin,
-    StaticLiveServerTestCase,
+    ControllerLiveServerTestCase,
 ):
-    """
-    Keep the WHOIS_CONFIGURED mock visible to the live server.
-
-    Python 3.14 uses forkserver by default on Linux, so a separate server
-    process no longer inherits the mock from the test process.
-    """
-
+    # The parent mock is not inherited by Daphne under forkserver.
+    ProtocolServerProcess = partial(make_whois_server_process, configured=True)
     app_label = "geo"
     object_model = Device
     location_model = Location
     object_location_model = DeviceLocation
     user_model = get_user_model()
 
-    @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
+    @classmethod
+    def setUpClass(cls):
+        cls.enterClassContext(override_whois_configured(True))
+        super().setUpClass()
+
     def test_estimated_location_warning(self):
         org = self._get_org()
         org.geo_settings.estimated_location_enabled = True
@@ -119,7 +120,7 @@ class TestDeviceAdminReadonly(
     TestGeoMixin,
     TestAdminMixin,
     SeleniumTestMixin,
-    ChannelsLiveServerTestCase,
+    ControllerLiveServerTestCase,
 ):
     browser = "chrome"
     app_label = "geo"

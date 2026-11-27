@@ -120,6 +120,21 @@ Run tests with (make sure you have the :ref:`selenium dependencies
 
     ./runtests
 
+Browser tests run serially under ASGI and are tagged ``selenium_tests``.
+Keep Redis running: tests which broadcast updates from the test process to
+the ASGI server need a channel layer shared between processes. To run only
+the browser tests, without ``--parallel``:
+
+.. code-block:: shell
+
+    ./tests/manage.py test openwisp_controller --tag=selenium_tests --noinput
+
+Controller browser tests inherit ``ControllerLiveServerTestCase`` from
+``openwisp_controller.tests.utils`` to restore migration-created data
+consistently between tests. Pass server-side overrides explicitly to the
+Daphne process at startup. Patches in the test process are not inherited
+with the ``forkserver`` start method, the Linux default since Python 3.14.
+
 Run quality assurance tests with:
 
 .. code-block:: shell

@@ -1,11 +1,12 @@
 import importlib
 from datetime import timedelta
+from functools import partial
 from io import StringIO
 from unittest import mock
 from uuid import uuid4
 
+from django.conf import settings
 from django.contrib.gis.geos import Point
-from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.core.cache import cache
 from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.core.management import CommandError, call_command
@@ -18,12 +19,17 @@ from geoip2 import errors
 from requests.exceptions import RequestException
 from selenium.common.exceptions import UnexpectedAlertPresentException
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import Select
 from swapper import load_model
 
 from openwisp_controller.config.signals import whois_fetched, whois_lookup_skipped
 from openwisp_utils.tests import SeleniumTestMixin, catch_signal
 
-from ....tests.utils import LOCAL_MEMORY_CACHE, TestAdminMixin
+from ....tests.utils import (
+    LOCAL_MEMORY_CACHE,
+    ControllerLiveServerTestCase,
+    TestAdminMixin,
+)
 from ... import settings as app_settings
 from ..handlers import connect_whois_handlers
 from ..service import WHOISService
@@ -33,6 +39,7 @@ from ..tasks import (
     fetch_whois_details,
 )
 from ..utils import get_whois_info, send_whois_task_notification
+from .live import make_whois_server_process, override_whois_configured
 from .utils import CreateWHOISMixin, WHOISTransactionMixin
 
 Config = load_model("config", "Config")
@@ -1587,15 +1594,44 @@ class TestWHOISTransaction(
         mock_task.assert_not_called()
 
 
+class WHOISSeleniumMixin(CreateWHOISMixin, SeleniumTestMixin):
+    whois_configured = True
+
+    @classmethod
+    def setUpClass(cls):
+        # Both processes need the same Redis cache, isolated from other runs.
+        caches = {
+            **settings.CACHES,
+            "default": {
+                **settings.CACHES["default"],
+                "KEY_PREFIX": f"whois-selenium-{uuid4().hex}",
+            },
+        }
+        cls.enterClassContext(override_settings(CACHES=caches))
+        cls.ProtocolServerProcess = partial(
+            make_whois_server_process,
+            configured=cls.whois_configured,
+            overrides={"CACHES": caches},
+        )
+        cls.enterClassContext(override_whois_configured(cls.whois_configured))
+        super().setUpClass()
+
+    def setUp(self):
+        super().setUp()
+        self.addCleanup(cache.delete, WHOISService.get_cache_key(self._get_org().pk))
+
+
 @tag("selenium_tests")
-class TestWHOISSelenium(CreateWHOISMixin, SeleniumTestMixin, StaticLiveServerTestCase):
-    @override_settings(CACHES=LOCAL_MEMORY_CACHE)
-    @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
-    @mock.patch("openwisp_controller.config.whois.tasks.fetch_whois_details.delay")
-    def test_device_admin_approximate_whois(self, lookup):
+class TestWHOISSelenium(WHOISSeleniumMixin, ControllerLiveServerTestCase):
+    def test_device_admin_approximate_whois(self):
         self._create_whois_info()
-        device = self._create_device(last_ip="172.217.22.15")
-        cache.set(WHOISService.get_quota_cache_key(), timezone.now().timestamp() + 3600)
+        with mock.patch(
+            "openwisp_controller.config.whois.tasks.fetch_whois_details.delay"
+        ):
+            device = self._create_device(last_ip="172.217.22.15")
+        quota_key = WHOISService.get_quota_cache_key()
+        self.addCleanup(cache.delete, quota_key)
+        cache.set(quota_key, timezone.now().timestamp() + 3600)
         self.login()
         self.open(
             reverse(f"admin:{Device._meta.app_label}_device_change", args=[device.pk])
@@ -1604,7 +1640,6 @@ class TestWHOISSelenium(CreateWHOISMixin, SeleniumTestMixin, StaticLiveServerTes
         self.assertIn("Additional Details (approximate)", details.text)
         self.assert_no_browser_errors()
 
-    @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
     def test_device_admin(self):
         def _assert_no_js_errors():
             self.assert_no_browser_errors()
@@ -1634,35 +1669,37 @@ class TestWHOISSelenium(CreateWHOISMixin, SeleniumTestMixin, StaticLiveServerTes
             self.assertIn(whois_obj.cidr, additional_text[3].text)
             _assert_no_js_errors()
 
-        with mock.patch.object(app_settings, "WHOIS_CONFIGURED", False):
-            with self.subTest(
-                "WHOIS details not visible in device admin "
-                + "when WHOIS_CONFIGURED is False"
-            ):
-                self.open(reverse("admin:config_device_change", args=[device.pk]))
-                self.wait_for_invisibility(By.CSS_SELECTOR, "table.whois-table")
-                self.wait_for_invisibility(By.CSS_SELECTOR, "details.whois")
-                _assert_no_js_errors()
-
         with self.subTest(
             "WHOIS details not visible in device admin when WHOIS is disabled"
         ):
-            org = self._get_org()
+            org = device.organization
             org.config_settings.whois_enabled = False
             org.config_settings.save(update_fields=["whois_enabled"])
-            org.config_settings.refresh_from_db(fields=["whois_enabled"])
             self.open(reverse("admin:config_device_change", args=[device.pk]))
             self.wait_for_invisibility(By.CSS_SELECTOR, "table.whois-table")
             self.wait_for_invisibility(By.CSS_SELECTOR, "details.whois")
             _assert_no_js_errors()
 
+        with self.subTest("Re-enabling WHOIS in admin invalidates the disabled cache"):
+            self.assertFalse(WHOISService.get_org_config_settings(org.pk).whois_enabled)
+            self.open(
+                reverse("admin:openwisp_users_organization_change", args=[org.pk])
+            )
+            Select(
+                self.find_element(By.NAME, "config_settings-0-whois_enabled")
+            ).select_by_visible_text("Enabled")
+            self.find_element(By.NAME, "_save").click()
+            self.assertTrue(
+                WHOISService.get_org_config_settings(org.pk).whois_enabled,
+                "The admin save in Daphne did not invalidate the disabled cache.",
+            )
+            self.open(reverse("admin:config_device_change", args=[device.pk]))
+            self.wait_for_visibility(By.CSS_SELECTOR, "table.whois-table")
+            _assert_no_js_errors()
+
         with self.subTest(
             "WHOIS details not visible in device admin when WHOIS Info does not exist"
         ):
-            org = self._get_org()
-            org.config_settings.whois_enabled = True
-            org.config_settings.save(update_fields=["whois_enabled"])
-            org.config_settings.refresh_from_db(fields=["whois_enabled"])
             WHOISInfo.objects.all().delete()
             self.open(reverse("admin:config_device_change", args=[device.pk]))
             self.wait_for_invisibility(By.CSS_SELECTOR, "table.whois-table")
@@ -1703,3 +1740,17 @@ class TestWHOISSelenium(CreateWHOISMixin, SeleniumTestMixin, StaticLiveServerTes
                 _assert_no_js_errors()
             except UnexpectedAlertPresentException:
                 self.fail("XSS vulnerability detected in WHOIS details admin view.")
+
+
+@tag("selenium_tests")
+class TestWHOISUnconfiguredSelenium(WHOISSeleniumMixin, ControllerLiveServerTestCase):
+    whois_configured = False
+
+    def test_device_admin(self):
+        whois = self._create_whois_info()
+        device = self._create_device(last_ip=whois.ip_address)
+        self.login()
+        self.open(reverse("admin:config_device_change", args=[device.pk]))
+        self.wait_for_invisibility(By.CSS_SELECTOR, "table.whois-table")
+        self.wait_for_invisibility(By.CSS_SELECTOR, "details.whois")
+        self.assert_no_browser_errors()

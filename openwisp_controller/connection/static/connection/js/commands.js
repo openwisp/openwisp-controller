@@ -537,6 +537,7 @@ function initCommandOverlay($) {
 }
 
 function initCommandWebSockets($, commandWebSocket) {
+  $("#device_form").data("commandWebSocket", commandWebSocket);
   commandWebSocket.open();
   commandWebSocket.addEventListener("message", function (e) {
     let data = JSON.parse(e.data);
