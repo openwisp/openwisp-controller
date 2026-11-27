@@ -1,3 +1,6 @@
+from contextlib import ExitStack, contextmanager
+from functools import partial
+
 from django.db.models.signals import post_delete, post_save
 from swapper import load_model
 
@@ -53,3 +56,19 @@ def connect_whois_handlers():
     if app_settings.WHOIS_CONFIGURED:
         for signal, receiver, sender, uid in _whois_receivers():
             signal.connect(receiver, sender=sender, dispatch_uid=uid)
+
+
+@contextmanager
+def override_whois_handlers(configured):
+    """Temporarily change WHOIS receiver registration after app startup."""
+    with ExitStack() as stack:
+        for signal, receiver, sender, uid in _whois_receivers():
+            connect = partial(signal.connect, receiver, sender=sender, dispatch_uid=uid)
+            disconnect = partial(signal.disconnect, sender=sender, dispatch_uid=uid)
+            if disconnect():
+                stack.callback(connect)
+            # Clear any registrations made inside the scope before restoring ours.
+            stack.callback(disconnect)
+            if configured:
+                connect()
+        yield

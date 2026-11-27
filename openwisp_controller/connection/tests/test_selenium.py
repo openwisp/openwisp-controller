@@ -23,15 +23,11 @@ from ...tests.live import make_server_process
 from ...tests.utils import ControllerLiveServerTestCase
 from .. import settings as app_settings
 from ..admin import BatchCommandAdmin, BatchCommandDeviceAdminMixin
-from ..commands import (
-    ORGANIZATION_COMMAND_SCHEMA,
-    ORGANIZATION_ENABLED_COMMANDS,
-    unregister_command,
-)
 from ..utils import format_localized_datetime
 from .live import (
     DEFAULT_ORGANIZATION_ID,
     SCOPED_ORGANIZATION_ID,
+    override_scoped_commands,
     register_scoped_commands,
 )
 from .utils import CreateCommandMixin, CreateConnectionsMixin, SshServer
@@ -565,10 +561,7 @@ class TestBatchCommandAdmin(BatchCommandAdminMixin, ControllerLiveServerTestCase
 
     @classmethod
     def setUpClass(cls):
-        cls.enterClassContext(patch.dict(ORGANIZATION_ENABLED_COMMANDS))
-        cls.enterClassContext(patch.dict(ORGANIZATION_COMMAND_SCHEMA))
-        if register_scoped_commands():
-            cls.addClassCleanup(unregister_command, "uci_show")
+        cls.enterClassContext(override_scoped_commands())
         super().setUpClass()
 
     def test_execute_batch_command(self):

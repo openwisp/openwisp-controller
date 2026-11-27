@@ -1,4 +1,4 @@
-from contextlib import ExitStack, contextmanager
+from contextlib import contextmanager
 from functools import partial
 from unittest.mock import patch
 
@@ -8,20 +8,11 @@ from ....tests.live import make_server_process
 @contextmanager
 def override_whois_configured(configured):
     from ... import settings as app_settings
-    from ..handlers import _whois_receivers, connect_whois_handlers
+    from ..handlers import override_whois_handlers
 
     with patch.object(
         app_settings, "WHOIS_CONFIGURED", configured
-    ), ExitStack() as stack:
-        # The test process has already run AppConfig.ready(). Preserve whatever
-        # registrations were present before entering this test class.
-        for signal, receiver, sender, uid in _whois_receivers():
-            if signal.disconnect(sender=sender, dispatch_uid=uid):
-                stack.callback(
-                    signal.connect, receiver, sender=sender, dispatch_uid=uid
-                )
-            stack.callback(signal.disconnect, sender=sender, dispatch_uid=uid)
-        connect_whois_handlers()
+    ), override_whois_handlers(configured):
         yield
 
 
