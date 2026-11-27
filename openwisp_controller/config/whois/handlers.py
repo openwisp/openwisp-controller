@@ -10,36 +10,46 @@ def reconcile_device_whois_references(sender, instance, **kwargs):
     WHOISInfo.update_reference_state([instance.last_ip])
 
 
-def connect_whois_handlers():
-    if not app_settings.WHOIS_CONFIGURED:
-        return
-
+def _whois_receivers():
     Device = load_model("config", "Device")
     WHOISInfo = load_model("config", "WHOISInfo")
     OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
 
-    post_delete.connect(
-        WHOISInfo.device_whois_info_delete_handler,
-        sender=Device,
-        dispatch_uid="device.delete_whois_info",
+    return (
+        (
+            post_delete,
+            WHOISInfo.device_whois_info_delete_handler,
+            Device,
+            "device.delete_whois_info",
+        ),
+        (
+            device_activated,
+            reconcile_device_whois_references,
+            Device,
+            "device.activate_whois_info",
+        ),
+        (
+            device_deactivated,
+            reconcile_device_whois_references,
+            Device,
+            "device.deactivate_whois_info",
+        ),
+        (
+            post_save,
+            WHOISInfo.invalidate_org_settings_cache,
+            OrganizationConfigSettings,
+            "invalidate_org_config_cache_on_org_config_save",
+        ),
+        (
+            post_delete,
+            WHOISInfo.invalidate_org_settings_cache,
+            OrganizationConfigSettings,
+            "invalidate_org_config_cache_on_org_config_delete",
+        ),
     )
-    device_activated.connect(
-        reconcile_device_whois_references,
-        sender=Device,
-        dispatch_uid="device.activate_whois_info",
-    )
-    device_deactivated.connect(
-        reconcile_device_whois_references,
-        sender=Device,
-        dispatch_uid="device.deactivate_whois_info",
-    )
-    post_save.connect(
-        WHOISInfo.invalidate_org_settings_cache,
-        sender=OrganizationConfigSettings,
-        dispatch_uid="invalidate_org_config_cache_on_org_config_save",
-    )
-    post_delete.connect(
-        WHOISInfo.invalidate_org_settings_cache,
-        sender=OrganizationConfigSettings,
-        dispatch_uid="invalidate_org_config_cache_on_org_config_delete",
-    )
+
+
+def connect_whois_handlers():
+    if app_settings.WHOIS_CONFIGURED:
+        for signal, receiver, sender, uid in _whois_receivers():
+            signal.connect(receiver, sender=sender, dispatch_uid=uid)

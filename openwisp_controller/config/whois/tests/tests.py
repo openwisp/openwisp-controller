@@ -5,6 +5,7 @@ from io import StringIO
 from unittest import mock
 from uuid import uuid4
 
+from django.conf import settings
 from django.contrib.gis.geos import Point
 from django.core.cache import cache
 from django.core.exceptions import ImproperlyConfigured, ValidationError
@@ -18,6 +19,7 @@ from geoip2 import errors
 from requests.exceptions import RequestException
 from selenium.common.exceptions import UnexpectedAlertPresentException
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import Select
 from swapper import load_model
 
 from openwisp_controller.config.signals import whois_fetched, whois_lookup_skipped
@@ -37,7 +39,7 @@ from ..tasks import (
     fetch_whois_details,
 )
 from ..utils import get_whois_info, send_whois_task_notification
-from .live import make_whois_server_process
+from .live import make_whois_server_process, override_whois_configured
 from .utils import CreateWHOISMixin, WHOISTransactionMixin
 
 Config = load_model("config", "Config")
@@ -1597,16 +1599,26 @@ class WHOISSeleniumMixin(CreateWHOISMixin, SeleniumTestMixin):
 
     @classmethod
     def setUpClass(cls):
-        # Forkserver does not inherit the parent-side patch used by fixtures.
+        # Both processes need the same Redis cache, isolated from other runs.
+        caches = {
+            **settings.CACHES,
+            "default": {
+                **settings.CACHES["default"],
+                "KEY_PREFIX": f"whois-selenium-{uuid4().hex}",
+            },
+        }
+        cls.enterClassContext(override_settings(CACHES=caches))
         cls.ProtocolServerProcess = partial(
-            make_whois_server_process, configured=cls.whois_configured
+            make_whois_server_process,
+            configured=cls.whois_configured,
+            overrides={"CACHES": caches},
         )
-        configured = mock.patch.object(
-            app_settings, "WHOIS_CONFIGURED", cls.whois_configured
-        )
-        configured.start()
-        cls.addClassCleanup(configured.stop)
+        cls.enterClassContext(override_whois_configured(cls.whois_configured))
         super().setUpClass()
+
+    def setUp(self):
+        super().setUp()
+        self.addCleanup(cache.delete, WHOISService.get_cache_key(self._get_org().pk))
 
 
 @tag("selenium_tests")
@@ -1617,7 +1629,6 @@ class TestWHOISSelenium(WHOISSeleniumMixin, ControllerLiveServerTestCase):
             "openwisp_controller.config.whois.tasks.fetch_whois_details.delay"
         ):
             device = self._create_device(last_ip="172.217.22.15")
-        # Daphne reads the quota cooldown from Redis in a separate process.
         quota_key = WHOISService.get_quota_cache_key()
         self.addCleanup(cache.delete, quota_key)
         cache.set(quota_key, timezone.now().timestamp() + 3600)
@@ -1661,22 +1672,34 @@ class TestWHOISSelenium(WHOISSeleniumMixin, ControllerLiveServerTestCase):
         with self.subTest(
             "WHOIS details not visible in device admin when WHOIS is disabled"
         ):
-            org = self._get_org()
+            org = device.organization
             org.config_settings.whois_enabled = False
             org.config_settings.save(update_fields=["whois_enabled"])
-            org.config_settings.refresh_from_db(fields=["whois_enabled"])
             self.open(reverse("admin:config_device_change", args=[device.pk]))
             self.wait_for_invisibility(By.CSS_SELECTOR, "table.whois-table")
             self.wait_for_invisibility(By.CSS_SELECTOR, "details.whois")
             _assert_no_js_errors()
 
+        with self.subTest("Re-enabling WHOIS in admin invalidates the disabled cache"):
+            self.assertFalse(WHOISService.get_org_config_settings(org.pk).whois_enabled)
+            self.open(
+                reverse("admin:openwisp_users_organization_change", args=[org.pk])
+            )
+            Select(
+                self.find_element(By.NAME, "config_settings-0-whois_enabled")
+            ).select_by_visible_text("Enabled")
+            self.find_element(By.NAME, "_save").click()
+            self.assertTrue(
+                WHOISService.get_org_config_settings(org.pk).whois_enabled,
+                "The admin save in Daphne did not invalidate the disabled cache.",
+            )
+            self.open(reverse("admin:config_device_change", args=[device.pk]))
+            self.wait_for_visibility(By.CSS_SELECTOR, "table.whois-table")
+            _assert_no_js_errors()
+
         with self.subTest(
             "WHOIS details not visible in device admin when WHOIS Info does not exist"
         ):
-            org = self._get_org()
-            org.config_settings.whois_enabled = True
-            org.config_settings.save(update_fields=["whois_enabled"])
-            org.config_settings.refresh_from_db(fields=["whois_enabled"])
             WHOISInfo.objects.all().delete()
             self.open(reverse("admin:config_device_change", args=[device.pk]))
             self.wait_for_invisibility(By.CSS_SELECTOR, "table.whois-table")

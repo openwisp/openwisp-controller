@@ -4,11 +4,10 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.conf import settings
-from django.contrib.auth.models import Permission
+from django.contrib.auth.models import Group, Permission
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.sites.models import Site
-from django.db import connection
-from django.db.models.signals import post_migrate
+from django.db import connection, connections
 from django.test import TransactionTestCase
 
 from .utils import ControllerLiveServerTestCase
@@ -42,9 +41,17 @@ class FakeDaphneProcess:
 class TestLiveServerLifecycle(TransactionTestCase):
     def setUp(self):
         super().setUp()
+        # A preceding TransactionTestCase may already have flushed migration data.
+        # Seed a representative grant to test restoration, not authorization.
+        self.operator, _ = Group.objects.get_or_create(name="Operator")
+        self.permission = Permission.objects.get(
+            content_type__app_label="config", codename="change_device"
+        )
+        self.operator.permissions.add(self.permission)
+        # Patch the real connection, not its proxy, so Django's snapshot is restored.
         self.enterContext(
             patch.object(
-                connection,
+                connections[connection.alias],
                 "_test_serialized_contents",
                 connection.creation.serialize_db_to_string(),
                 create=True,
@@ -56,11 +63,18 @@ class TestLiveServerLifecycle(TransactionTestCase):
         expected_content_types = list(
             ContentType.objects.order_by("pk").values_list("pk", "app_label", "model")
         )
+        operator_pk = self.operator.pk
+        permission_pk = self.permission.pk
 
         class OrdinaryTest(TransactionTestCase):
             def test_defaults(self):
                 self.assertTrue(Site.objects.filter(pk=settings.SITE_ID).exists())
                 self.assertTrue(Permission.objects.exists())
+                self.assertTrue(
+                    Group.objects.filter(
+                        pk=operator_pk, name="Operator", permissions=permission_pk
+                    ).exists()
+                )
                 self.assertFalse(
                     Site.objects.filter(domain="browser-created.example").exists()
                 )
@@ -164,11 +178,15 @@ class TestLiveServerLifecycle(TransactionTestCase):
                 super().setUpClass()
                 raise RuntimeError("Simulated WebDriver startup failure")
 
-        def migrated(**kwargs):
-            events.append("migrated")
+        deserialize = connection.creation.deserialize_db_from_string
 
-        post_migrate.connect(migrated)
-        self.addCleanup(post_migrate.disconnect, migrated)
+        def restore(data):
+            events.append("restored")
+            return deserialize(data)
+
+        self.enterContext(
+            patch.object(connection.creation, "deserialize_db_from_string", restore)
+        )
         allowed_hosts = list(settings.ALLOWED_HOSTS)
         for cls in (BrowserTest, FailedSubclassSetup):
             with self.subTest(stage=cls.__name__):
@@ -180,7 +198,12 @@ class TestLiveServerLifecycle(TransactionTestCase):
                 self.assertEqual(result.testsRun, 0)
                 self.assertFalse(cls._server_process.is_alive())
                 self.assertTrue(cls._server_process.joined)
-                self.assertLess(events.index("stopped"), events.index("migrated"))
+                self.assertEqual(events, ["restored", "stopped", "restored"])
                 self.assertTrue(Site.objects.filter(pk=settings.SITE_ID).exists())
                 self.assertTrue(Permission.objects.exists())
+                self.assertTrue(
+                    Group.objects.filter(
+                        pk=self.operator.pk, permissions=self.permission.pk
+                    ).exists()
+                )
                 self.assertEqual(settings.ALLOWED_HOSTS, allowed_hosts)

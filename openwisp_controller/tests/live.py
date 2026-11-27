@@ -11,9 +11,16 @@ def _get_application(get_application, overrides):
     return get_application()
 
 
-def make_server_process(host, get_application, *, setup, overrides):
-    return DaphneProcess(
-        host,
-        partial(_get_application, get_application, overrides),
-        setup=setup,
-    )
+def _setup(setup, initialize):
+    setup()
+    initialize()
+
+
+def make_server_process(
+    host, get_application, *, setup, overrides=None, initialize=None
+):
+    if overrides is not None:
+        get_application = partial(_get_application, get_application, overrides)
+    if initialize is not None:
+        setup = partial(_setup, setup, initialize)
+    return DaphneProcess(host, get_application, setup=setup)

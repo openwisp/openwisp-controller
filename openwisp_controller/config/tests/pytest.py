@@ -75,7 +75,9 @@ class TestDeviceConsumer(CreateDeviceMixin):
 
     async def test_user_authorization(self, client, django_user_model):
         device = await database_sync_to_async(self._create_device)()
-        staff_user = await database_sync_to_async(self._create_operator)()
+        staff_user = await database_sync_to_async(self._create_operator)(
+            organizations=[device.organization]
+        )
         await database_sync_to_async(client.force_login)(staff_user)
 
         # Test unauthorized user
@@ -88,6 +90,17 @@ class TestDeviceConsumer(CreateDeviceMixin):
         await database_sync_to_async(client.force_login)(staff_user)
         communicator = await self._get_communicator(client, device.pk)
         await communicator.disconnect()
+
+    async def test_user_of_another_organization(self, client):
+        device = await database_sync_to_async(self._create_device)()
+        org2 = await database_sync_to_async(self._create_org)(name="org2", slug="org2")
+        staff_user = await database_sync_to_async(self._create_operator)(
+            organizations=[org2]
+        )
+        await self._add_model_permissions(staff_user)
+        await database_sync_to_async(client.force_login)(staff_user)
+        with pytest.raises(AssertionError):
+            await self._get_communicator(client, device.pk)
 
     async def test_silent_disconnection(self, admin_user, admin_client):
         device = await database_sync_to_async(self._create_device)()

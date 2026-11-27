@@ -1,5 +1,4 @@
 from functools import partial
-from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
@@ -13,8 +12,10 @@ from swapper import load_model
 from openwisp_users.tests.utils import TestOrganizationMixin
 from openwisp_utils.tests import SeleniumTestMixin
 
-from ...config import settings as config_app_settings
-from ...config.whois.tests.live import make_whois_server_process
+from ...config.whois.tests.live import (
+    make_whois_server_process,
+    override_whois_configured,
+)
 from ...tests.utils import ControllerLiveServerTestCase
 from .utils import TestGeoMixin
 
@@ -81,7 +82,11 @@ class TestEstimatedLocationSelenium(
     object_location_model = DeviceLocation
     user_model = get_user_model()
 
-    @mock.patch.object(config_app_settings, "WHOIS_CONFIGURED", True)
+    @classmethod
+    def setUpClass(cls):
+        cls.enterClassContext(override_whois_configured(True))
+        super().setUpClass()
+
     def test_estimated_location_warning(self):
         org = self._get_org()
         org.geo_settings.estimated_location_enabled = True

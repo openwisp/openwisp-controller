@@ -36,14 +36,10 @@ class ControllerLiveServerTestCase(ChannelsLiveServerTestCase):
         ]
         cls.addClassCleanup(cls._restore_database)
         # Ordinary transaction tests may have recreated content types with new IDs.
-        cls._flush_databases(inhibit_post_migrate=True)
+        cls._flush_databases()
         # Django 5.2+ restores the snapshot in the parent's class setup.
         if django.VERSION < (5, 2):
-            for alias in cls._serialized_databases:
-                connection = connections[alias]
-                connection.creation.deserialize_db_from_string(
-                    connection._test_serialized_contents
-                )
+            cls._load_snapshot()
         cls._clear_model_caches()
         try:
             super().setUpClass()
@@ -65,11 +61,21 @@ class ControllerLiveServerTestCase(ChannelsLiveServerTestCase):
 
     @classmethod
     def _restore_database(cls):
-        # Daphne must be stopped before restoring defaults for non-browser tests.
-        cls._flush_databases(inhibit_post_migrate=False)
+        # post_migrate alone cannot recreate rows such as the default permission groups.
+        cls._flush_databases()
+        cls._load_snapshot()
+        cls._clear_model_caches()
 
     @classmethod
-    def _flush_databases(cls, inhibit_post_migrate):
+    def _load_snapshot(cls):
+        for alias in cls._serialized_databases:
+            connection = connections[alias]
+            connection.creation.deserialize_db_from_string(
+                connection._test_serialized_contents
+            )
+
+    @classmethod
+    def _flush_databases(cls):
         for alias in cls._serialized_databases:
             call_command(
                 "flush",
@@ -77,7 +83,7 @@ class ControllerLiveServerTestCase(ChannelsLiveServerTestCase):
                 interactive=False,
                 database=alias,
                 reset_sequences=False,
-                inhibit_post_migrate=inhibit_post_migrate,
+                inhibit_post_migrate=True,
             )
         cls._clear_model_caches()
 
