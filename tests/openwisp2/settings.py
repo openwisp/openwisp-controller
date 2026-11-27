@@ -103,7 +103,7 @@ INTERNAL_IPS = ["127.0.0.1"]
 ROOT_URLCONF = "openwisp2.urls"
 
 ASGI_APPLICATION = "openwisp2.asgi.application"
-if not TESTING:
+if not TESTING or "--exclude-tag=selenium_tests" not in sys.argv:
     CHANNEL_LAYERS = {
         "default": {
             "BACKEND": "channels_redis.core.RedisChannelLayer",
@@ -303,6 +303,7 @@ if os.environ.get("SAMPLE_APP", False):
     CONNECTION_CREDENTIALS_MODEL = "sample_connection.Credentials"
     CONNECTION_DEVICECONNECTION_MODEL = "sample_connection.DeviceConnection"
     CONNECTION_COMMAND_MODEL = "sample_connection.Command"
+    CONNECTION_BATCHCOMMAND_MODEL = "sample_connection.BatchCommand"
     SUBNET_DIVISION_SUBNETDIVISIONRULE_MODEL = (
         "sample_subnet_division.SubnetDivisionRule"
     )

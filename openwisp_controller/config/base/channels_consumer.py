@@ -10,11 +10,29 @@ class BaseDeviceConsumer(WebsocketConsumer):
     channel_layer_group = "config.device"
 
     def _is_user_authenticated(self):
-        return self.scope["user"].is_authenticated is True
+        user = self.scope.get("user")
+        return user is not None and user.is_authenticated
 
     def is_user_authorized(self):
         user = self.scope["user"]
-        return user.is_superuser or (user.is_staff and self._user_has_permissions())
+        if user.is_superuser:
+            return True
+        return (
+            user.is_staff
+            and self._user_has_permissions()
+            and self._user_manages_object()
+        )
+
+    def _user_manages_object(self):
+        """Checks that the user manages the current organization of the object."""
+        organization_id = (
+            self.model.objects.filter(pk=self.scope["url_route"]["kwargs"].get("pk"))
+            .values_list("organization_id", flat=True)
+            .first()
+        )
+        return bool(organization_id) and self.scope["user"].is_manager(
+            str(organization_id)
+        )
 
     def _user_has_permissions(self, add=True, change=True, delete=True):
         permissions = []
@@ -32,16 +50,18 @@ class BaseDeviceConsumer(WebsocketConsumer):
         return self.scope["user"].has_perms(permissions)
 
     def connect(self):
-        try:
-            assert self._is_user_authenticated() and self.is_user_authorized()
-            self.pk_ = self.scope["url_route"]["kwargs"]["pk"]
-        except (AssertionError, KeyError):
+        if not self._is_user_authenticated() or not self.is_user_authorized():
             self.close()
-        else:
-            async_to_sync(self.channel_layer.group_add)(
-                f"{self.channel_layer_group}-{self.pk_}", self.channel_name
-            )
-            self.accept()
+            return
+        try:
+            self.pk_ = self.scope["url_route"]["kwargs"]["pk"]
+        except KeyError:
+            self.close()
+            return
+        async_to_sync(self.channel_layer.group_add)(
+            f"{self.channel_layer_group}-{self.pk_}", self.channel_name
+        )
+        self.accept()
 
     def disconnect(self, close_code):
         try:
