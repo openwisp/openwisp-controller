@@ -50,13 +50,14 @@ If instructions conflict (please let us know!), repository config and CI workflo
 - When separate tests cover different cases of the same feature, share almost identical database preparation, and primarily vary in input or expected outcome, group them in one test method with `subTest`. This is especially encouraged, but not limited to, TransactionTestCase tests, where it avoids repeated expensive database setup and teardown. Keep each subtest's setup explicit and independent, and retain separate test methods when cases exercise genuinely distinct behavior. Leave one blank line before each with `self.subTest(...)` statement only when a test method contains multiple such statements. Do not add a blank line for a single `subTest` statement inside a loop.
 - Prefer method decorators for context managers that apply to the entire test method and would otherwise create unnecessary nesting, unless decorator ordering conflicts or the context manager requires data unavailable when the method is defined.
 - During development, run the focused tests and test suites directly affected by the change instead of routinely running the full test suite. For example, run the relevant `test_admin` tests for admin changes and Selenium tests for JavaScript or browser-facing changes.
-- For focused tests, call `./tests/manage.py test <pythonpath>` directly. Use `./runtests` only for the full suite because it runs multiple coverage and integration configurations and is not a focused-test runner.
+- Use `./runtests <pythonpath>` for focused Django tests and `./runtests` for the full coverage suite. Keep focused labels and flags on an explicit allowlist.
 - Changes to core logic, model validation, migrations, database schema, tenant isolation, authentication, or shared behavior require all affected package and integration suites.
 - Before pushing a branch or opening a pull request for a behavior-affecting change, verify that the full test suite has passed at least once for the current branch after its latest code, test, dependency, migration, or configuration change. If no successful full-suite result is available, stop, report the missing verification, and do not push or open the pull request. If the full suite cannot run, report the blocker and wait for user direction.
 - Run the full test suite with a 60-minute timeout (`timeout=3600000`).
 - Prefer in-process tests so coverage tools can measure changed code.
 - Keep helpers and classes used by only one test method inside that method. Promote them to class or module scope only when genuinely reused.
 - Keep tests quiet on success. When code under test writes to stdout or stderr, use `capture_stdout`, `capture_stderr`, or `capture_any_output` from `openwisp_utils.tests` and assert the expected output. Do not leave unasserted output, logs, or warnings in test runs.
+- Add CI dependencies to `./install-ci-deps.sh` and cache them. Keep cache inputs in sync with the installer and dependency files. Follow the shared structure and internal naming in `.github/workflows/ci.yml` so OpenWISP automation works across repositories.
 
 ## Django Rules
 
