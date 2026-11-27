@@ -213,6 +213,21 @@ class TestSubnetAdmin(
         self.assertContains(response, "This field is required.")
         self.assertFalse(Subnet.objects.filter(name="Subnet").exists())
 
+    def test_add_shared_subnet_rule_with_only_organization(self):
+        response = self.client.post(
+            reverse(f"admin:{self.ipam_label}_subnet_add"),
+            {
+                "name": "Shared subnet",
+                "subnet": "192.168.0.0/16",
+                "organization": "",
+                "subnetdivisionrule_set-TOTAL_FORMS": 1,
+                "subnetdivisionrule_set-INITIAL_FORMS": 0,
+                "subnetdivisionrule_set-0-organization": str(self._get_org().pk),
+            },
+        )
+        self.assertContains(response, "This field is required.")
+        self.assertFalse(Subnet.objects.filter(name="Shared subnet").exists())
+
 
 class TestIPAdmin(SubnetDivisionAdminTestMixin, TestMultitenantAdminMixin, TestCase):
     ipam_label = "openwisp_ipam"

@@ -23,10 +23,12 @@ Device = load_model("config", "Device")
 
 class SubnetDivisionRuleInlineForm(forms.ModelForm):
     def has_changed(self):
-        # The organization of new rules is set by JavaScript, which
-        # must not stop Django from ignoring an otherwise empty rule
-        if self.instance._state.adding:
-            return bool(set(self.changed_data) - {"organization"})
+        # JavaScript sets the organization of new rules to the one of the
+        # subnet, which must not stop Django from ignoring an otherwise
+        # empty rule. Any other organization was selected by the user.
+        if self.instance._state.adding and self.changed_data == ["organization"]:
+            subnet_org = self.data.get("organization")
+            return not subnet_org or self["organization"].value() != subnet_org
         return super().has_changed()
 
 
