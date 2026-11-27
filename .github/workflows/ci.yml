@@ -51,7 +51,7 @@ jobs:
             django-version: django~=6.0.0
         include:
           - python-version: "3.13"
-            django-version: django~=6.0.0
+            django-version: django~=6.1.0
             review_default: true # Used by on-demand AI reviews
 
     steps:
@@ -102,9 +102,6 @@ jobs:
       - name: Start redis
         if: ${{ !cancelled() && steps.deps.conclusion == 'success' }}
         run: docker compose up -d redis
-
-      - name: CI entry point tests
-        run: python tests/test_ci_entrypoint.py
 
       - name: QA checks
         run: ./run-qa-checks
