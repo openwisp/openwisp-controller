@@ -1,7 +1,7 @@
 from ipaddress import ip_network
 
 import swapper
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.core.validators import MinValueValidator
 from django.db import models, transaction
 from django.utils.module_loading import import_string
@@ -14,6 +14,7 @@ from .. import settings as app_settings
 
 
 class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
+    in_use_error_code = "subnet_division_rule_in_use"
     _subnet_division_rule_update_queue = dict()
     # It is used to monitor changes in fields of a SubnetDivisionRule object
     # An entry is added to the queue from pre_save signal in the following format
@@ -88,7 +89,13 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
             )
 
     def _validate_master_subnet_validity(self):
-        if not self.master_subnet.subnet:
+        try:
+            master_subnet = self.master_subnet
+        except ObjectDoesNotExist:
+            raise ValidationError(
+                {"master_subnet": _("Invalid master subnet.")}
+            ) from None
+        if not master_subnet.subnet:
             raise ValidationError({"master_subnet": _("Invalid master subnet.")})
 
     def _validate_existing_fields(self):
@@ -233,10 +240,75 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
         SubnetDivisionIndex = swapper.load_model(
             "subnet_division", "SubnetDivisionIndex"
         )
+        SubnetDivisionRule = swapper.load_model("subnet_division", "SubnetDivisionRule")
 
-        Subnet.objects.filter(
+        cleanup_candidates = Subnet.objects.filter(
             id__in=SubnetDivisionIndex.objects.filter(rule_id=None).values("subnet_id")
-        ).delete()
+        )
+
+        def is_protected(candidate_id):
+            pending = [candidate_id]
+            visited = set()
+            while pending:
+                subnet_ids = set(pending[-100:]) - visited
+                del pending[-100:]
+                if not subnet_ids:
+                    continue
+                visited.update(subnet_ids)
+                index_protected = SubnetDivisionIndex.objects.filter(
+                    rule_id__isnull=False
+                ).filter(
+                    models.Q(subnet_id__in=subnet_ids)
+                    | models.Q(ip__subnet_id__in=subnet_ids)
+                )
+                if (
+                    index_protected.exists()
+                    or SubnetDivisionRule.objects.filter(
+                        master_subnet_id__in=subnet_ids
+                    ).exists()
+                ):
+                    return True
+                pending.extend(
+                    Subnet.objects.filter(master_subnet_id__in=subnet_ids).values_list(
+                        "pk", flat=True
+                    )
+                )
+            return False
+
+        last_id = None
+        while True:
+            batch = cleanup_candidates.order_by("pk")
+            if last_id is not None:
+                batch = batch.filter(pk__gt=last_id)
+            candidate_ids = list(batch.values_list("pk", flat=True)[:100])
+            if not candidate_ids:
+                return
+            for candidate_id in candidate_ids:
+                if not is_protected(candidate_id):
+                    Subnet.objects.filter(pk=candidate_id).delete()
+            last_id = candidate_ids[-1]
+
+    @classmethod
+    def filter_in_use(cls, queryset=None):
+        """Returns rules referenced by at least one device configuration."""
+        if queryset is None:
+            queryset = cls.objects.all()
+        return queryset.filter(subnetdivisionindex__config_id__isnull=False).distinct()
+
+    @classmethod
+    def is_in_use_error(cls, error):
+        return getattr(error, "code", None) == cls.in_use_error_code
+
+    def validate_deletion(self):
+        """Raises a validation error when this rule cannot be deleted."""
+        if self.filter_in_use(self.__class__.objects.filter(pk=self.pk)).exists():
+            raise ValidationError(
+                _(
+                    "This subnet division rule is used by device configurations "
+                    "and cannot be deleted."
+                ),
+                code=self.in_use_error_code,
+            )
 
     @classmethod
     def pre_save(cls, instance, **kwargs):

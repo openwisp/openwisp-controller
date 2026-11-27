@@ -1,5 +1,16 @@
+from django.apps import apps
 from django.conf import settings
 from django.urls import include, path
+
+
+def get_ipam_urls_module():
+    subnet_division_app = "openwisp_controller.subnet_division"
+    if apps.is_installed(subnet_division_app) or subnet_division_app in getattr(
+        settings, "EXTENDED_APPS", ()
+    ):
+        return "openwisp_controller.subnet_division.ipam_urls"
+    return "openwisp_ipam.urls"
+
 
 url_metadata = [
     # allauth proxy
@@ -15,10 +26,13 @@ url_metadata = [
         "include": {"module": "openwisp_notifications.urls"},
     },
     # openwisp_ipam
+    # the subnet division app overrides some of the IPAM API views, so that
+    # deletions refused by its rules are reported instead of failing with a
+    # server error; the default views are used when it is not installed
     {
         "regexp": "",
         "app": "openwisp_ipam",
-        "include": {"module": "openwisp_ipam.urls"},
+        "include": {"module": get_ipam_urls_module()},
     },
     # openwisp_controller.pki (CRL view)
     {

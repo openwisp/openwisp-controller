@@ -195,3 +195,27 @@ division rule.
 
 However, be aware that existing devices **will probably be reassigned
 different subnets and IP addresses** than the ones used previously.
+
+Deleting a Subnet Division Rule
+-------------------------------
+
+A subnet division rule that is currently used by device configurations
+cannot be deleted. This prevents configurations from referencing variables
+such as ``{{ OW_subnet1 }}`` after the rule and its generated subnets have
+been removed.
+
+If you try to delete a rule that is still in use, an error message will
+provide a link to the filtered device changelist showing the affected
+devices.
+
+For a VPN rule, remove the VPN-client template through a configuration
+update that deletes the corresponding VPN client; this also cleans up its
+provisioned subnets and indexes. For a device rule, delete the affected
+device configurations so their provisioned ``SubnetDivisionIndex`` records
+are also removed. Simply editing the rendered configuration text is not
+sufficient, because the indexes are created by the provisioning logic, not
+by the configuration content itself.
+
+Once no device configuration depends on the rule, deletion will succeed
+and the rule's generated subnets and IP addresses will be cleaned up
+automatically.
