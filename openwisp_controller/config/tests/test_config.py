@@ -1071,6 +1071,52 @@ class TestConfig(
             )
         mocked_invalidate.assert_called_once_with(common_name, None)
 
+    def test_new_organization_context_invalidation_on_commit(self):
+        org = self._create_org(name="new-context", slug="new-context")
+        other = self._create_org(name="empty-context", slug="empty-context")
+        with patch(
+            "openwisp_controller.config.tasks"
+            ".bulk_invalidate_config_get_cached_checksum.delay"
+        ) as task:
+            with self.captureOnCommitCallbacks(execute=True):
+                OrganizationConfigSettings.objects.create(organization=other)
+                settings = OrganizationConfigSettings.objects.create(
+                    organization=org, context={"interface_type": "virtual"}
+                )
+                task.assert_not_called()
+            task.assert_called_once_with({"device__organization_id": str(org.pk)})
+            task.reset_mock()
+            with self.captureOnCommitCallbacks(execute=True):
+                settings.save()
+            task.assert_not_called()
+
+    def test_new_organization_context_rollback_does_not_invalidate(self):
+        org = self._create_org(name="rollback-context", slug="rollback-context")
+        with patch(
+            "openwisp_controller.config.tasks"
+            ".bulk_invalidate_config_get_cached_checksum.delay"
+        ) as task:
+            with self.captureOnCommitCallbacks(execute=True):
+                with self.assertRaisesMessage(ValueError, "rollback"):
+                    with atomic():
+                        OrganizationConfigSettings.objects.create(
+                            organization=org, context={"interface_type": "virtual"}
+                        )
+                        raise ValueError("rollback")
+            task.assert_not_called()
+
+    def test_organization_settings_update_preserves_concurrent_fields(self):
+        org = self._create_org(name="settings-update", slug="settings-update")
+        settings = OrganizationConfigSettings(organization=org)
+        settings.update(shared_secret="original-secret")
+        OrganizationConfigSettings.objects.filter(pk=settings.pk).update(
+            shared_secret="rotated-secret"
+        )
+        result = settings.update(context={"name": "value"})
+        self.assertIs(result, settings)
+        self.assertEqual(settings.shared_secret, "rotated-secret")
+        self.assertEqual(settings.context, {"name": "value"})
+
 
 class TestTransactionConfig(
     CreateConfigTemplateMixin,

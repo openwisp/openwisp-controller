@@ -243,6 +243,12 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
         return list(cls.objects.filter(templates=template))
 
     @classmethod
+    def _resolve_new_org_context(cls, settings, created=False, **kwargs):
+        if created and settings.context:
+            return [settings]
+        return []
+
+    @classmethod
     def get_cache_dependencies(cls):
         return [
             # A client certificate's content (re-issue / key change) feeds into
@@ -288,6 +294,13 @@ class AbstractConfig(CacheInvalidationMixin, ChecksumCacheMixin, BaseConfig):
                 signal="pre_delete",
                 resolve=cls._resolve_template_dependency,
                 target="update_status_if_checksum_changed",
+            ),
+            CacheDependency(
+                source="config.OrganizationConfigSettings",
+                signal="post_save",
+                on_create=True,
+                resolve=cls._resolve_new_org_context,
+                target=cls._invalidate_configs_in_org,
             ),
         ]
 

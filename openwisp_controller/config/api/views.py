@@ -1,19 +1,32 @@
 from cache_memoize import cache_memoize
 from django.core.exceptions import ObjectDoesNotExist
+from django.db import (
+    DEFAULT_DB_ALIAS,
+    DatabaseError,
+    IntegrityError,
+    connections,
+    transaction,
+)
 from django.db.models import F, Q
 from django.http import Http404
+from django.shortcuts import get_object_or_404
 from django.urls.base import reverse
+from django.utils.translation import gettext_lazy as _
 from django_filters.rest_framework import DjangoFilterBackend
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework import serializers, status
 from rest_framework.generics import (
     GenericAPIView,
     ListCreateAPIView,
     RetrieveAPIView,
+    RetrieveUpdateAPIView,
     RetrieveUpdateDestroyAPIView,
 )
 from rest_framework.response import Response
 from swapper import load_model
 
+from openwisp_users.api.mixins import FilterByParentManaged
+from openwisp_users.api.mixins import ProtectedAPIMixin as BaseProtectedAPIMixin
 from openwisp_users.api.permissions import DjangoModelPermissions
 from openwisp_utils.api.pagination import OpenWispPagination
 
@@ -29,6 +42,7 @@ from .serializers import (
     DeviceDetailSerializer,
     DeviceGroupSerializer,
     DeviceListSerializer,
+    OrganizationConfigSettingsSerializer,
     TemplateSerializer,
     VpnListSerializer,
     VpnSerializer,
@@ -36,6 +50,8 @@ from .serializers import (
 
 Template = load_model("config", "Template")
 Vpn = load_model("config", "Vpn")
+OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
+Organization = load_model("openwisp_users", "Organization")
 Device = load_model("config", "Device")
 DeviceGroup = load_model("config", "DeviceGroup")
 Config = load_model("config", "Config")
@@ -161,6 +177,145 @@ class DeviceGroupListCreateView(ProtectedAPIMixin, ListCreateAPIView):
 class DeviceGroupDetailView(ProtectedAPIMixin, RetrieveUpdateDestroyAPIView):
     serializer_class = DeviceGroupSerializer
     queryset = DeviceGroup.objects.select_related("organization").order_by("-created")
+
+
+class OrganizationConfigSettingsView(
+    FilterByParentManaged, BaseProtectedAPIMixin, RetrieveUpdateAPIView
+):
+    permission_classes = BaseProtectedAPIMixin.permission_classes
+    serializer_class = OrganizationConfigSettingsSerializer
+    queryset = OrganizationConfigSettings.objects.select_related("organization")
+
+    def get_parent_queryset(self):
+        return Organization.objects.filter(pk=self.kwargs["pk"])
+
+    def get_organization_queryset(self, qs):
+        return qs.filter(pk__in=self.request.user.organizations_managed)
+
+    def get_object(self):
+        queryset = self.filter_queryset(self.get_queryset())
+        organization = None
+        if self.request.method in ("PUT", "PATCH"):
+            # Lock the parent even when settings do not exist yet, and lock an
+            # existing row so other writers cannot overwrite a rotated secret.
+            organization = get_object_or_404(
+                self.get_parent_queryset().select_for_update()
+            )
+            queryset = queryset.select_for_update(of=("self",))
+        try:
+            obj = queryset.get(organization_id=self.kwargs["pk"])
+        except OrganizationConfigSettings.DoesNotExist:
+            if self.request.method in ("GET", "HEAD"):
+                raise Http404
+            add_permission = (
+                f"{OrganizationConfigSettings._meta.app_label}."
+                f"add_{OrganizationConfigSettings._meta.model_name}"
+            )
+            if not self.request.user.has_perm(add_permission):
+                self.permission_denied(self.request)
+            obj = OrganizationConfigSettings(organization=organization)
+        self.check_object_permissions(self.request, obj)
+        return obj
+
+    def perform_update(self, serializer):
+        created = serializer.instance._state.adding
+        try:
+            with transaction.atomic():
+                serializer.save()
+        except IntegrityError as error:
+            # another request created the settings concurrently
+            instance = OrganizationConfigSettings.objects.filter(
+                organization_id=self.kwargs["pk"]
+            ).first()
+            if instance is None or not created:
+                self._assert_shared_secret_available(serializer, error)
+                raise
+            created = False
+            serializer.instance = instance
+            try:
+                with transaction.atomic():
+                    serializer.save()
+            except IntegrityError as error:
+                self._assert_shared_secret_available(serializer, error)
+                raise
+            except DatabaseError as error:
+                self._raise_if_deleted(serializer.instance, error)
+                raise
+            except OrganizationConfigSettings.DoesNotExist:
+                raise Http404
+        except DatabaseError as error:
+            self._raise_if_deleted(serializer.instance, error)
+            raise
+        except OrganizationConfigSettings.DoesNotExist:
+            raise Http404
+        self._object_created = created
+
+    def _assert_shared_secret_available(self, serializer, error):
+        """Raises a validation error if the submitted shared secret was
+        taken by another organization concurrently.
+        """
+        shared_secret = serializer.validated_data.get("shared_secret")
+        if not shared_secret:
+            return
+        connection = connections[serializer.instance._state.db or DEFAULT_DB_ALIAS]
+        field = OrganizationConfigSettings._meta.get_field("shared_secret")
+        table = OrganizationConfigSettings._meta.db_table
+        cause = error.__cause__
+        constraint_name = getattr(getattr(cause, "diag", None), "constraint_name", None)
+        constraint_matches = False
+        # The conflicting secret may change again before it can be queried.
+        if connection.vendor == "postgresql" and constraint_name:
+            with connection.cursor() as cursor:
+                constraints = connection.introspection.get_constraints(cursor, table)
+            constraint = constraints.get(constraint_name, {})
+            constraint_matches = constraint.get("unique") and constraint.get(
+                "columns"
+            ) == [field.column]
+        elif connection.vendor == "sqlite":
+            constraint_matches = str(cause) == (
+                f"UNIQUE constraint failed: {table}.{field.column}"
+            )
+        taken = (
+            OrganizationConfigSettings.objects.filter(shared_secret=shared_secret)
+            .exclude(organization_id=self.kwargs["pk"])
+            .exists()
+        )
+        if constraint_matches or taken:
+            raise serializers.ValidationError(
+                {
+                    "shared_secret": _(
+                        "This shared secret is already used by another organization."
+                    )
+                }
+            )
+
+    @transaction.atomic
+    def update(self, request, *args, **kwargs):
+        response = super().update(request, *args, **kwargs)
+        if request.method == "PUT" and getattr(self, "_object_created", False):
+            response.status_code = status.HTTP_201_CREATED
+        return response
+
+    @swagger_auto_schema(
+        responses={
+            200: OrganizationConfigSettingsSerializer,
+            201: OrganizationConfigSettingsSerializer,
+        }
+    )
+    def put(self, request, *args, **kwargs):
+        return super().put(request, *args, **kwargs)
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return self.queryset.none()
+        return super().get_queryset()
+
+    def _raise_if_deleted(self, instance, error):
+        if (
+            str(error) == "Save with update_fields did not affect any rows."
+            and not OrganizationConfigSettings.objects.filter(pk=instance.pk).exists()
+        ):
+            raise Http404
 
 
 def get_cached_devicegroup_args_rewrite(cls, org_slugs, common_name):
@@ -298,3 +453,4 @@ device_deactivate = DeviceDeactivateView.as_view()
 devicegroup_list = DeviceGroupListCreateView.as_view()
 devicegroup_detail = DeviceGroupDetailView.as_view()
 devicegroup_commonname = DeviceGroupCommonName.as_view()
+organization_config_settings = OrganizationConfigSettingsView.as_view()

@@ -1541,3 +1541,37 @@ Revoke Cert
 .. code-block:: text
 
     POST /api/v1/controller/cert/{id}/revoke/
+
+Get Organization Configuration Settings
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Superusers normally create organizations through the admin, which also
+creates their configuration settings. When a superuser creates an
+organization using the :doc:`Users REST API </users/user/rest-api>`, they
+must explicitly create its configuration settings with ``PUT`` or
+``PATCH``. The :ref:`default permission groups
+<default_permission_groups>` cannot create organization configuration
+settings.
+
+If the settings do not exist, ``GET`` returns ``HTTP 404 Not Found``.
+
+.. code-block:: text
+
+    GET /api/v1/controller/organization/{id}/config-settings/
+
+Change Organization Configuration Settings
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: text
+
+    PUT /api/v1/controller/organization/{id}/config-settings/
+
+``PUT`` returns ``HTTP 201 Created`` when it creates the settings and
+``HTTP 200 OK`` when it updates existing ones.
+
+Patch Organization Configuration Settings
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: text
+
+    PATCH /api/v1/controller/organization/{id}/config-settings/

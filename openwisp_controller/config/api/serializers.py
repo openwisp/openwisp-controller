@@ -17,6 +17,7 @@ Device = load_model("config", "Device")
 DeviceGroup = load_model("config", "DeviceGroup")
 Config = load_model("config", "Config")
 Organization = load_model("openwisp_users", "Organization")
+OrganizationConfigSettings = load_model("config", "OrganizationConfigSettings")
 
 
 class BaseMeta:
@@ -405,3 +406,30 @@ class DeviceGroupSerializer(BaseSerializer):
         instance = super().update(instance, validated_data)
         self._save_m2m_templates(instance)
         return instance
+
+
+class OrganizationConfigSettingsSerializer(BaseSerializer):
+    # The organization is set by the view and cannot be supplied by the
+    # API client, its uniqueness is enforced by the database and handled
+    # in OrganizationConfigSettingsView.perform_update(), so that both
+    # sides of the creation race are handled in a single place.
+    exclude_validation = ["organization"]
+    context = serializers.JSONField(required=False, initial={})
+
+    def validate_context(self, value):
+        if not isinstance(value, dict):
+            raise serializers.ValidationError(_("Context must be a JSON object."))
+        return value
+
+    def update(self, instance, validated_data):
+        return instance.update(**validated_data)
+
+    class Meta:
+        model = OrganizationConfigSettings
+        fields = [
+            "id",
+            "registration_enabled",
+            "shared_secret",
+            "context",
+            "whois_enabled",
+        ]

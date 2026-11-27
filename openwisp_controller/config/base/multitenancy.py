@@ -72,6 +72,17 @@ class AbstractOrganizationConfigSettings(UUIDModel):
             )
         return super().clean()
 
+    def update(self, **changes):
+        """Preserve concurrently changed fields and return the persisted settings."""
+        for field, value in changes.items():
+            setattr(self, field, value)
+        if self._state.adding:
+            self.save()
+        else:
+            self.save(update_fields=list(changes))
+        self.refresh_from_db()
+        return self
+
 
 class AbstractOrganizationLimits(models.Model):
     organization = models.OneToOneField(
