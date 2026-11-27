@@ -163,7 +163,8 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
         # is executed after the whole block
         with transaction.atomic():
             for config in (
-                self.config_relations.prefetch_related(
+                self.config_relations.filter(device__organization__is_active=True)
+                .prefetch_related(
                     "vpnclient_set",
                     "templates",
                 )
@@ -195,6 +196,7 @@ class AbstractTemplate(ShareableOrgMixinUniqueName, BaseConfig):
                 Config.objects.select_related("device")
                 .filter(
                     backend=self.backend,
+                    device__organization__is_active=True,
                 )
                 .exclude(
                     models.Q(status__in=["deactivating", "deactivated"])

@@ -252,10 +252,16 @@ class AbstractVpn(
         """
         Calls _auto_create_cert() if cert is not set.
         """
-        config = {}
         created = self._state.adding
         if not created:
             self._check_changes()
+        if self.organization_id and not self.organization.is_active:
+            super().save(*args, **kwargs)
+            if not created and self._send_vpn_modified_after_save:
+                self.handle_related_change()
+                self._send_vpn_modified_after_save = False
+            return
+        config = {}
         create_dh = False
         if self.ca and (not self.cert or self.cert.ca_id != self.ca_id):
             self.cert = self._auto_create_cert()
@@ -329,8 +335,7 @@ class AbstractVpn(
     def handle_related_change(self):
         """
         Invalidates the VPN checksum and emits ``vpn_server_modified`` so that
-        client configs are recomputed. Called by :class:`CacheDependency` when
-        a related object (e.g. server CA/Cert) changes content.
+        client configs are recomputed.
         """
         self.invalidate_checksum_cache()
         self._send_vpn_modified_signal()
@@ -462,6 +467,21 @@ class AbstractVpn(
                 vpn_id=self.pk, ip=str(member_ip), node_id=zt_member_id
             )
         )
+
+    def can_authorize_zt_member(self, node_id=None):
+        """
+        Returns whether a queued ZeroTier member update may still
+        authorize the member, which can change after it was queued.
+        """
+        if self.organization_id and not self.organization.is_active:
+            return False
+        if not node_id or node_id == self.node_id:
+            return True
+        return self.vpnclient_set.filter(
+            secret__startswith=node_id,
+            config__device__organization__is_active=True,
+            config__device___is_deactivated=False,
+        ).exists()
 
     def _remove_zt_network_member(self, zt_member_id):
         vpn_kwargs = dict(
@@ -958,6 +978,8 @@ class AbstractVpnClient(models.Model):
 
     def save(self, *args, **kwargs):
         """Performs automatic provisioning if ``auto_cert`` is True."""
+        if not self.config.device.organization.is_active:
+            return super().save(*args, **kwargs)
         if self.auto_cert:
             self._auto_x509()
             self._auto_ip()
@@ -970,7 +992,11 @@ class AbstractVpnClient(models.Model):
         """
         Automatically creates an x509 certificate.
         """
-        if not self.vpn._is_backend_type("openvpn") or self.cert:
+        if (
+            not self.vpn._is_backend_type("openvpn")
+            or self.cert
+            or not self.config.device.organization.is_active
+        ):
             return
         cn = self._get_common_name()
         self._auto_create_cert(name=self.config.device.name, common_name=cn)
@@ -998,11 +1024,20 @@ class AbstractVpnClient(models.Model):
         transaction.on_commit(_post_save)
         # ZT network member should be authorized and assigned
         # an IP after the creation of the VPN client object
-        if instance.vpn._is_backend_type("zerotier"):
-            if instance.zerotier_member_id and instance.ip:
-                instance.vpn._add_zt_network_member(
-                    instance.zerotier_member_id, instance.ip.ip_address
-                )
+        # Recheck persisted state because related objects may be stale.
+        if (
+            instance.vpn._is_backend_type("zerotier")
+            and instance.zerotier_member_id
+            and instance.ip
+            and cls.objects.filter(
+                pk=instance.pk,
+                config__device__organization__is_active=True,
+                config__device___is_deactivated=False,
+            ).exists()
+        ):
+            instance.vpn._add_zt_network_member(
+                instance.zerotier_member_id, instance.ip.ip_address
+            )
 
     @classmethod
     def post_delete(cls, instance, **kwargs):

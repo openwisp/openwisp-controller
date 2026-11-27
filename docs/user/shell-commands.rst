@@ -80,7 +80,7 @@ Sending a Mass Command
 3. Review the matched devices, uncheck any you want to leave out, and
    click **Execute**.
 
-Superusers can leave every target empty to run the command on all the
+Superusers can leave every target empty to run the command on all eligible
 devices, as shown in the GIF below:
 
 .. image:: https://raw.githubusercontent.com/openwisp/openwisp-controller/docs/docs/mass-command-tutorial/mass_command_superuser.gif
@@ -116,8 +116,9 @@ device, updated in real time, as shown in the GIF below:
     :target: https://github.com/openwisp/openwisp-controller/tree/docs/docs/mass-command-tutorial/mass_command_results.gif
     :alt: Following the results of a mass command
 
-- Devices which cannot run the command, for example because they have no
-  access credentials, are marked as *skipped* together with the reason.
+- Devices that cannot run the command after submission, for example
+  because they have started deactivating or have no access credentials,
+  are marked as *skipped* together with the reason.
 - The output column shows only the last line of the output, limited to 100
   characters.
 - If any device fails or is skipped, the mass command is marked as failed.

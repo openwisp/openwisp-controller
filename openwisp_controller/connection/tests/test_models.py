@@ -2374,6 +2374,65 @@ HZAAAAgAhZz8ve4sK9Wbopq43Cu2kQDgX4NoA6W+FCmxCKf5AhYIzYQxIqyCazd7MrjCwS""",
         with self.subTest("administrator permissions"):
             self.assertEqual(admin_permissions.count(), 4)
 
+    def test_batch_command_organization_disabled_before_worker_runs(self):
+        organization = self._get_org()
+        device = self._create_device(organization=organization)
+        self._create_config(device=device)
+        self._create_device_connection(device=device)
+        batch = BatchCommand.execute(
+            organization=organization,
+            type="custom",
+            input={"command": "echo test"},
+            label="queued before disablement",
+        )
+        organization.is_active = False
+        organization.save(update_fields=["is_active"])
+        with self.assertLogs(LOGGER_NAME, level="WARNING"):
+            batch.create_commands()
+        batch.refresh_from_db()
+        self.assertEqual(batch.batch_commands.count(), 0)
+        self.assertEqual(batch.status, "failed")
+        self.assertEqual(
+            batch.skipped_devices[str(device.pk)]["error"],
+            "This device belongs to a disabled organization",
+        )
+        with self.assertRaisesMessage(
+            ValidationError, "Select an active organization to send a mass command."
+        ):
+            BatchCommand.execute(
+                organization=organization,
+                type="custom",
+                input={"command": "echo test"},
+                label="submitted after disablement",
+            )
+        self.assertEqual(BatchCommand.objects.count(), 1)
+
+    def test_batch_command_system_wide_keeps_only_operational_targets(self):
+        organization = self._get_org()
+        active_device = self._create_device(organization=organization)
+        deactivated_device = self._create_device(
+            organization=organization,
+            name="deactivated",
+            mac_address="00:11:22:33:44:ab",
+        )
+        deactivated_device.deactivate()
+        disabled_organization = self._create_org(
+            name="Disabled", slug="disabled", is_active=False
+        )
+        self._create_device(
+            organization=disabled_organization,
+            name="disabled-org-device",
+            mac_address="00:11:22:33:44:ac",
+        )
+        self.assertEqual(list(BatchCommand.dry_run()["devices"]), [active_device])
+        batch = BatchCommand.execute(
+            type="custom", input={"command": "echo test"}, label="system-wide"
+        )
+        deactivated_device.activate()
+        disabled_organization.is_active = True
+        disabled_organization.save(update_fields=["is_active"])
+        self.assertEqual(list(batch.resolve_devices()), [active_device])
+
 
 class TestModelsTransaction(BaseTestModels, TransactionTestCase):
     def _prepare_conf_object(self, organization=None):

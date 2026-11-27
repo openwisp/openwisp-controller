@@ -28,7 +28,12 @@ from ... import settings as module_settings
 from ...config.admin import DeviceAdmin
 from ...tests import _get_updated_templates_settings
 from ...tests.utils import TestAdminMixin
-from ..admin import BatchCommandAdmin, BatchCommandDeviceAdminMixin
+from ..admin import (
+    BatchCommandAdmin,
+    BatchCommandDeviceAdminMixin,
+    CommandWritableInline,
+    DeviceConnectionInline,
+)
 from ..connectors.ssh import Ssh
 from ..filters import GroupFilter, LocationFilter, TypeFilter
 from ..utils import format_localized_datetime
@@ -119,6 +124,42 @@ class TestConnectionAdmin(TestAdminMixin, CreateConnectionsMixin, TestCase):
             visible=[str(data["cred1"].name) + str(" (SSH)")],
             hidden=[str(data["cred2"].name) + str(" (SSH)"), data["cred3_inactive"]],
             select_widget=True,
+            superuser_hidden=[data["cred3_inactive"]],
+        )
+
+    def test_credentials_disabled_org_admin_crud(self):
+        org = self._create_org(name="disabled-org", slug="disabled-org")
+        credentials = self._create_credentials(
+            organization=org, name="disabled-credentials"
+        )
+        create_data = {
+            "organization": str(org.pk),
+            "connector": credentials.connector,
+            "params": json.dumps(credentials.params),
+        }
+        self.client.force_login(self._get_admin())
+        response = self.client.post(
+            reverse(f"admin:{self.app_label}_credentials_add"),
+            {**create_data, "name": "active-credentials"},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            Credentials.objects.filter(name="active-credentials").count(), 1
+        )
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        self._test_disabled_org_admin_crud(
+            credentials,
+            change_data={"name": "renamed-credentials"},
+            create_data={**create_data, "name": "new-credentials"},
+        )
+
+    def test_credentials_disabled_org_admin_org_field_excludes_disabled(self):
+        active_org = self._get_org()
+        disabled_org = self._create_org(name="disabled-org", is_active=False)
+        add_url = reverse(f"admin:{self.app_label}_credentials_add")
+        self._test_disabled_org_admin_org_field_excludes_disabled(
+            add_url, disabled_org, organization=active_org
         )
 
     def test_credentials_jsonschema_widget_media(self):
@@ -313,6 +354,24 @@ class TestCommandInlines(TestAdminMixin, CreateConnectionsMixin, TestCase):
         response = self.client.get(path)
         self.assertNotContains(response, "id_command_set")
 
+    def test_device_disabled_org_admin_inline_readonly(self):
+        active_device = self.device
+        disabled_org = self._create_org(name="disabled-org", is_active=False)
+        disabled_credentials = self._create_credentials(
+            organization=disabled_org, name="disabled-credentials"
+        )
+        disabled_device_connection = self._create_device_connection(
+            credentials=disabled_credentials
+        )
+        disabled_device = disabled_device_connection.device
+        model_admin = admin.site._registry[Device]
+        self._test_disabled_org_admin_inline_readonly(
+            model_admin,
+            disabled_device,
+            active_obj=active_device,
+            inline_models=(DeviceConnectionInline, CommandWritableInline),
+        )
+
     def test_commands_schema_view(self):
         url = reverse(
             f"admin:{Command._meta.app_label}_{Command._meta.model_name}_schema"
@@ -402,10 +461,13 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
         with self.subTest("the operator group can reach the wizard"):
             operator = self._create_operator(organizations=[org])
             self.client.force_login(operator)
+            response = self.client.get(self.execute_url)
+            self.assertEqual(response.status_code, 200)
             self.assertFalse(
-                BatchCommandAdmin(BatchCommand, admin.site).has_add_permission(None)
+                BatchCommandAdmin(BatchCommand, admin.site).has_add_permission(
+                    response.wsgi_request
+                )
             )
-            self.assertEqual(self.client.get(self.execute_url).status_code, 200)
 
         with self.subTest("a target is required for non superusers"):
             response = self._post_execute()
@@ -825,6 +887,21 @@ class TestBatchCommandAdmin(BatchCommandMixin, TestCase):
             )
             self.assertFalse(BatchCommand.objects.exists())
             self.assertIn(BatchCommandAdmin.session_key, self.client.session)
+
+        with self.subTest("a reviewed device starts deactivating"):
+            device = Device.objects.get(name="late-device")
+            wizard = self._start_wizard(organization=str(org.pk))
+            self.client.get(self._confirm_url())
+            device.deactivate()
+            response = self._post_confirm(wizard["token"])
+            self.assertRedirects(response, self._confirm_url(wizard["id"]))
+            self.assertIn(
+                "The targeted devices changed, please review them again.",
+                self._messages(response),
+            )
+            review = self.client.get(self._confirm_url(wizard["id"]))
+            self.assertNotIn(device, review.context["cl"].result_list)
+            self.assertEqual(BatchCommand.objects.count(), 0)
 
     def test_wizard_survives_a_second_tab(self):
         org = self._get_org()

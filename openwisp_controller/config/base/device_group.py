@@ -94,6 +94,11 @@ class AbstractDeviceGroup(OrgMixin, TimeStampedEditableModel):
         DeviceGroup = load_model("config", "DeviceGroup")
         Template = load_model("config", "Template")
         device_group = DeviceGroup.objects.get(id=group_id)
+        if not device_group.organization.is_active:
+            # Device deactivation runs asynchronously, so active devices may
+            # briefly remain after their organization is disabled. Do not push
+            # new group configuration to them while they await deactivation.
+            return
         templates = Template.objects.filter(pk__in=template_ids)
         old_templates = Template.objects.filter(pk__in=old_template_ids)
         for device in device_group.device_set.exclude(_is_deactivated=True).iterator():

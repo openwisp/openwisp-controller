@@ -39,6 +39,30 @@ class TestDevice(
     tests for Device model
     """
 
+    def test_is_operational(self):
+        organization = self._get_org()
+        device = Device(organization=organization)
+
+        with self.subTest("active device in active organization"):
+            device._is_deactivated = False
+            organization.is_active = True
+            self.assertEqual(device.is_operational(), True)
+
+        with self.subTest("deactivated device in active organization"):
+            device._is_deactivated = True
+            organization.is_active = True
+            self.assertEqual(device.is_operational(), False)
+
+        with self.subTest("active device in disabled organization"):
+            device._is_deactivated = False
+            organization.is_active = False
+            self.assertEqual(device.is_operational(), False)
+
+        with self.subTest("deactivated device in disabled organization"):
+            device._is_deactivated = True
+            organization.is_active = False
+            self.assertEqual(device.is_operational(), False)
+
     @mock.patch("openwisp_controller.config.settings.HARDWARE_ID_AS_NAME", False)
     def test_str_name(self):
         d = Device(name="test")
@@ -482,6 +506,42 @@ class TestDevice(
         # Status must remain "deactivated" — no config push is initiated.
         self.assertEqual(device.config.status, "deactivated")
 
+    def test_manage_devices_group_templates_skips_disabled_org(self):
+        org = self._get_org()
+        old_template = self._create_template(name="old-template", organization=org)
+        new_template = self._create_template(name="new-template", organization=org)
+        old_group = self._create_device_group(name="old-group", organization=org)
+        new_group = self._create_device_group(name="new-group", organization=org)
+        old_group.templates.add(old_template)
+        new_group.templates.add(new_template)
+        device = self._create_device(name="test", organization=org, group=old_group)
+        self.assertEqual(device.config.templates.count(), 1)
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        Device.manage_devices_group_templates(device.pk, old_group.pk, new_group.pk)
+        device.config.refresh_from_db()
+        # Devices of a disabled organization are skipped: their templates
+        # must not be updated while the organization is disabled.
+        self.assertEqual(device.config.templates.count(), 1)
+        self.assertNotIn(new_template, device.config.templates.all())
+
+    def test_activate_device_applies_current_group_templates(self):
+        organization = self._get_org()
+        original_template = self._create_template(
+            name="original-group-template", organization=organization
+        )
+        updated_template = self._create_template(
+            name="updated-group-template", organization=organization
+        )
+        group = self._create_device_group(organization=organization)
+        group.templates.add(original_template)
+        device = self._create_device(organization=organization, group=group)
+        device.deactivate()
+        group.templates.set([updated_template])
+        device.activate()
+        self.assertIn(updated_template, device.config.templates.all())
+        self.assertNotIn(original_template, device.config.templates.all())
+
     @mock.patch.object(app_settings, "WHOIS_CONFIGURED", True)
     def test_changed_checked_fields_no_duplicates(self):
         """Ensure `_changed_checked_fields` contains `last_ip` only once.
@@ -582,6 +642,16 @@ class TestDevice(
         device.config.refresh_from_db()
         self.assertEqual(device.config.context, {"ssid": "test"})
         self.assertEqual(device.config.config, {"general": {}})
+
+    def test_create_default_config_skipped_for_disabled_org(self):
+        org = self._get_org()
+        template = self._create_template()
+        group = self._create_device_group(organization=org)
+        group.templates.add(template)
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        device = self._create_device(organization=org, group=group)
+        self.assertFalse(hasattr(device, "config"))
 
 
 class TestTransactionDevice(

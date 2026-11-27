@@ -16,6 +16,7 @@ from .helpers import SubnetDivisionAdminTestMixin, SubnetDivisionTestMixin
 Subnet = load_model("openwisp_ipam", "Subnet")
 Device = load_model("config", "Device")
 Config = load_model("config", "Config")
+SubnetDivisionRule = load_model("subnet_division", "SubnetDivisionRule")
 
 
 class TestSubnetAdmin(
@@ -26,6 +27,124 @@ class TestSubnetAdmin(
 ):
     ipam_label = "openwisp_ipam"
     config_label = "config"
+
+    def _get_subnet_post_data(self):
+        url = reverse(
+            f"admin:{self.ipam_label}_subnet_change", args=[self.master_subnet.pk]
+        )
+        rule_prefix = "subnetdivisionrule_set"
+        post_data = {
+            "name": self.master_subnet.name,
+            "subnet": str(self.master_subnet.subnet),
+            "description": self.master_subnet.description,
+            "organization": str(self.master_subnet.organization_id),
+            f"{rule_prefix}-TOTAL_FORMS": 1,
+            f"{rule_prefix}-INITIAL_FORMS": 1,
+            f"{rule_prefix}-0-id": str(self.rule.pk),
+            f"{rule_prefix}-0-master_subnet": str(self.master_subnet.pk),
+            f"{rule_prefix}-0-organization": str(self.rule.organization_id),
+            f"{rule_prefix}-0-type": self.rule.type,
+            f"{rule_prefix}-0-label": self.rule.label,
+            f"{rule_prefix}-0-size": self.rule.size,
+            f"{rule_prefix}-0-number_of_subnets": self.rule.number_of_subnets,
+            f"{rule_prefix}-0-number_of_ips": self.rule.number_of_ips,
+        }
+        return url, post_data, rule_prefix
+
+    @patch(
+        "openwisp_controller.subnet_division.tasks."
+        "provision_subnet_ip_for_existing_devices.delay"
+    )
+    @patch("openwisp_controller.subnet_division.tasks.provision_extra_ips.delay")
+    def test_rule_creation_rejected_after_organization_disabled(
+        self, queued_extra_ips, queued_subnets
+    ):
+        url, post_data, rule_prefix = self._get_subnet_post_data()
+        post_data.update(
+            {
+                f"{rule_prefix}-TOTAL_FORMS": 2,
+                f"{rule_prefix}-1-id": "",
+                f"{rule_prefix}-1-master_subnet": str(self.master_subnet.pk),
+                f"{rule_prefix}-1-organization": str(self.rule.organization_id),
+                f"{rule_prefix}-1-type": self.rule.type,
+                f"{rule_prefix}-1-label": "ACTIVE",
+                f"{rule_prefix}-1-size": self.rule.size,
+                f"{rule_prefix}-1-number_of_subnets": 1,
+                f"{rule_prefix}-1-number_of_ips": 1,
+            }
+        )
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(url, post_data)
+        self.assertEqual(response.status_code, 302, response.content.decode())
+        active_rule = SubnetDivisionRule.objects.get(label="ACTIVE")
+        self.assertEqual(active_rule.master_subnet_id, self.master_subnet.pk)
+        queued_subnets.assert_called_once_with(rule_id=active_rule.pk)
+        queued_extra_ips.assert_not_called()
+
+        post_data.update(
+            {
+                f"{rule_prefix}-INITIAL_FORMS": 2,
+                f"{rule_prefix}-TOTAL_FORMS": 3,
+                f"{rule_prefix}-1-id": str(active_rule.pk),
+                f"{rule_prefix}-2-id": "",
+                f"{rule_prefix}-2-master_subnet": str(self.master_subnet.pk),
+                f"{rule_prefix}-2-organization": str(self.rule.organization_id),
+                f"{rule_prefix}-2-type": self.rule.type,
+                f"{rule_prefix}-2-label": "DISABLED",
+                f"{rule_prefix}-2-size": self.rule.size,
+                f"{rule_prefix}-2-number_of_subnets": 1,
+                f"{rule_prefix}-2-number_of_ips": 1,
+            }
+        )
+        org = self.master_subnet.organization
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        rules_before = SubnetDivisionRule.objects.count()
+        queued_subnets.reset_mock()
+
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(url, post_data)
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(SubnetDivisionRule.objects.count(), rules_before)
+        self.assertEqual(
+            SubnetDivisionRule.objects.filter(label="DISABLED").exists(), False
+        )
+        queued_subnets.assert_not_called()
+        queued_extra_ips.assert_not_called()
+
+    @patch(
+        "openwisp_controller.subnet_division.tasks."
+        "provision_subnet_ip_for_existing_devices.delay"
+    )
+    @patch("openwisp_controller.subnet_division.tasks.provision_extra_ips.delay")
+    def test_rule_ip_increase_rejected_after_organization_disabled(
+        self, queued_extra_ips, queued_subnets
+    ):
+        url, post_data, rule_prefix = self._get_subnet_post_data()
+        post_data[f"{rule_prefix}-0-number_of_ips"] = 2
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(url, post_data)
+        self.assertEqual(response.status_code, 302, response.content.decode())
+        self.rule.refresh_from_db()
+        self.assertEqual(self.rule.number_of_ips, 2)
+        queued_extra_ips.assert_called_once_with(
+            rule_id=str(self.rule.pk), old_number_of_ips=1
+        )
+        queued_subnets.assert_not_called()
+
+        post_data[f"{rule_prefix}-0-number_of_ips"] = 3
+        org = self.master_subnet.organization
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        queued_extra_ips.reset_mock()
+
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(url, post_data)
+        self.assertEqual(response.status_code, 403)
+        self.rule.refresh_from_db()
+        self.assertEqual(self.rule.number_of_ips, 2)
+        queued_subnets.assert_not_called()
+        queued_extra_ips.assert_not_called()
 
     def test_related_links(self):
         device_changelist = reverse(f"admin:{self.config_label}_device_changelist")

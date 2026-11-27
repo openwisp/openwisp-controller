@@ -7,6 +7,7 @@ from django.test import TransactionTestCase
 from django.urls import reverse
 from swapper import load_model
 
+from openwisp_controller.config import tasks as config_tasks
 from openwisp_controller.config.tests.utils import (
     TestVpnX509Mixin,
     TestWireguardVpnMixin,
@@ -711,6 +712,80 @@ class TestSubnetDivisionRule(
         ).values_list("subnet__subnet", flat=True)
         self.assertNotIn(config1_subnets.first(), config2_subnets)
         self.assertNotIn(config1_subnets.last(), config2_subnets)
+
+    @patch("openwisp_controller.config.handlers.chain")
+    def test_queued_subnet_provisioning_completes_after_org_disabled(
+        self, mocked_chain
+    ):
+        org = self._create_org(name="disabled-org", slug="disabled-org")
+        config = self._create_config(organization=org)
+        master_subnet = self._get_master_subnet(
+            subnet="10.200.0.0/16", organization=org
+        )
+        with patch.object(
+            tasks.provision_subnet_ip_for_existing_devices, "delay"
+        ) as queued:
+            rule = self._get_device_subdivision_rule(
+                organization=org, master_subnet=master_subnet
+            )
+        queued.assert_called_once_with(rule_id=rule.id)
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        mocked_chain.assert_called_once()
+        config_tasks.deactivate_organization_devices(org.id)
+        tasks.provision_subnet_ip_for_existing_devices.run(rule.id)
+        indexes = rule.subnetdivisionindex_set.filter(config=config)
+        self.assertEqual(
+            indexes.filter(ip__isnull=True).count(), rule.number_of_subnets
+        )
+        self.assertEqual(
+            indexes.filter(ip__isnull=False).count(),
+            rule.number_of_subnets * rule.number_of_ips,
+        )
+        config.device.refresh_from_db()
+        self.assertEqual(config.device.is_deactivated(), True)
+        context = get_subnet_division_config_context(config)
+        self.assertIn(f"{rule.label}_subnet1_ip1", context)
+
+    @patch("openwisp_controller.config.handlers.chain")
+    def test_queued_extra_ip_provisioning_completes_after_org_disabled(
+        self, mocked_chain
+    ):
+        org = self._create_org(name="disabled-org", slug="disabled-org")
+        master_subnet = self._get_master_subnet(
+            subnet="10.201.0.0/16", organization=org
+        )
+        rule = self._get_vpn_subdivision_rule(
+            organization=org, master_subnet=master_subnet
+        )
+        config = self._create_config(organization=org)
+        subnet = self._create_subnet(
+            subnet="10.201.0.0/28", organization=org, master_subnet=master_subnet
+        )
+        SubnetDivisionIndex.objects.create(
+            keyword="OW_subnet0",
+            subnet=subnet,
+            rule=rule,
+            config=config,
+        )
+        old_number_of_ips = rule.number_of_ips
+        with patch.object(tasks.provision_extra_ips, "delay") as queued:
+            rule.number_of_ips += 2
+            rule.save()
+        queued.assert_called_once_with(
+            rule_id=str(rule.id), old_number_of_ips=old_number_of_ips
+        )
+        ip_count_before = IpAddress.objects.count()
+        index_count_before = SubnetDivisionIndex.objects.count()
+        org.is_active = False
+        org.save(update_fields=["is_active"])
+        mocked_chain.assert_called_once()
+        config_tasks.deactivate_organization_devices(org.id)
+        tasks.provision_extra_ips.run(rule.id, old_number_of_ips=old_number_of_ips)
+        self.assertEqual(IpAddress.objects.count(), ip_count_before + 2)
+        self.assertEqual(SubnetDivisionIndex.objects.count(), index_count_before + 2)
+        config.device.refresh_from_db()
+        self.assertEqual(config.device.is_deactivated(), True)
 
     def test_device_deleted(self):
         rule = self._get_vpn_subdivision_rule()

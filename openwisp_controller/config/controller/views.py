@@ -44,7 +44,7 @@ class GetDeviceView(SingleObjectMixin, View):
     model = Device
 
     def get_object(self, *args, **kwargs):
-        kwargs.update({"organization__is_active": True, "config__isnull": False})
+        kwargs.update({"config__isnull": False})
         defer = (
             "notes",
             "organization__name",
@@ -57,6 +57,7 @@ class GetDeviceView(SingleObjectMixin, View):
         queryset = (
             self.model.objects.select_related("organization", "config")
             .defer(*defer)
+            .filter(Q(organization__is_active=True) | Q(config__status="deactivating"))
             .exclude(config__status="deactivated")
         )
         return get_object_or_404(queryset, *args, **kwargs)
@@ -116,7 +117,12 @@ class UpdateLastIpMixin(object):
         # dupe.save() triggers signal handlers that call is_deactivated()
         # and WHOIS checks that read device.organization.
         for dupe in queryset.select_related("organization").only(
-            "pk", "key", "last_ip", "_is_deactivated", "organization__id"
+            "pk",
+            "key",
+            "last_ip",
+            "_is_deactivated",
+            "organization__id",
+            "organization__is_active",
         ):
             dupe.last_ip = ""
             dupe.save(update_fields=["last_ip"])
@@ -414,9 +420,13 @@ class DeviceRegisterView(UpdateLastIpMixin, CsrfExtemptMixin, View):
         # (key is not None only if CONSISTENT_REGISTRATION is enabled)
         new = False
         try:
-            device = self.model.objects.select_related("config").get(key=key)
+            device = self.model.objects.select_related("config", "organization").get(
+                key=key
+            )
             if device.is_deactivated():
                 return ControllerResponse("error: device deactivated", status=403)
+            if not device.organization.is_active:
+                return ControllerResponse(_("error: organization disabled"), status=403)
             # update device info
             for attr in self.UPDATABLE_FIELDS:
                 if attr in request.POST:
@@ -506,9 +516,11 @@ class GetVpnView(SingleObjectMixin, View):
     model = Vpn
 
     def get_object(self, *args, **kwargs):
+        # VPNs of disabled organizations remain downloadable (key protected)
+        # so VPN servers can fetch the configuration.
         queryset = self.model.objects.select_related(
             "organization", "ca", "cert", "subnet", "ip"
-        ).filter(Q(organization__is_active=True) | Q(organization__isnull=True))
+        )
         return get_object_or_404(queryset, *args, **kwargs)
 
     @cache_memoize(

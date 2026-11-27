@@ -388,6 +388,14 @@ class AbstractDeviceConnection(ConnectorMixin, TimeStampedEditableModel):
             # through so the final cleared configuration can still be pushed.
             if self.device.is_fully_deactivated():
                 raise RuntimeError(_("Device is deactivated"))
+            # Refuse devices of a disabled organization, unless deactivation is
+            # already in progress (device.is_deactivated() True): that case must
+            # stay allowed so the final cleared configuration can still be pushed.
+            if (
+                not self.device.organization.is_active
+                and not self.device.is_deactivated()
+            ):
+                raise RuntimeError(_("Organization is disabled"))
             self.connector_instance.connect()
         except Exception as e:
             self.is_working = False
@@ -524,6 +532,10 @@ class AbstractCommand(TimeStampedEditableModel):
     def clean(self):
         if self._is_device_deactivated():
             raise ValidationError({"device": _("Device is deactivated.")})
+        if self.batch_command_id and not self.device.organization.is_active:
+            raise ValidationError(
+                {"device": _("This device belongs to a disabled organization.")}
+            )
         self._verify_command_type_allowed()
         self._verify_connection()
         try:
@@ -622,7 +634,10 @@ class AbstractCommand(TimeStampedEditableModel):
         # is still pending.
         if self._is_device_deactivated():
             self.status = "failed"
-            self._add_output("Device is deactivated.")
+            self._add_output(gettext("Device is deactivated."))
+        elif not self.device.organization.is_active:
+            self.status = "failed"
+            self._add_output(gettext("Organization is disabled."))
         elif (
             self.batch_command_id
             and self.batch_command.organization_id
@@ -1050,6 +1065,14 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
             elif self.location_id:
                 self.organization = self.location.organization
         self._validate_org_relations()
+        if self.organization_id and not self.organization.is_active:
+            raise ValidationError(
+                {
+                    "organization": _(
+                        "Select an active organization to send a mass command."
+                    )
+                }
+            )
         Command = load_model("connection", "Command")
         allowed = dict(
             Command.get_org_allowed_commands(organization_id=self.organization_id)
@@ -1099,6 +1122,17 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
             qs = qs.filter(devicelocation__location=self.location)
         return qs.order_by("-created")
 
+    def _get_eligible_targets(self, devices):
+        Device = load_model("config", "Device")
+        if devices is None:
+            return Device.filter_operational(self.resolve_devices())
+        selected = Device.objects.filter(pk__in=[device.pk for device in devices])
+        # The selected objects may have changed since the caller loaded them.
+        eligible_ids = set(
+            Device.filter_operational(selected).values_list("pk", flat=True)
+        )
+        return [device for device in devices if device.pk in eligible_ids]
+
     @classmethod
     def execute(cls, **kwargs):
         """
@@ -1111,25 +1145,20 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
         batch = cls(**kwargs)
         with transaction.atomic():
             batch.full_clean()
+            cls._validate_devices_org(
+                devices_list, batch.organization_id, system_wide=system_wide
+            )
+            targets = batch._get_eligible_targets(devices_list)
             if devices_list is None:
-                # the batch is still unsaved, so this matches the
-                # organization, group and location
-                devices_list = list(
-                    batch.resolve_devices().values_list("pk", flat=True)
-                )
-                batch.save()
-                batch.devices.set(devices_list)
-            else:
-                cls._validate_devices_org(
-                    devices_list, batch.organization_id, system_wide=system_wide
-                )
-                batch.save()
-                batch.devices.set(devices_list)
-                batch._validate_org_relations()
-            if not devices_list:
+                targets = list(targets.values_list("pk", flat=True))
+            if not targets:
                 raise ValidationError(
                     _("No devices match the specified criteria."),
                 )
+            batch.save()
+            batch.devices.set(targets)
+            if devices_list is not None:
+                batch._validate_org_relations()
         transaction.on_commit(lambda: launch_batch_command.delay(batch.pk))
         return batch
 
@@ -1153,9 +1182,7 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
         else:
             batch._validate_org_relations()
         cls._validate_devices_org(devices_list, batch.organization_id)
-        if devices_list is not None:
-            return {"devices": list(devices_list)}
-        return {"devices": batch.resolve_devices()}
+        return {"devices": batch._get_eligible_targets(devices_list)}
 
     def _clean_sensitive_info(self):
         if self.type == "change_password":
@@ -1208,7 +1235,7 @@ class AbstractBatchCommand(ValidateOrgMixin, TimeStampedEditableModel):
         self.skipped_devices = {}
         created_count = 0
         self._skip_transferred_devices()
-        for device in self.resolve_devices().iterator():
+        for device in self.resolve_devices().select_related("organization").iterator():
             command = Command(
                 device=device,
                 type=self.type,
