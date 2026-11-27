@@ -32,7 +32,11 @@ def run_focused_tests(arguments):
             "openwisp_controller.pki.tests",
             "openwisp_controller.subnet_division.tests",
         ),
-        exact_modules=sample_modules,
+        exact_modules=(
+            *sample_modules,
+            "openwisp_controller.config.whois.tests.tests",
+            "openwisp_controller.geo.estimated_location.tests.tests",
+        ),
     )
     try:
         labels, flags = parse_test_arguments(
