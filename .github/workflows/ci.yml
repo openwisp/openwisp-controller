@@ -25,6 +25,7 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       AI_REVIEW_BROWSERS: firefox
+      AI_REVIEW_SERVICES: redis
       AI_REVIEW_SYSTEM_DEPS: "true"
 
     strategy:
