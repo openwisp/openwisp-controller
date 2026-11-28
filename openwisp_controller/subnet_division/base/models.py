@@ -68,6 +68,12 @@ class AbstractSubnetDivisionRule(TimeStampedEditableModel, OrgMixin):
     def rule_class(self):
         return import_string(self.type)
 
+    def full_clean(self, *args, **kwargs):
+        # Set before field validation, which would otherwise reject the empty field
+        if not self.organization_id and hasattr(self, "master_subnet"):
+            self.organization_id = self.master_subnet.organization_id
+        return super().full_clean(*args, **kwargs)
+
     def clean(self):
         super().clean()
         self._validate_label()

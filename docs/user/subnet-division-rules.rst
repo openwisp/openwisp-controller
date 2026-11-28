@@ -128,6 +128,12 @@ Important notes for using Subnet Division
   an organization. It will only be triggered when a VPN Client Template is
   applied to a Device with the same organization as the Subnet Division
   Rule.
+- When the Subnet belongs to an organization, new Subnet Division Rules
+  and rules without an organization are automatically assigned to the
+  organization of the Subnet. The organization field of a rule is hidden
+  when its value matches the organization of the Subnet. It is shown for
+  **Systemwide Shared** Subnets and for saved rules that belong to a
+  different organization, where the mismatch has to be corrected.
 - Configuration variables can be used for provisioned subnets and IPs in
   the Template. Each variable will resolve differently for different
   devices. For example, ``OW_subnet1_ip1`` will resolve to ``10.0.0.1``

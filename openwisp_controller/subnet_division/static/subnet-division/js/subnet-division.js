@@ -31,26 +31,40 @@ django.jQuery(function ($) {
   );
 
   // If subnet is not shared, hide organization field from Subnet Division Rule
-  function hideOrganizationFieldForNonSharedSubnet() {
-    if ($("#id_organization").val() !== "") {
-      $('#subnetdivisionrule_set-group select[name$="-organization"]').each(
-        function (index, element) {
-          element = $(element);
-          if (element.val() === "" || element.val() === $("#id_organization").val()) {
-            element.val($("#id_organization").val());
-            element.parent().parent().parent().hide();
-          } else {
-            element.parent().parent().parent().show();
-          }
-        },
-      );
-    } else {
-      $("#subnetdivisionrule_set-group .form-row.field-organization").show();
-    }
+  // and set it to the organization of the subnet
+  function hideOrganizationFieldForNonSharedSubnet(rules) {
+    var subnetOrg = $("#id_organization option:selected"),
+      orgId = subnetOrg.val();
+    rules
+      .find('select[name$="-organization"]')
+      .not('[name*="__prefix__"]')
+      .each(function (index, element) {
+        element = $(element);
+        // "null" is the value of the "Shared systemwide" option
+        if (!orgId || orgId === "null") {
+          element.closest(".form-row").show();
+          return;
+        }
+        // Do not change the organization of saved rules: a mismatch
+        // must stay visible so that the validation error can be fixed.
+        var isNew = !element.closest(".inline-related").hasClass("has_original");
+        // The autocomplete widget only contains the selected option
+        if (element.val() !== orgId && (isNew || !element.val())) {
+          element
+            .append(new Option(subnetOrg.text(), orgId, true, true))
+            .trigger("change");
+        }
+        element.closest(".form-row").toggle(element.val() !== orgId);
+      });
   }
-  hideOrganizationFieldForNonSharedSubnet();
-  $("#subnetdivisionrule_set-group .add-row a").click(
-    hideOrganizationFieldForNonSharedSubnet,
-  );
-  $("#id_organization").change(hideOrganizationFieldForNonSharedSubnet);
+  var ruleGroup = $("#subnetdivisionrule_set-group");
+  hideOrganizationFieldForNonSharedSubnet(ruleGroup);
+  $("#id_organization").change(function () {
+    hideOrganizationFieldForNonSharedSubnet(ruleGroup);
+  });
+  document.addEventListener("formset:added", function (event) {
+    if (event.detail.formsetName === "subnetdivisionrule_set") {
+      hideOrganizationFieldForNonSharedSubnet($(event.target));
+    }
+  });
 });
