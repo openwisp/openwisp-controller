@@ -120,6 +120,9 @@ Run tests with (make sure you have the :ref:`selenium dependencies
 
     ./runtests
 
+To run a focused Django test, pass its dotted module, class, or method
+path. Run sample app tests separately because they use different models.
+
 Run quality assurance tests with:
 
 .. code-block:: shell

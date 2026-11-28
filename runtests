@@ -1,6 +1,10 @@
 #!/bin/bash
 set -e
 
+if (( $# )); then
+    exec python ./runtests.py --focused "$@"
+fi
+
 coverage erase
 
 echo "Starting standard tests"
